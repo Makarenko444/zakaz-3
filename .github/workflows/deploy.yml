@@ -41,9 +41,9 @@ jobs:
             git checkout ${{ github.ref_name }}
             git pull origin ${{ github.ref_name }}
 
-            # Install dependencies
+            # Install dependencies with optimizations
             echo "📦 Installing dependencies..."
-            npm ci --production=false
+            npm ci --production=false --prefer-offline --no-audit
 
             # Build the application
             echo "🔨 Building application..."

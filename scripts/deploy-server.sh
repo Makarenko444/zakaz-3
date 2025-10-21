@@ -49,7 +49,8 @@ fi
 
 # Install dependencies
 echo -e "${YELLOW}📦 Installing dependencies...${NC}"
-npm ci --production=false
+# Use cache-first strategy for faster installs
+npm ci --production=false --prefer-offline --no-audit
 
 # Build the application
 echo -e "${YELLOW}🔨 Building application...${NC}"
