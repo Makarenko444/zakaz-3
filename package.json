@@ -23,5 +23,8 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "@eslint/eslintrc": "^3"
+  },
+  "config": {
+    "maxSockets": 3
   }
 }
