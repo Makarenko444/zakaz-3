@@ -1,12 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Optimize build performance
-  experimental: {
-    // Use SWC minifier for faster builds
-    swcMinify: true,
-  },
-
   // Enable standalone output for smaller deployments
   output: 'standalone',
 
