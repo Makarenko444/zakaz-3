@@ -9,7 +9,6 @@ export async function signIn(email: string, password: string) {
 
   if (error) throw error
 
-  // Получаем данные пользователя из zakaz_users
   if (data.user) {
     const { data: userData, error: userError } = await supabase
       .from('zakaz_users')
@@ -33,7 +32,7 @@ export async function signOut() {
 export async function getCurrentUser(): Promise<User | null> {
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session?.user) return null
+  if (!session?.user?.email) return null
 
   const { data, error } = await supabase
     .from('zakaz_users')

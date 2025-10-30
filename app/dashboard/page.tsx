@@ -26,7 +26,7 @@ export default function DashboardPage() {
           return
         }
         setUser(currentUser)
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading user:', error)
         router.push('/login')
       } finally {
@@ -42,7 +42,7 @@ export default function DashboardPage() {
       await signOut()
       router.push('/login')
       router.refresh()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error signing out:', error)
     }
   }

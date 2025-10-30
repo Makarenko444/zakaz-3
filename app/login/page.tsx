@@ -32,23 +32,28 @@ export default function LoginPage() {
       setIsLoading(true)
       setError(null)
 
-      const { user } = await signIn(data.email, data.password)
+      const result = await signIn(data.email, data.password)
 
-      if (!user) {
+      if (!result.user) {
         setError('Пользователь не найден в системе')
         return
       }
 
-      if (!user.active) {
+
+      if (!result.user.active) {
         setError('Ваш аккаунт деактивирован. Обратитесь к администратору.')
         return
       }
 
+      
       // Перенаправление на дашборд
       router.push('/dashboard')
+      
       router.refresh()
-    } catch (err: any) {
-      setError(err.message || 'Ошибка входа. Проверьте email и пароль.')
+      
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ошибка входа. Проверьте email и пароль.'
+      setError(message)
     } finally {
       setIsLoading(false)
     }
