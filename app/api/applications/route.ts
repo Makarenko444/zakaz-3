@@ -75,3 +75,80 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = createDirectClient()
+    const body = await request.json()
+
+    // Валидация обязательных полей
+    const requiredFields = [
+      'address_id',
+      'customer_type',
+      'service_type',
+      'customer_fullname',
+      'customer_phone',
+      'urgency'
+    ]
+
+    for (const field of requiredFields) {
+      if (!body[field]) {
+        return NextResponse.json(
+          { error: `Field '${field}' is required` },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Для юр.лиц обязательны контактные данные
+    if (body.customer_type === 'business') {
+      if (!body.contact_person || !body.contact_phone) {
+        return NextResponse.json(
+          { error: 'Contact person and phone are required for business customers' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Подготовка данных для вставки
+    const applicationData = {
+      address_id: body.address_id,
+      customer_type: body.customer_type,
+      service_type: body.service_type,
+      customer_fullname: body.customer_fullname,
+      customer_phone: body.customer_phone,
+      contact_person: body.contact_person || null,
+      contact_phone: body.contact_phone || null,
+      urgency: body.urgency || 'normal',
+      status: 'new', // Всегда создаём со статусом "new"
+      client_comment: body.client_comment || null,
+      assigned_to: body.assigned_to || null,
+      created_by: body.created_by || null,
+    }
+
+    const { data, error } = await supabase
+      .from('zakaz_applications')
+      .insert(applicationData)
+      .select('*, zakaz_addresses(street, house, entrance)')
+      .single()
+
+    if (error) {
+      console.error('Database error:', error)
+      return NextResponse.json(
+        { error: 'Failed to create application', details: error.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(
+      { application: data, message: 'Application created successfully' },
+      { status: 201 }
+    )
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
