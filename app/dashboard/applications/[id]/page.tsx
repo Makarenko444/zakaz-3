@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType } from '@/lib/types'
+import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, User } from '@/lib/types'
+import StatusChangeModal from '@/app/components/StatusChangeModal'
 
 // Расширенный тип для заявки с адресом
 interface ApplicationWithAddress extends Application {
@@ -11,6 +12,12 @@ interface ApplicationWithAddress extends Application {
     house: string
     entrance: string | null
     comment: string | null
+  } | null
+  assigned_user?: {
+    id: string
+    full_name: string
+    email: string
+    role: string
   } | null
 }
 
@@ -74,9 +81,13 @@ export default function ApplicationDetailPage() {
   const [application, setApplication] = useState<ApplicationWithAddress | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+  const [isAssigning, setIsAssigning] = useState(false)
 
   useEffect(() => {
     loadApplication()
+    loadUsers()
   }, [id])
 
   async function loadApplication() {
@@ -100,6 +111,44 @@ export default function ApplicationDetailPage() {
       setError('Не удалось загрузить заявку')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function loadUsers() {
+    try {
+      const response = await fetch('/api/users')
+      if (!response.ok) throw new Error('Failed to load users')
+      const data = await response.json()
+      setUsers(data.users)
+    } catch (error) {
+      console.error('Error loading users:', error)
+    }
+  }
+
+  async function handleAssignUser(userId: string) {
+    setIsAssigning(true)
+    try {
+      const response = await fetch(`/api/applications/${id}/assign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          assigned_to: userId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to assign user')
+      }
+
+      const data = await response.json()
+      setApplication(data.application)
+    } catch (error) {
+      console.error('Error assigning user:', error)
+      alert('Не удалось назначить исполнителя')
+    } finally {
+      setIsAssigning(false)
     }
   }
 
@@ -205,6 +254,7 @@ export default function ApplicationDetailPage() {
                 Редактировать
               </button>
               <button
+                onClick={() => setShowStatusModal(true)}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium flex items-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,6 +294,38 @@ export default function ApplicationDetailPage() {
               <p className="text-sm text-gray-500 mb-1">Тип услуги</p>
               <p className="text-base font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</p>
             </div>
+          </div>
+        </div>
+
+        {/* Назначение исполнителя */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Исполнитель</h2>
+
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <select
+                value={application.assigned_to || ''}
+                onChange={(e) => handleAssignUser(e.target.value)}
+                disabled={isAssigning}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Не назначен</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name} ({user.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {application.assigned_user && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Назначен: {application.assigned_user.full_name}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -314,6 +396,19 @@ export default function ApplicationDetailPage() {
           </div>
         )}
       </main>
+
+      {/* Модальное окно изменения статуса */}
+      {showStatusModal && (
+        <StatusChangeModal
+          applicationId={id}
+          currentStatus={application.status}
+          onClose={() => setShowStatusModal(false)}
+          onStatusChanged={() => {
+            setShowStatusModal(false)
+            loadApplication()
+          }}
+        />
+      )}
     </div>
   )
 }
