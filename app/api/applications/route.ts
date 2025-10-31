@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { createDirectClient } from '@/lib/supabase-direct'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = createDirectClient()
     const searchParams = request.nextUrl.searchParams
 
     // Получаем параметры фильтрации
