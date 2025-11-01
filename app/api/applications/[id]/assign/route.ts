@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
+import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 
 export async function PATCH(
   request: NextRequest,
@@ -12,6 +13,15 @@ export async function PATCH(
 
     // assigned_to может быть null (снять назначение) или UUID пользователя
     const assignedTo = body.assigned_to === '' ? null : body.assigned_to
+
+    // Получаем текущее значение assigned_to для логирования
+    const { data: currentApp } = await supabase
+      .from('zakaz_applications')
+      .select('assigned_to')
+      .eq('id', id)
+      .single()
+
+    const oldAssignedTo = currentApp?.assigned_to || null
 
     // Если назначается пользователь, проверяем что он существует
     if (assignedTo) {
@@ -45,6 +55,25 @@ export async function PATCH(
         { status: 500 }
       )
     }
+
+    // Логируем действие
+    const actionDescription = assignedTo
+      ? oldAssignedTo
+        ? 'Изменен исполнитель заявки'
+        : 'Назначен исполнитель заявки'
+      : 'Снято назначение исполнителя'
+
+    await logAudit({
+      userId: body.changed_by || undefined,
+      actionType: assignedTo ? 'assign' : 'unassign',
+      entityType: 'application',
+      entityId: id,
+      description: actionDescription,
+      oldValues: oldAssignedTo ? { assigned_to: oldAssignedTo } : undefined,
+      newValues: assignedTo ? { assigned_to: assignedTo } : undefined,
+      ipAddress: getClientIP(request),
+      userAgent: getUserAgent(request),
+    })
 
     // Получаем обновленную заявку с данными пользователя
     const { data: updatedApp, error: selectError } = await supabase

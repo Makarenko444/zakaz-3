@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
+import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 
 export async function GET(
   request: NextRequest,
@@ -77,6 +78,13 @@ export async function PATCH(
       }
     }
 
+    // Получаем старые значения для логирования
+    const { data: oldData } = await supabase
+      .from('zakaz_applications')
+      .select('customer_fullname, customer_phone, urgency, service_type')
+      .eq('id', id)
+      .single()
+
     // Подготовка данных для обновления
     const updateData = {
       address_id: body.address_id,
@@ -111,6 +119,24 @@ export async function PATCH(
         { status: 500 }
       )
     }
+
+    // Логируем редактирование
+    await logAudit({
+      userId: body.updated_by || undefined,
+      actionType: 'update',
+      entityType: 'application',
+      entityId: id,
+      description: `Отредактирована заявка: ${body.customer_fullname}`,
+      oldValues: oldData || undefined,
+      newValues: {
+        customer_fullname: body.customer_fullname,
+        customer_phone: body.customer_phone,
+        urgency: body.urgency,
+        service_type: body.service_type,
+      },
+      ipAddress: getClientIP(request),
+      userAgent: getUserAgent(request),
+    })
 
     return NextResponse.json(
       { application: data, message: 'Application updated successfully' },

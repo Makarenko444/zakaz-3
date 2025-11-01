@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { ApplicationStatus } from '@/lib/types'
+import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 
 export async function POST(
   request: NextRequest,
@@ -87,6 +88,19 @@ export async function POST(
       console.error('Error inserting status history:', historyError)
       // Не возвращаем ошибку, так как основное действие (обновление статуса) прошло успешно
     }
+
+    // Логируем действие
+    await logAudit({
+      userId: body.changed_by || undefined,
+      actionType: 'status_change',
+      entityType: 'application',
+      entityId: id,
+      description: `Изменен статус заявки с "${oldStatus}" на "${body.new_status}"${body.comment ? `: ${body.comment}` : ''}`,
+      oldValues: { status: oldStatus },
+      newValues: { status: body.new_status },
+      ipAddress: getClientIP(request),
+      userAgent: getUserAgent(request),
+    })
 
     // Получаем обновленную заявку
     const { data: updatedApp, error: selectError } = await supabase

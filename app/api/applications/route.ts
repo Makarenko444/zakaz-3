@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
+import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 
 export async function GET(request: NextRequest) {
   try {
@@ -139,6 +140,23 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Логируем создание заявки
+    await logAudit({
+      userId: body.created_by || undefined,
+      actionType: 'create',
+      entityType: 'application',
+      entityId: data.id,
+      description: `Создана новая заявка №${data.application_number}: ${body.customer_fullname}`,
+      newValues: {
+        customer_fullname: body.customer_fullname,
+        customer_phone: body.customer_phone,
+        service_type: body.service_type,
+        urgency: body.urgency,
+      },
+      ipAddress: getClientIP(request),
+      userAgent: getUserAgent(request),
+    })
 
     return NextResponse.json(
       { application: data, message: 'Application created successfully' },
