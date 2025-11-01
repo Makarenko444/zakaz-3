@@ -67,11 +67,13 @@ export async function POST(
       comment: body.comment.trim(),
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_application_comments')
-      .insert(commentData)
-      .select()
-      .single()
+    // Обходим проблемы с автогенерируемыми типами Supabase через unknown
+    const table = supabase.from('zakaz_application_comments') as unknown
+    const builder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert(commentData) as unknown
+    const selector = (builder as { select: () => unknown }).select() as unknown
+    const query = (selector as { single: () => Promise<unknown> }).single()
+    const result = await query
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error creating comment:', error)
