@@ -99,15 +99,18 @@ export async function PATCH(
       assigned_to: body.assigned_to || null,
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_applications')
-      .update(updateData)
-      .eq('id', id)
-      .select('*, zakaz_addresses(street, house, entrance)')
-      .single()
+    // Обходим проблемы с автогенерируемыми типами Supabase через unknown
+    const table = supabase.from('zakaz_applications') as unknown
+    const builder = (table as { update: (data: Record<string, unknown>) => unknown }).update(updateData) as unknown
+    const filtered = (builder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
+    const selector = (filtered as { select: (cols: string) => unknown }).select('*, zakaz_addresses(street, house, entrance)') as unknown
+    const query = (selector as { single: () => Promise<unknown> }).single()
+    const result = await query
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
-      if (error.code === 'PGRST116') {
+      const dbError = error as { code?: string; message?: string }
+      if (dbError.code === 'PGRST116') {
         return NextResponse.json(
           { error: 'Application not found' },
           { status: 404 }
@@ -115,7 +118,7 @@ export async function PATCH(
       }
       console.error('Database error:', error)
       return NextResponse.json(
-        { error: 'Failed to update application', details: error.message },
+        { error: 'Failed to update application', details: dbError.message },
         { status: 500 }
       )
     }
