@@ -41,7 +41,7 @@ export async function PATCH(
         .from('zakaz_users')
         .select('id, full_name')
         .eq('id', assignedTo)
-        .single() as { data: { id: string; full_name: string } | null; error: any }
+        .single() as { data: { id: string; full_name: string } | null; error: unknown }
 
       if (userError || !user) {
         return NextResponse.json(
