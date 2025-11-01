@@ -53,12 +53,14 @@ export async function PATCH(
     }
 
     // Обновляем назначенного пользователя
+    const updateData: { assigned_to: string | null; updated_at: string } = {
+      assigned_to: assignedTo,
+      updated_at: new Date().toISOString(),
+    }
+
     const { error: updateError } = await supabase
       .from('zakaz_applications')
-      .update({
-        assigned_to: assignedTo,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', id)
 
     if (updateError) {
