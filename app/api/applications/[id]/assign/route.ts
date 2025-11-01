@@ -58,11 +58,11 @@ export async function PATCH(
       updated_at: new Date().toISOString(),
     }
 
-    const result = await supabase
-      .from('zakaz_applications')
-      .update(updateData as Record<string, unknown>)
-      .eq('id', id)
-
+    // Обходим проблемы с автогенерируемыми типами Supabase через unknown
+    const table = supabase.from('zakaz_applications') as unknown
+    const builder = (table as { update: (data: Record<string, unknown>) => unknown }).update(updateData) as unknown
+    const query = (builder as { eq: (col: string, val: string) => Promise<unknown> }).eq('id', id)
+    const result = await query
     const { error: updateError } = result as { error: unknown }
 
     if (updateError) {
