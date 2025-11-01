@@ -82,19 +82,7 @@ export async function POST(
       )
     }
 
-    // Логируем добавление комментария
-    await logAudit({
-      userId: body.user_id || undefined,
-      userEmail: body.user_email || undefined,
-      userName: body.user_name,
-      actionType: 'other',
-      entityType: 'application',
-      entityId: id,
-      description: `Добавлен комментарий к заявке`,
-      newValues: { comment: body.comment.trim().substring(0, 100) },
-      ipAddress: getClientIP(request),
-      userAgent: getUserAgent(request),
-    })
+    // Не логируем комментарии в audit_log - они и так видны в разделе комментариев
 
     return NextResponse.json(
       { comment: data, message: 'Comment created successfully' },

@@ -17,13 +17,25 @@ export async function PATCH(
     // Получаем текущее значение assigned_to для логирования
     const { data: currentApp } = await supabase
       .from('zakaz_applications')
-      .select('assigned_to')
+      .select('assigned_to, application_number')
       .eq('id', id)
       .single()
 
     const oldAssignedTo = currentApp?.assigned_to || null
 
-    // Если назначается пользователь, проверяем что он существует
+    // Получаем имя старого исполнителя если был
+    let oldUserName = null
+    if (oldAssignedTo) {
+      const { data: oldUser } = await supabase
+        .from('zakaz_users')
+        .select('full_name')
+        .eq('id', oldAssignedTo)
+        .single()
+      oldUserName = oldUser?.full_name || null
+    }
+
+    // Получаем имя нового исполнителя и проверяем что он существует
+    let newUserName = null
     if (assignedTo) {
       const { data: user, error: userError } = await supabase
         .from('zakaz_users')
@@ -37,6 +49,7 @@ export async function PATCH(
           { status: 404 }
         )
       }
+      newUserName = user.full_name
     }
 
     // Обновляем назначенного пользователя
@@ -56,12 +69,19 @@ export async function PATCH(
       )
     }
 
-    // Логируем действие
-    const actionDescription = assignedTo
-      ? oldAssignedTo
-        ? 'Изменен исполнитель заявки'
-        : 'Назначен исполнитель заявки'
-      : 'Снято назначение исполнителя'
+    // Логируем действие с именами пользователей
+    let actionDescription = ''
+    if (assignedTo) {
+      if (oldAssignedTo) {
+        actionDescription = `Исполнитель изменен с "${oldUserName || 'Неизвестно'}" на "${newUserName}"`
+      } else {
+        actionDescription = `Назначен исполнитель: ${newUserName}`
+      }
+    } else {
+      actionDescription = oldUserName
+        ? `Снято назначение с исполнителя: ${oldUserName}`
+        : 'Снято назначение исполнителя'
+    }
 
     await logAudit({
       userId: body.changed_by || undefined,
