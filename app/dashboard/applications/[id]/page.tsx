@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, User } from '@/lib/types'
 import StatusChangeModal from '@/app/components/StatusChangeModal'
+import AuditLog from '@/app/components/AuditLog'
+import Comments from '@/app/components/Comments'
 
 // Расширенный тип для заявки с адресом
 interface ApplicationWithAddress extends Application {
@@ -267,134 +269,159 @@ export default function ApplicationDetailPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Основная информация */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Информация о заявке</h2>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 2-колоночный layout сверху */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Левая колонка - Информация о заявке */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Основная информация */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Информация о заявке</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Дата создания</p>
-              <p className="text-base font-medium text-gray-900">{formatDate(application.created_at)}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Дата создания</p>
+                  <p className="text-base font-medium text-gray-900">{formatDate(application.created_at)}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Последнее обновление</p>
+                  <p className="text-base font-medium text-gray-900">{formatDate(application.updated_at)}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Срочность</p>
+                  <p className={`text-base font-semibold ${urgencyColors[application.urgency]}`}>
+                    {urgencyLabels[application.urgency]}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Тип услуги</p>
+                  <p className="text-base font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</p>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Последнее обновление</p>
-              <p className="text-base font-medium text-gray-900">{formatDate(application.updated_at)}</p>
+            {/* Назначение исполнителя */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Исполнитель</h2>
+
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <select
+                    value={application.assigned_to || ''}
+                    onChange={(e) => handleAssignUser(e.target.value)}
+                    disabled={isAssigning}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Не назначен</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name} ({user.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {application.assigned_user && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Назначен: {application.assigned_user.full_name}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Срочность</p>
-              <p className={`text-base font-semibold ${urgencyColors[application.urgency]}`}>
-                {urgencyLabels[application.urgency]}
-              </p>
+            {/* Адрес */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Адрес подключения</h2>
+              <p className="text-base font-medium text-gray-900">{formatAddress(application.zakaz_addresses)}</p>
+              {application.zakaz_addresses?.comment && (
+                <p className="mt-2 text-sm text-gray-600">{application.zakaz_addresses.comment}</p>
+              )}
             </div>
 
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Тип услуги</p>
-              <p className="text-base font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</p>
+            {/* Информация о клиенте */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Информация о клиенте</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Тип клиента</p>
+                  <p className="text-base font-medium text-gray-900">{customerTypeLabels[application.customer_type]}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">
+                    {application.customer_type === 'business' ? 'Название компании' : 'ФИО клиента'}
+                  </p>
+                  <p className="text-base font-medium text-gray-900">{application.customer_fullname}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Телефон заказчика</p>
+                  <p className="text-base font-medium text-gray-900">
+                    <a href={`tel:${application.customer_phone}`} className="text-indigo-600 hover:text-indigo-700">
+                      {application.customer_phone}
+                    </a>
+                  </p>
+                </div>
+
+                {application.customer_type === 'business' && (
+                  <>
+                    {application.contact_person && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Контактное лицо</p>
+                        <p className="text-base font-medium text-gray-900">{application.contact_person}</p>
+                      </div>
+                    )}
+
+                    {application.contact_phone && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Телефон контактного лица</p>
+                        <p className="text-base font-medium text-gray-900">
+                          <a href={`tel:${application.contact_phone}`} className="text-indigo-600 hover:text-indigo-700">
+                            {application.contact_phone}
+                          </a>
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Назначение исполнителя */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Исполнитель</h2>
-
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <select
-                value={application.assigned_to || ''}
-                onChange={(e) => handleAssignUser(e.target.value)}
-                disabled={isAssigning}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">Не назначен</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name} ({user.role})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {application.assigned_user && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Назначен: {application.assigned_user.full_name}</span>
+            {/* Комментарий клиента */}
+            {application.client_comment && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Комментарий клиента</h2>
+                <p className="text-base text-gray-700 whitespace-pre-wrap">{application.client_comment}</p>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Адрес */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Адрес подключения</h2>
-          <p className="text-base font-medium text-gray-900">{formatAddress(application.zakaz_addresses)}</p>
-          {application.zakaz_addresses?.comment && (
-            <p className="mt-2 text-sm text-gray-600">{application.zakaz_addresses.comment}</p>
-          )}
-        </div>
-
-        {/* Информация о клиенте */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Информация о клиенте</h2>
-
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Тип клиента</p>
-              <p className="text-base font-medium text-gray-900">{customerTypeLabels[application.customer_type]}</p>
+          {/* Правая колонка - История изменений */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">История изменений</h2>
+              <AuditLog applicationId={id} />
             </div>
-
-            <div>
-              <p className="text-sm text-gray-500 mb-1">
-                {application.customer_type === 'business' ? 'Название компании' : 'ФИО клиента'}
-              </p>
-              <p className="text-base font-medium text-gray-900">{application.customer_fullname}</p>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Телефон заказчика</p>
-              <p className="text-base font-medium text-gray-900">
-                <a href={`tel:${application.customer_phone}`} className="text-indigo-600 hover:text-indigo-700">
-                  {application.customer_phone}
-                </a>
-              </p>
-            </div>
-
-            {application.customer_type === 'business' && (
-              <>
-                {application.contact_person && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Контактное лицо</p>
-                    <p className="text-base font-medium text-gray-900">{application.contact_person}</p>
-                  </div>
-                )}
-
-                {application.contact_phone && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Телефон контактного лица</p>
-                    <p className="text-base font-medium text-gray-900">
-                      <a href={`tel:${application.contact_phone}`} className="text-indigo-600 hover:text-indigo-700">
-                        {application.contact_phone}
-                      </a>
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
           </div>
         </div>
 
-        {/* Комментарий клиента */}
-        {application.client_comment && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Комментарий клиента</h2>
-            <p className="text-base text-gray-700 whitespace-pre-wrap">{application.client_comment}</p>
-          </div>
-        )}
+        {/* Нижний блок - Комментарии сотрудников */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Комментарии сотрудников</h2>
+          <Comments
+            applicationId={id}
+            currentUserId={undefined}
+            currentUserName="Текущий пользователь"
+            currentUserEmail={undefined}
+          />
+        </div>
       </main>
 
       {/* Модальное окно изменения статуса */}
