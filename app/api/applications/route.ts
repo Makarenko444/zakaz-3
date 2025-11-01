@@ -143,6 +143,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!data) {
+      console.error('No data returned from insert')
+      return NextResponse.json(
+        { error: 'Failed to create application' },
+        { status: 500 }
+      )
+    }
+
     // Логируем создание заявки
     await logAudit({
       userId: body.created_by || undefined,
