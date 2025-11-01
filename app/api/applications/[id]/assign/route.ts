@@ -58,11 +58,12 @@ export async function PATCH(
       updated_at: new Date().toISOString(),
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: updateError } = await (supabase
+    const result = await supabase
       .from('zakaz_applications')
       .update(updateData)
-      .eq('id', id) as any)
+      .eq('id', id)
+
+    const { error: updateError } = result as { error: unknown }
 
     if (updateError) {
       console.error('Error assigning user to application:', updateError)
