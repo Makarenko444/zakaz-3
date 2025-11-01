@@ -45,7 +45,7 @@ export async function POST(
       .from('zakaz_applications')
       .select('status')
       .eq('id', id)
-      .single()
+      .single() as { data: { status: string } | null; error: unknown }
 
     if (fetchError || !currentApp) {
       return NextResponse.json(
@@ -57,13 +57,16 @@ export async function POST(
     const oldStatus = currentApp.status
 
     // Обновляем статус заявки
-    const { error: updateError } = await supabase
-      .from('zakaz_applications')
-      .update({
-        status: body.new_status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
+    const updateData = {
+      status: body.new_status,
+      updated_at: new Date().toISOString(),
+    }
+
+    const table = supabase.from('zakaz_applications') as unknown
+    const builder = (table as { update: (data: Record<string, unknown>) => unknown }).update(updateData) as unknown
+    const query = (builder as { eq: (col: string, val: string) => Promise<unknown> }).eq('id', id)
+    const updateResult = await query
+    const { error: updateError } = updateResult as { error: unknown }
 
     if (updateError) {
       console.error('Error updating application status:', updateError)
@@ -74,15 +77,18 @@ export async function POST(
     }
 
     // Записываем в историю изменений статуса
-    const { error: historyError } = await supabase
-      .from('zakaz_application_status_history')
-      .insert({
-        application_id: id,
-        old_status: oldStatus,
-        new_status: body.new_status,
-        comment: body.comment || null,
-        changed_by: body.changed_by || null,
-      })
+    const historyData = {
+      application_id: id,
+      old_status: oldStatus,
+      new_status: body.new_status,
+      comment: body.comment || null,
+      changed_by: body.changed_by || null,
+    }
+
+    const historyTable = supabase.from('zakaz_application_status_history') as unknown
+    const historyBuilder = (historyTable as { insert: (data: Record<string, unknown>) => Promise<unknown> }).insert(historyData)
+    const historyResult = await historyBuilder
+    const { error: historyError } = historyResult as { error: unknown }
 
     if (historyError) {
       console.error('Error inserting status history:', historyError)
