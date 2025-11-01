@@ -60,7 +60,7 @@ export async function PATCH(
 
     const result = await supabase
       .from('zakaz_applications')
-      .update(updateData)
+      .update(updateData as Record<string, unknown>)
       .eq('id', id)
 
     const { error: updateError } = result as { error: unknown }
