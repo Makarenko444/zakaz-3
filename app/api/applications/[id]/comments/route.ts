@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 
 // Получить комментарии заявки
 export async function GET(

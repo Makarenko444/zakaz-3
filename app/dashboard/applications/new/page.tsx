@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CustomerType, ServiceType, Urgency } from '@/lib/types'
 
 // Схема валидации
 const applicationSchema = z.object({
@@ -104,7 +103,7 @@ export default function NewApplicationPage() {
         throw new Error(errorData.error || 'Failed to create application')
       }
 
-      const result = await response.json()
+      await response.json()
 
       // Редирект на страницу созданной заявки или на список
       router.push('/dashboard/applications')

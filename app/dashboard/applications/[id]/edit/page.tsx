@@ -155,7 +155,7 @@ export default function EditApplicationPage() {
         throw new Error(errorData.error || 'Failed to update application')
       }
 
-      const result = await response.json()
+      await response.json()
 
       // Редирект на страницу заявки
       router.push(`/dashboard/applications/${applicationId}`)

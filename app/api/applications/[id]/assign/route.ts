@@ -19,7 +19,7 @@ export async function PATCH(
       .from('zakaz_applications')
       .select('assigned_to, application_number')
       .eq('id', id)
-      .single()
+      .single() as { data: { assigned_to: string | null; application_number: string } | null }
 
     const oldAssignedTo = currentApp?.assigned_to || null
 
