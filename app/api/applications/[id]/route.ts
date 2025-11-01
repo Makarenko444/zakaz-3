@@ -3,11 +3,11 @@ import { createDirectClient } from '@/lib/supabase-direct'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createDirectClient()
-    const { id } = params
+    const { id } = await params
 
     const { data, error } = await supabase
       .from('zakaz_applications')
@@ -41,11 +41,11 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createDirectClient()
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
 
     // Валидация обязательных полей

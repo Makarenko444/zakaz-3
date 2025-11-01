@@ -3,11 +3,11 @@ import { createDirectClient } from '@/lib/supabase-direct'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createDirectClient()
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
 
     // assigned_to может быть null (снять назначение) или UUID пользователя
