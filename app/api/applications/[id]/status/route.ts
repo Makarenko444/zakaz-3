@@ -9,7 +9,7 @@ async function getStatusLabel(supabase: ReturnType<typeof createDirectClient>, s
     .from('zakaz_application_statuses')
     .select('name_ru')
     .eq('code', statusCode)
-    .single()
+    .single() as { data: { name_ru: string } | null; error: unknown }
 
   if (error || !data) {
     // Fallback на код статуса если не найден в БД
