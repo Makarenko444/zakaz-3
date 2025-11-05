@@ -9,12 +9,8 @@ import { z } from 'zod'
 // Схема валидации
 const applicationSchema = z.object({
   address_id: z.string().min(1, 'Выберите адрес'),
-  customer_type: z.enum(['individual', 'business'], {
-    required_error: 'Выберите тип клиента',
-  }),
-  service_type: z.enum(['apartment', 'office', 'scs'], {
-    required_error: 'Выберите тип услуги',
-  }),
+  customer_type: z.enum(['individual', 'business']),
+  service_type: z.enum(['apartment', 'office', 'scs']),
   customer_fullname: z.string().min(2, 'Введите ФИО/название компании'),
   customer_phone: z.string().min(10, 'Введите корректный телефон'),
   contact_person: z.string().optional(),
