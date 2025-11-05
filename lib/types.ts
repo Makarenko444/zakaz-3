@@ -35,8 +35,8 @@ export interface Application {
   customer_type: CustomerType
   customer_fullname: string
   customer_phone: string
-  responsible_fullname: string | null
-  responsible_phone: string | null
+  contact_person: string | null
+  contact_phone: string | null
   status: ApplicationStatus
   urgency: Urgency
   client_comment: string | null
