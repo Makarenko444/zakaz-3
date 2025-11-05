@@ -38,6 +38,33 @@ const actionTypeLabels: Record<string, string> = {
   other: 'Действие',
 }
 
+// Переводы статусов для замены в описании
+const statusTranslations: Record<string, string> = {
+  'new': 'Новая',
+  'thinking': 'Думает',
+  'estimation': 'Расчёт',
+  'waiting_payment': 'Ожидание оплаты',
+  'contract': 'Договор',
+  'queue_install': 'Очередь на монтаж',
+  'install': 'Монтаж',
+  'installed': 'Выполнено',
+  'rejected': 'Отказ',
+  'no_tech': 'Нет тех. возможности',
+}
+
+// Функция для перевода статусов в описании
+function translateDescription(description: string): string {
+  let translated = description
+
+  // Заменяем английские статусы на русские
+  Object.entries(statusTranslations).forEach(([eng, rus]) => {
+    // Заменяем статусы в кавычках
+    translated = translated.replace(new RegExp(`"${eng}"`, 'g'), `"${rus}"`)
+  })
+
+  return translated
+}
+
 export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProps) {
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -119,7 +146,7 @@ export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProp
                 <span className="text-xs text-gray-500">{formatDate(log.created_at)}</span>
               </div>
 
-              <p className="text-sm text-gray-900 mb-1">{log.description}</p>
+              <p className="text-sm text-gray-900 mb-1">{translateDescription(log.description)}</p>
 
               {log.user_name && (
                 <p className="text-xs text-gray-600">
