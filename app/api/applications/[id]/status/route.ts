@@ -3,18 +3,20 @@ import { createDirectClient } from '@/lib/supabase-direct'
 import { ApplicationStatus } from '@/lib/types'
 import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 
-// Переводы статусов на русский
-const statusLabels: Record<ApplicationStatus, string> = {
-  new: 'Новая',
-  thinking: 'Думает',
-  estimation: 'Расчёт',
-  waiting_payment: 'Ожидание оплаты',
-  contract: 'Договор',
-  queue_install: 'Очередь на монтаж',
-  install: 'Монтаж',
-  installed: 'Выполнено',
-  rejected: 'Отказ',
-  no_tech: 'Нет тех. возможности',
+// Функция для получения названия статуса из БД
+async function getStatusLabel(supabase: ReturnType<typeof createDirectClient>, statusCode: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('zakaz_application_statuses')
+    .select('name_ru')
+    .eq('code', statusCode)
+    .single()
+
+  if (error || !data) {
+    // Fallback на код статуса если не найден в БД
+    return statusCode
+  }
+
+  return data.name_ru
 }
 
 export async function POST(
@@ -34,20 +36,15 @@ export async function POST(
       )
     }
 
-    const validStatuses: ApplicationStatus[] = [
-      'new',
-      'thinking',
-      'estimation',
-      'waiting_payment',
-      'contract',
-      'queue_install',
-      'install',
-      'installed',
-      'rejected',
-      'no_tech',
-    ]
+    // Проверяем, что статус существует в БД
+    const { data: statusCheck, error: statusError } = await supabase
+      .from('zakaz_application_statuses')
+      .select('code')
+      .eq('code', body.new_status)
+      .eq('is_active', true)
+      .single()
 
-    if (!validStatuses.includes(body.new_status)) {
+    if (statusError || !statusCheck) {
       return NextResponse.json(
         { error: 'Invalid status value' },
         { status: 400 }
@@ -109,9 +106,9 @@ export async function POST(
       // Не возвращаем ошибку, так как основное действие (обновление статуса) прошло успешно
     }
 
-    // Логируем действие
-    const oldStatusLabel = statusLabels[oldStatus as ApplicationStatus] || oldStatus
-    const newStatusLabel = statusLabels[body.new_status as ApplicationStatus] || body.new_status
+    // Логируем действие - получаем русские названия из БД
+    const oldStatusLabel = await getStatusLabel(supabase, oldStatus)
+    const newStatusLabel = await getStatusLabel(supabase, body.new_status)
 
     await logAudit({
       userId: body.changed_by || undefined,

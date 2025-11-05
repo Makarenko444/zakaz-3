@@ -38,41 +38,56 @@ const actionTypeLabels: Record<string, string> = {
   other: 'Действие',
 }
 
-// Переводы статусов для замены в описании
-const statusTranslations: Record<string, string> = {
-  'new': 'Новая',
-  'thinking': 'Думает',
-  'estimation': 'Расчёт',
-  'waiting_payment': 'Ожидание оплаты',
-  'contract': 'Договор',
-  'queue_install': 'Очередь на монтаж',
-  'install': 'Монтаж',
-  'installed': 'Выполнено',
-  'rejected': 'Отказ',
-  'no_tech': 'Нет тех. возможности',
-}
-
-// Функция для перевода статусов в описании
-function translateDescription(description: string): string {
-  let translated = description
-
-  // Заменяем английские статусы на русские
-  Object.entries(statusTranslations).forEach(([eng, rus]) => {
-    // Заменяем статусы в кавычках
-    translated = translated.replace(new RegExp(`"${eng}"`, 'g'), `"${rus}"`)
-  })
-
-  return translated
-}
-
 export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProps) {
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [statusTranslations, setStatusTranslations] = useState<Record<string, string>>({})
+
+  // Загружаем статусы при монтировании компонента
+  useEffect(() => {
+    loadStatuses()
+  }, [])
 
   useEffect(() => {
     loadLogs()
   }, [applicationId, refreshTrigger])
+
+  async function loadStatuses() {
+    try {
+      const response = await fetch('/api/statuses')
+
+      if (!response.ok) {
+        console.error('Failed to load statuses')
+        return
+      }
+
+      const data = await response.json()
+
+      // Создаем словарь code -> name_ru
+      const translations: Record<string, string> = {}
+      data.statuses.forEach((status: { code: string; name_ru: string }) => {
+        translations[status.code] = status.name_ru
+      })
+
+      setStatusTranslations(translations)
+    } catch (error) {
+      console.error('Error loading statuses:', error)
+    }
+  }
+
+  // Функция для перевода статусов в описании
+  function translateDescription(description: string): string {
+    let translated = description
+
+    // Заменяем английские статусы на русские
+    Object.entries(statusTranslations).forEach(([eng, rus]) => {
+      // Заменяем статусы в кавычках
+      translated = translated.replace(new RegExp(`"${eng}"`, 'g'), `"${rus}"`)
+    })
+
+    return translated
+  }
 
   async function loadLogs() {
     setIsLoading(true)

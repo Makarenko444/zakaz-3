@@ -1,26 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { ApplicationStatus } from '@/lib/types'
+import { useState, useEffect } from 'react'
+import { ApplicationStatus, ApplicationStatusInfo } from '@/lib/types'
 
 interface StatusChangeModalProps {
   applicationId: string
   currentStatus: ApplicationStatus
   onClose: () => void
   onStatusChanged: () => void
-}
-
-const statusLabels: Record<ApplicationStatus, string> = {
-  new: 'Новая',
-  thinking: 'Обдумывание',
-  estimation: 'Оценка',
-  waiting_payment: 'Ожидание оплаты',
-  contract: 'Договор',
-  queue_install: 'Очередь на установку',
-  install: 'Установка',
-  installed: 'Установлено',
-  rejected: 'Отклонено',
-  no_tech: 'Нет тех. возможности',
 }
 
 export default function StatusChangeModal({
@@ -33,6 +20,37 @@ export default function StatusChangeModal({
   const [comment, setComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [statuses, setStatuses] = useState<ApplicationStatusInfo[]>([])
+  const [isLoadingStatuses, setIsLoadingStatuses] = useState(true)
+
+  // Загружаем статусы при монтировании
+  useEffect(() => {
+    loadStatuses()
+  }, [])
+
+  async function loadStatuses() {
+    try {
+      const response = await fetch('/api/statuses')
+
+      if (!response.ok) {
+        throw new Error('Failed to load statuses')
+      }
+
+      const data = await response.json()
+      setStatuses(data.statuses)
+    } catch (error) {
+      console.error('Error loading statuses:', error)
+      setError('Не удалось загрузить список статусов')
+    } finally {
+      setIsLoadingStatuses(false)
+    }
+  }
+
+  // Получаем название статуса по коду
+  const getStatusLabel = (code: ApplicationStatus): string => {
+    const status = statuses.find(s => s.code === code)
+    return status ? status.name_ru : code
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -100,7 +118,7 @@ export default function StatusChangeModal({
               Текущий статус
             </label>
             <div className="px-3 py-2 bg-gray-100 rounded-lg text-gray-700">
-              {statusLabels[currentStatus]}
+              {isLoadingStatuses ? 'Загрузка...' : getStatusLabel(currentStatus)}
             </div>
           </div>
 
@@ -112,11 +130,11 @@ export default function StatusChangeModal({
               value={newStatus}
               onChange={(e) => setNewStatus(e.target.value as ApplicationStatus)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLoadingStatuses}
             >
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {statuses.map((status) => (
+                <option key={status.code} value={status.code}>
+                  {status.name_ru}
                 </option>
               ))}
             </select>

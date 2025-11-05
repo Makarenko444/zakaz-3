@@ -48,6 +48,17 @@ export interface Application {
   assigned_to: string | null
 }
 
+export interface ApplicationStatusInfo {
+  id: string
+  code: ApplicationStatus
+  name_ru: string
+  description_ru: string | null
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -60,6 +71,11 @@ export interface Database {
         Row: Application
         Insert: Omit<Application, 'id' | 'created_at' | 'updated_at' | 'application_number'>
         Update: Partial<Omit<Application, 'id' | 'created_at' | 'updated_at' | 'application_number'>>
+      }
+      zakaz_application_statuses: {
+        Row: ApplicationStatusInfo
+        Insert: Omit<ApplicationStatusInfo, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<ApplicationStatusInfo, 'id' | 'created_at' | 'updated_at'>>
       }
     }
   }
