@@ -21,7 +21,7 @@ export async function logAudit(entry: AuditLogEntry): Promise<void> {
   try {
     const supabase = createDirectClient()
 
-    const { error } = await supabase.from('zakaz_audit_log').insert({
+    const auditData = {
       user_id: entry.userId || null,
       user_email: entry.userEmail || null,
       user_name: entry.userName || null,
@@ -33,7 +33,13 @@ export async function logAudit(entry: AuditLogEntry): Promise<void> {
       new_values: entry.newValues || null,
       ip_address: entry.ipAddress || null,
       user_agent: entry.userAgent || null,
-    })
+    }
+
+    // Обходим проблемы с автогенерируемыми типами Supabase через unknown
+    const table = supabase.from('zakaz_audit_log') as unknown
+    const builder = (table as { insert: (data: Record<string, unknown>) => Promise<unknown> }).insert(auditData)
+    const result = await builder
+    const { error } = result as { error: unknown }
 
     if (error) {
       console.error('Failed to write audit log:', error)
