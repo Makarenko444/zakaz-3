@@ -3,6 +3,20 @@ import { createDirectClient } from '@/lib/supabase-direct'
 import { ApplicationStatus } from '@/lib/types'
 import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 
+// Переводы статусов на русский
+const statusLabels: Record<ApplicationStatus, string> = {
+  new: 'Новая',
+  thinking: 'Думает',
+  estimation: 'Расчёт',
+  waiting_payment: 'Ожидание оплаты',
+  contract: 'Договор',
+  queue_install: 'Очередь на монтаж',
+  install: 'Монтаж',
+  installed: 'Выполнено',
+  rejected: 'Отказ',
+  no_tech: 'Нет тех. возможности',
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -96,12 +110,15 @@ export async function POST(
     }
 
     // Логируем действие
+    const oldStatusLabel = statusLabels[oldStatus as ApplicationStatus] || oldStatus
+    const newStatusLabel = statusLabels[body.new_status as ApplicationStatus] || body.new_status
+
     await logAudit({
       userId: body.changed_by || undefined,
       actionType: 'status_change',
       entityType: 'application',
       entityId: id,
-      description: `Изменен статус заявки с "${oldStatus}" на "${body.new_status}"${body.comment ? `: ${body.comment}` : ''}`,
+      description: `Изменен статус заявки с "${oldStatusLabel}" на "${newStatusLabel}"${body.comment ? `: ${body.comment}` : ''}`,
       oldValues: { status: oldStatus },
       newValues: { status: body.new_status },
       ipAddress: getClientIP(request),
