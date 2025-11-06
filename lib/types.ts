@@ -35,8 +35,8 @@ export interface Application {
   customer_type: CustomerType
   customer_fullname: string
   customer_phone: string
-  responsible_fullname: string | null
-  responsible_phone: string | null
+  contact_person: string | null
+  contact_phone: string | null
   status: ApplicationStatus
   urgency: Urgency
   client_comment: string | null
@@ -46,6 +46,17 @@ export interface Application {
   service_type: ServiceType
   application_number: number
   assigned_to: string | null
+}
+
+export interface ApplicationStatusInfo {
+  id: string
+  code: ApplicationStatus
+  name_ru: string
+  description_ru: string | null
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
 export interface Database {
@@ -60,6 +71,11 @@ export interface Database {
         Row: Application
         Insert: Omit<Application, 'id' | 'created_at' | 'updated_at' | 'application_number'>
         Update: Partial<Omit<Application, 'id' | 'created_at' | 'updated_at' | 'application_number'>>
+      }
+      zakaz_application_statuses: {
+        Row: ApplicationStatusInfo
+        Insert: Omit<ApplicationStatusInfo, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<ApplicationStatusInfo, 'id' | 'created_at' | 'updated_at'>>
       }
     }
   }
