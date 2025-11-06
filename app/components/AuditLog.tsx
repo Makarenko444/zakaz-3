@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface AuditLogEntry {
   id: string
@@ -44,16 +44,7 @@ export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProp
   const [error, setError] = useState('')
   const [statusTranslations, setStatusTranslations] = useState<Record<string, string>>({})
 
-  // Загружаем статусы при монтировании компонента
-  useEffect(() => {
-    loadStatuses()
-  }, [])
-
-  useEffect(() => {
-    loadLogs()
-  }, [applicationId, refreshTrigger])
-
-  async function loadStatuses() {
+  const loadStatuses = useCallback(async () => {
     try {
       const response = await fetch('/api/statuses')
 
@@ -74,7 +65,7 @@ export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProp
     } catch (error) {
       console.error('Error loading statuses:', error)
     }
-  }
+  }, [])
 
   // Функция для перевода статусов в описании
   function translateDescription(description: string): string {
@@ -89,7 +80,7 @@ export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProp
     return translated
   }
 
-  async function loadLogs() {
+  const loadLogs = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch(`/api/applications/${applicationId}/logs`)
@@ -106,7 +97,15 @@ export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProp
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [applicationId])
+
+  useEffect(() => {
+    loadStatuses()
+  }, [loadStatuses])
+
+  useEffect(() => {
+    loadLogs()
+  }, [loadLogs, refreshTrigger])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)

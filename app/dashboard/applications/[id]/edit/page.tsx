@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -82,12 +82,7 @@ export default function EditApplicationPage() {
 
   const customerType = watch('customer_type')
 
-  useEffect(() => {
-    loadAddresses()
-    loadApplication()
-  }, [])
-
-  async function loadAddresses() {
+  const loadAddresses = useCallback(async () => {
     try {
       const response = await fetch('/api/addresses')
       if (!response.ok) throw new Error('Failed to load addresses')
@@ -99,9 +94,9 @@ export default function EditApplicationPage() {
     } finally {
       setIsLoadingAddresses(false)
     }
-  }
+  }, [])
 
-  async function loadApplication() {
+  const loadApplication = useCallback(async () => {
     try {
       const response = await fetch(`/api/applications/${applicationId}`)
       if (!response.ok) {
@@ -131,7 +126,12 @@ export default function EditApplicationPage() {
     } finally {
       setIsLoadingApplication(false)
     }
-  }
+  }, [applicationId, reset])
+
+  useEffect(() => {
+    loadAddresses()
+    loadApplication()
+  }, [loadAddresses, loadApplication])
 
   async function onSubmit(data: ApplicationFormData) {
     setIsSubmitting(true)

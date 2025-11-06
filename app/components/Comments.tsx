@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface Comment {
   id: string
@@ -30,11 +30,7 @@ export default function Comments({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    loadComments()
-  }, [applicationId])
-
-  async function loadComments() {
+  const loadComments = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch(`/api/applications/${applicationId}/comments`)
@@ -51,7 +47,11 @@ export default function Comments({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [applicationId])
+
+  useEffect(() => {
+    loadComments()
+  }, [loadComments])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, User } from '@/lib/types'
 import StatusChangeModal from '@/app/components/StatusChangeModal'
@@ -87,12 +87,7 @@ export default function ApplicationDetailPage() {
   const [users, setUsers] = useState<User[]>([])
   const [isAssigning, setIsAssigning] = useState(false)
 
-  useEffect(() => {
-    loadApplication()
-    loadUsers()
-  }, [id])
-
-  async function loadApplication() {
+  const loadApplication = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch(`/api/applications/${id}`)
@@ -114,9 +109,9 @@ export default function ApplicationDetailPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [id])
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     try {
       const response = await fetch('/api/users')
       if (!response.ok) throw new Error('Failed to load users')
@@ -125,7 +120,12 @@ export default function ApplicationDetailPage() {
     } catch (error) {
       console.error('Error loading users:', error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadApplication()
+    loadUsers()
+  }, [loadApplication, loadUsers])
 
   async function handleAssignUser(userId: string) {
     setIsAssigning(true)

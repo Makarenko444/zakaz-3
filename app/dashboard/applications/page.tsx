@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, ServiceType, CustomerType } from '@/lib/types'
 
@@ -82,11 +82,7 @@ export default function ApplicationsPage() {
   const [selectedUrgency, setSelectedUrgency] = useState<Urgency | ''>('')
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('')
 
-  useEffect(() => {
-    loadApplications()
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType])
-
-  async function loadApplications() {
+  const loadApplications = useCallback(async () => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams({
@@ -124,7 +120,11 @@ export default function ApplicationsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [page, searchQuery, selectedServiceType, selectedStatuses, selectedUrgency])
+
+  useEffect(() => {
+    loadApplications()
+  }, [loadApplications])
 
   const toggleStatus = (status: ApplicationStatus) => {
     if (selectedStatuses.includes(status)) {
@@ -138,7 +138,6 @@ export default function ApplicationsPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPage(1)
-    loadApplications()
   }
 
   const formatDate = (dateString: string) => {

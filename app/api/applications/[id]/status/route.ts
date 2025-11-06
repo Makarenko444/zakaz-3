@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { ApplicationStatus } from '@/lib/types'
 import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 
 // Функция для получения названия статуса из БД
