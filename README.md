@@ -1,36 +1,236 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Zakaz-3 - Система управления заявками
 
-## Getting Started
+Веб-приложение для управления заявками на основе Next.js 15 и Supabase.
 
-First, run the development server:
+## 📋 Описание
+
+Система для управления заявками с поддержкой различных ролей пользователей, отслеживанием статусов, комментариями и полным аудитом действий.
+
+## 🚀 Основные возможности
+
+- **Аутентификация и авторизация** - 4 роли: администратор, диспетчер, исполнитель, клиент
+- **Управление заявками** - создание, редактирование, просмотр, фильтрация
+- **Статусы заявок** - справочник статусов из БД с историей изменений
+- **Назначение исполнителей** - привязка заявок к пользователям
+- **Комментарии** - система комментариев к заявкам
+- **Аудит действий** - полное логирование всех действий в системе
+- **Адресная система** - управление адресами объектов
+
+## 🛠️ Технологии
+
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, TailwindCSS 4
+- **Backend**: Next.js API Routes
+- **База данных**: Supabase (PostgreSQL)
+- **Валидация**: Zod + React Hook Form
+- **Аутентификация**: Supabase Auth
+
+## 📦 Установка
+
+### 1. Клонирование репозитория
+
+```bash
+git clone https://github.com/Makarenko444/zakaz-3.git
+cd zakaz-3
+```
+
+### 2. Установка зависимостей
+
+```bash
+npm install
+```
+
+### 3. Настройка переменных окружения
+
+Скопируйте `.env.example` в `.env.local` и заполните значения:
+
+```bash
+cp .env.example .env.local
+```
+
+Отредактируйте `.env.local`:
+
+```env
+# Public Supabase URL (через Nginx reverse proxy для HTTPS)
+NEXT_PUBLIC_SUPABASE_URL=https://your-domain.com/api
+
+# Public Supabase Anon Key
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+
+# Private Supabase Service Role Key (используется только на сервере)
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+
+# Direct Supabase URL (для server-side операций, минуя Nginx)
+SUPABASE_DIRECT_URL=http://your-supabase-ip:8000
+```
+
+### 4. Настройка базы данных
+
+Выполните миграции в порядке:
+
+```bash
+# Основные таблицы (выполняются в Supabase Dashboard)
+database/migrations/001_initial_schema.sql
+database/migrations/002_insert_users.sql
+database/migrations/003_create_applications.sql
+database/migrations/004_add_application_number.sql
+database/migrations/005_create_audit_log.sql
+database/migrations/006_create_comments.sql
+database/migrations/007_create_application_statuses.sql
+```
+
+## 🏃 Запуск
+
+### Режим разработки
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте [http://localhost:3000](http://localhost:3000) в браузере.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production сборка
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Собрать приложение
+npm run build
 
-## Learn More
+# Запустить production сервер
+npm run start
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Проверка кода
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run lint
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📁 Структура проекта
 
-## Deploy on Vercel
+```
+zakaz-3/
+├── app/                          # Next.js App Router
+│   ├── api/                      # API Routes
+│   │   ├── applications/         # API заявок
+│   │   ├── addresses/            # API адресов
+│   │   ├── statuses/             # API статусов
+│   │   └── users/                # API пользователей
+│   ├── components/               # React компоненты
+│   ├── dashboard/                # Страницы дашборда
+│   │   └── applications/         # Страницы заявок
+│   ├── login/                    # Страница входа
+│   └── layout.tsx                # Корневой layout
+├── lib/                          # Утилиты и библиотеки
+│   ├── supabase.ts               # Supabase клиент (браузер)
+│   ├── supabase-direct.ts        # Прямое подключение (сервер)
+│   ├── audit-log.ts              # Система аудита
+│   └── types.ts                  # TypeScript типы
+├── database/                     # SQL миграции
+│   └── migrations/
+├── docs/                         # Документация
+│   └── progress/                 # История разработки
+├── frontend/                     # Стили и ресурсы
+├── middleware.ts                 # Next.js middleware
+└── package.json
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 👥 Роли пользователей
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Администратор** - полный доступ ко всем функциям
+2. **Диспетчер** - управление заявками, назначение исполнителей
+3. **Исполнитель** - просмотр и выполнение назначенных заявок
+4. **Клиент** - создание и просмотр своих заявок
+
+## 🔐 Аутентификация
+
+Используется Supabase Auth с проверкой на middleware уровне. Все страницы кроме `/login` требуют аутентификации.
+
+## 📊 База данных
+
+### Основные таблицы:
+
+- `zakaz_users` - пользователи системы
+- `zakaz_applications` - заявки
+- `zakaz_addresses` - адреса объектов
+- `zakaz_application_statuses` - справочник статусов
+- `zakaz_application_status_history` - история изменения статусов
+- `zakaz_comments` - комментарии к заявкам
+- `zakaz_audit_log` - журнал аудита действий
+
+## 🔄 Workflow деплоя
+
+### На боевой сервер:
+
+```bash
+# 1. Перейти в директорию проекта
+cd ~/zakaz-3
+
+# 2. Убедиться что на ветке main
+git checkout main
+
+# 3. Получить последние изменения
+git pull origin main
+
+# 4. Установить зависимости (если package.json изменился)
+npm install
+
+# 5. Собрать production билд
+npm run build
+
+# 6. Перезапустить приложение
+pm2 restart zakaz-3
+# или
+npm run start
+```
+
+## 📝 Разработка
+
+### Создание новой функциональности:
+
+1. Создайте feature ветку
+2. Внесите изменения
+3. Протестируйте локально
+4. Создайте Pull Request в `main`
+5. После мержа деплойте на production
+
+### Важно:
+
+- ❌ **НЕ делайте коммиты напрямую на боевом сервере**
+- ✅ **Вся разработка через GitHub**
+- ✅ **Боевой сервер только для деплоя**
+
+## 📚 Документация
+
+- [Техническая спецификация](./TECHNICAL_SPECIFICATION.md)
+- [История разработки](./docs/progress/)
+
+## 🐛 Отладка
+
+### Проблемы с типами TypeScript
+
+Если возникают ошибки типизации Supabase, используйте явное приведение типов:
+
+```typescript
+const { data, error } = await supabase
+  .from('table_name')
+  .select('*')
+  .single() as { data: YourType | null; error: unknown }
+```
+
+### Проблемы с production билдом
+
+Проверьте:
+1. Правильность переменных окружения в `.env.local`
+2. Доступность Supabase по указанным URL
+3. Логи в консоли браузера и терминала
+
+## 📄 Лицензия
+
+Частный проект
+
+## 👨‍💻 Автор
+
+Makarenko444
+
+---
+
+**Поддержка**: Для вопросов и багов создавайте Issues в GitHub.
