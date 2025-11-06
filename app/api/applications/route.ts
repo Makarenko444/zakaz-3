@@ -15,12 +15,24 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
+    const sortBy = searchParams.get('sort_by') || 'created_at'
+    const sortOrder = searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc'
+
+    const sortableColumns: Record<string, string> = {
+      created_at: 'created_at',
+      application_number: 'application_number',
+      status: 'status',
+      urgency: 'urgency',
+      customer_fullname: 'customer_fullname',
+    }
+
+    const orderColumn = sortableColumns[sortBy] || 'created_at'
+    const isAscending = sortOrder === 'asc'
 
     // Базовый запрос
     let query = supabase
       .from('zakaz_applications')
       .select('*, zakaz_addresses(street, house, entrance)', { count: 'exact' })
-      .order('created_at', { ascending: false })
 
     // Применяем фильтры
     if (status) {
@@ -45,6 +57,9 @@ export async function GET(request: NextRequest) {
     if (search) {
       query = query.or(`customer_fullname.ilike.%${search}%,customer_phone.ilike.%${search}%`)
     }
+
+    // Сортировка
+    query = query.order(orderColumn, { ascending: isAscending })
 
     // Пагинация
     const from = (page - 1) * limit

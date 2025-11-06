@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, ServiceType, CustomerType } from '@/lib/types'
 
@@ -75,6 +75,8 @@ export default function ApplicationsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [sortField, setSortField] = useState<'created_at' | 'application_number' | 'status' | 'urgency' | 'customer_fullname'>('created_at')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   // Фильтры
   const [selectedStatuses, setSelectedStatuses] = useState<ApplicationStatus[]>([])
@@ -82,11 +84,7 @@ export default function ApplicationsPage() {
   const [selectedUrgency, setSelectedUrgency] = useState<Urgency | ''>('')
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('')
 
-  useEffect(() => {
-    loadApplications()
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType])
-
-  async function loadApplications() {
+  const loadApplications = useCallback(async () => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams({
@@ -110,6 +108,9 @@ export default function ApplicationsPage() {
         params.append('service_type', selectedServiceType)
       }
 
+      params.append('sort_by', sortField)
+      params.append('sort_order', sortDirection)
+
       const response = await fetch(`/api/applications?${params.toString()}`)
 
       if (!response.ok) {
@@ -124,7 +125,11 @@ export default function ApplicationsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, sortField, sortDirection])
+
+  useEffect(() => {
+    void loadApplications()
+  }, [loadApplications])
 
   const toggleStatus = (status: ApplicationStatus) => {
     if (selectedStatuses.includes(status)) {
@@ -138,7 +143,41 @@ export default function ApplicationsPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPage(1)
-    loadApplications()
+    void loadApplications()
+  }
+
+  const handleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection(field === 'created_at' ? 'desc' : 'asc')
+    }
+    setPage(1)
+  }
+
+  const renderSortIcon = (field: typeof sortField) => {
+    if (sortField !== field) {
+      return (
+        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+        </svg>
+      )
+    }
+
+    if (sortDirection === 'asc') {
+      return (
+        <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 15l4 4 4-4M8 9l4-4 4 4" />
+        </svg>
+      )
+    }
+
+    return (
+      <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 9l-4-4-4 4m8 6l-4 4-4-4" />
+      </svg>
+    )
   }
 
   const formatDate = (dateString: string) => {
@@ -303,54 +342,108 @@ export default function ApplicationsPage() {
             <p className="text-gray-500">Попробуйте изменить фильтры или создайте новую заявку</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {applications.map((app) => (
-              <div
-                key={app.id}
-                onClick={() => router.push(`/dashboard/applications/${app.id}`)}
-                className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition cursor-pointer"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Заявка #{app.application_number}
-                      </h3>
-                      <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${statusColors[app.status]}`}>
-                        {statusLabels[app.status]}
-                      </span>
-                      <span className={`text-sm font-medium ${urgencyColors[app.urgency]}`}>
-                        {urgencyLabels[app.urgency]}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500">{formatDate(app.created_at)}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Клиент:</p>
-                    <p className="font-medium text-gray-900">{app.customer_fullname}</p>
-                    <p className="text-sm text-gray-600">{app.customer_phone}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {customerTypeLabels[app.customer_type]} • {serviceTypeLabels[app.service_type]}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-gray-500">Адрес:</p>
-                    <p className="font-medium text-gray-900">{formatAddress(app.zakaz_addresses)}</p>
-                  </div>
-                </div>
-
-                {app.client_comment && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-sm text-gray-500">Комментарий:</p>
-                    <p className="text-sm text-gray-700 line-clamp-2">{app.client_comment}</p>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button
+                        type="button"
+                        onClick={() => handleSort('application_number')}
+                        className="flex items-center gap-2 text-left text-gray-700 hover:text-indigo-600"
+                      >
+                        Номер
+                        {renderSortIcon('application_number')}
+                      </button>
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button
+                        type="button"
+                        onClick={() => handleSort('status')}
+                        className="flex items-center gap-2 text-left text-gray-700 hover:text-indigo-600"
+                      >
+                        Статус
+                        {renderSortIcon('status')}
+                      </button>
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button
+                        type="button"
+                        onClick={() => handleSort('urgency')}
+                        className="flex items-center gap-2 text-left text-gray-700 hover:text-indigo-600"
+                      >
+                        Срочность
+                        {renderSortIcon('urgency')}
+                      </button>
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button
+                        type="button"
+                        onClick={() => handleSort('customer_fullname')}
+                        className="flex items-center gap-2 text-left text-gray-700 hover:text-indigo-600"
+                      >
+                        Клиент
+                        {renderSortIcon('customer_fullname')}
+                      </button>
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Телефон
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Типы
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Адрес
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button
+                        type="button"
+                        onClick={() => handleSort('created_at')}
+                        className="flex items-center gap-2 text-left text-gray-700 hover:text-indigo-600"
+                      >
+                        Создано
+                        {renderSortIcon('created_at')}
+                      </button>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {applications.map((app) => (
+                    <tr
+                      key={app.id}
+                      onClick={() => router.push(`/dashboard/applications/${app.id}`)}
+                      className="hover:bg-indigo-50 cursor-pointer transition"
+                    >
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900">#{app.application_number}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${statusColors[app.status]}`}>
+                          {statusLabels[app.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        <span className={`font-medium ${urgencyColors[app.urgency]}`}>
+                          {urgencyLabels[app.urgency]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        <div className="font-medium">{app.customer_fullname}</div>
+                        {app.client_comment && (
+                          <div className="text-xs text-gray-500 mt-1 line-clamp-1">{app.client_comment}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">{app.customer_phone}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        <div>{customerTypeLabels[app.customer_type]}</div>
+                        <div className="text-xs text-gray-500">{serviceTypeLabels[app.service_type]}</div>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">{formatAddress(app.zakaz_addresses)}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500">{formatDate(app.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
