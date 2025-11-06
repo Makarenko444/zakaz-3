@@ -5,11 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { signIn } from '@/lib/auth'
 
 const loginSchema = z.object({
   email: z.string().email('Неверный формат email'),
-  password: z.string().min(6, 'Пароль должен содержать минимум 6 символов'),
+  password: z.string().min(1, 'Пароль обязателен'),
 })
 
 type LoginFormData = z.infer<typeof loginSchema>
@@ -32,28 +31,32 @@ export default function LoginPage() {
       setIsLoading(true)
       setError(null)
 
-      const result = await signIn(data.email, data.password)
+      // Вызываем наш API endpoint для логина
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
+      })
 
-      if (!result.user) {
-        setError('Пользователь не найден в системе')
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'Ошибка входа')
         return
       }
 
-
-      if (!result.user.active) {
-        setError('Ваш аккаунт деактивирован. Обратитесь к администратору.')
-        return
-      }
-
-      
-      // Перенаправление на дашборд
+      // Успешный вход - перенаправляем на dashboard
       router.push('/dashboard')
-      
       router.refresh()
-      
+
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка входа. Проверьте email и пароль.'
-      setError(message)
+      console.error('Login error:', err)
+      setError('Ошибка соединения с сервером')
     } finally {
       setIsLoading(false)
     }

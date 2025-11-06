@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, signOut } from '@/lib/auth'
+import { getCurrentUser, signOut } from '@/lib/auth-client'
 import { User } from '@/lib/types'
 
 const roleNames: Record<string, string> = {
