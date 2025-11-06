@@ -65,18 +65,18 @@ SUPABASE_DIRECT_URL=http://your-supabase-ip:8000
 
 ### 4. Настройка базы данных
 
-Выполните миграции в порядке:
+**Базовые таблицы должны быть уже созданы** (`zakaz_users`, `zakaz_applications`, `zakaz_addresses` и т.д.)
+
+Если требуется, выполните дополнительные миграции в Supabase Dashboard в порядке:
 
 ```bash
-# Основные таблицы (выполняются в Supabase Dashboard)
-database/migrations/001_initial_schema.sql
-database/migrations/002_insert_users.sql
-database/migrations/003_create_applications.sql
-database/migrations/004_add_application_number.sql
-database/migrations/005_create_audit_log.sql
-database/migrations/006_create_comments.sql
-database/migrations/007_create_application_statuses.sql
+# Дополнительные таблицы (выполняются в Supabase Dashboard -> SQL Editor)
+database/migrations/005_create_audit_log.sql          # Журнал аудита действий
+database/migrations/006_create_comments.sql           # Комментарии к заявкам
+database/migrations/007_create_application_statuses.sql  # Справочник статусов
 ```
+
+**Примечание**: Если базовые таблицы еще не созданы, создайте их согласно техническому заданию или обратитесь к администратору БД.
 
 ## 🏃 Запуск
 
