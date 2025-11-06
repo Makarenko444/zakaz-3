@@ -29,8 +29,28 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Repository branches
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The project work happens on topic branches that can change over time. After cloning,
+check which branches are available before checking out `work`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+git branch -a
+```
+
+If the `work` branch is not listed, stay on the default branch (usually `main`) or
+create a local `work` branch from it:
+
+```bash
+git checkout -b work origin/main
+```
+
+When the remote repository exposes a `work` branch, fetch it and switch to it:
+
+```bash
+git fetch origin
+git checkout work
+```
+
+These commands help avoid the “pathspec 'work' did not match any file(s) known to git”
+error when the branch has not been published yet.
