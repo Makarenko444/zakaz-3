@@ -116,7 +116,7 @@ export async function verifyPassword(
 
   console.log('verifyPassword DEBUG:', {
     email,
-    error: error ? String(error) : null,
+    error: error ? JSON.stringify(error, null, 2) : null,
     userExists: !!user,
     hasPasswordHash: user ? 'password_hash' in user : false,
     passwordHashLength: user?.password_hash?.length
