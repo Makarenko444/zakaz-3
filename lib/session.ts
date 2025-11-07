@@ -114,7 +114,16 @@ export async function verifyPassword(
     .eq('active', true)
     .single() as { data: User & { password_hash?: string } | null; error: unknown }
 
+  console.log('verifyPassword DEBUG:', {
+    email,
+    error: error ? String(error) : null,
+    userExists: !!user,
+    hasPasswordHash: user ? 'password_hash' in user : false,
+    passwordHashLength: user?.password_hash?.length
+  })
+
   if (error || !user) {
+    console.log('verifyPassword: User not found or error')
     return null
   }
 
@@ -123,10 +132,18 @@ export async function verifyPassword(
   // В production нужно использовать bcrypt.compare()
   const passwordHash = hashPassword(password)
 
+  console.log('verifyPassword: Comparing hashes', {
+    dbHash: user.password_hash?.substring(0, 20),
+    calculatedHash: passwordHash.substring(0, 20),
+    match: user.password_hash === passwordHash
+  })
+
   if (user.password_hash === passwordHash) {
+    console.log('verifyPassword: Password matches!')
     return user as User
   }
 
+  console.log('verifyPassword: Password does not match')
   return null
 }
 
