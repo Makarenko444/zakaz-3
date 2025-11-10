@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { ApplicationStatus, ApplicationStatusInfo } from '@/lib/types'
+import { getCurrentUser } from '@/lib/auth-client'
 
 interface StatusChangeModalProps {
   applicationId: string
@@ -22,11 +23,24 @@ export default function StatusChangeModal({
   const [error, setError] = useState('')
   const [statuses, setStatuses] = useState<ApplicationStatusInfo[]>([])
   const [isLoadingStatuses, setIsLoadingStatuses] = useState(true)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  // Загружаем статусы при монтировании
+  // Загружаем статусы и текущего пользователя при монтировании
   useEffect(() => {
     loadStatuses()
+    loadCurrentUser()
   }, [])
+
+  async function loadCurrentUser() {
+    try {
+      const user = await getCurrentUser()
+      if (user) {
+        setCurrentUserId(user.id)
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error)
+    }
+  }
 
   async function loadStatuses() {
     try {
@@ -72,6 +86,7 @@ export default function StatusChangeModal({
         body: JSON.stringify({
           new_status: newStatus,
           comment: comment || null,
+          changed_by: currentUserId,
         }),
       })
 
