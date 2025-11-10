@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { CustomerType, ServiceType, Urgency } from '@/lib/types'
+import { getCurrentUser } from '@/lib/auth-client'
 
 // Схема валидации
 const applicationSchema = z.object({
@@ -64,6 +65,7 @@ export default function EditApplicationPage() {
   const [isLoadingApplication, setIsLoadingApplication] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const {
     register,
@@ -85,6 +87,7 @@ export default function EditApplicationPage() {
   useEffect(() => {
     loadAddresses()
     loadApplication()
+    loadCurrentUser()
   }, [])
 
   async function loadAddresses() {
@@ -133,6 +136,17 @@ export default function EditApplicationPage() {
     }
   }
 
+  async function loadCurrentUser() {
+    try {
+      const user = await getCurrentUser()
+      if (user) {
+        setCurrentUserId(user.id)
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error)
+    }
+  }
+
   async function onSubmit(data: ApplicationFormData) {
     setIsSubmitting(true)
     setError('')
@@ -143,7 +157,10 @@ export default function EditApplicationPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          updated_by: currentUserId,
+        }),
       })
 
       if (!response.ok) {
