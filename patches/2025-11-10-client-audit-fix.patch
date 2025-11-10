@@ -1,0 +1,244 @@
+From 074f178d4512f0c3e52838d8fa859910b9810d33 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 10 Nov 2025 08:49:40 +0000
+Subject: [PATCH] =?UTF-8?q?=D0=98=D1=81=D0=BF=D1=80=D0=B0=D0=B2=D0=BB?=
+ =?UTF-8?q?=D0=B5=D0=BD=D0=B0=20=D0=BF=D0=B5=D1=80=D0=B5=D0=B4=D0=B0=D1=87?=
+ =?UTF-8?q?=D0=B0=20user=5Fid=20=D0=B2=20=D0=BA=D0=BB=D0=B8=D0=B5=D0=BD?=
+ =?UTF-8?q?=D1=82=D1=81=D0=BA=D0=B8=D1=85=20=D0=BA=D0=BE=D0=BC=D0=BF=D0=BE?=
+ =?UTF-8?q?=D0=BD=D0=B5=D0=BD=D1=82=D0=B0=D1=85=20=D0=B4=D0=BB=D1=8F=20?=
+ =?UTF-8?q?=D0=B0=D1=83=D0=B4=D0=B8=D1=82-=D0=BB=D0=BE=D0=B3=D0=B0?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Клиентские компоненты теперь получают текущего пользователя и передают user_id при вызове API:
+- StatusChangeModal: передает changed_by при изменении статуса
+- Страница просмотра заявки: передает changed_by при назначении исполнителя
+- Страница редактирования: передает updated_by при обновлении заявки
+- Страница создания: передает created_by при создании заявки
+
+Это дополняет серверные изменения, которые уже были развернуты в продакшене.
+---
+ app/components/StatusChangeModal.tsx          | 17 ++++++++++++++++-
+ app/dashboard/applications/[id]/edit/page.tsx | 19 ++++++++++++++++++-
+ app/dashboard/applications/[id]/page.tsx      | 15 +++++++++++++++
+ app/dashboard/applications/new/page.tsx       | 19 ++++++++++++++++++-
+ 4 files changed, 67 insertions(+), 3 deletions(-)
+
+diff --git a/app/components/StatusChangeModal.tsx b/app/components/StatusChangeModal.tsx
+index dedb680..2c8acfe 100644
+--- a/app/components/StatusChangeModal.tsx
++++ b/app/components/StatusChangeModal.tsx
+@@ -2,6 +2,7 @@
+ 
+ import { useState, useEffect } from 'react'
+ import { ApplicationStatus, ApplicationStatusInfo } from '@/lib/types'
++import { getCurrentUser } from '@/lib/auth-client'
+ 
+ interface StatusChangeModalProps {
+   applicationId: string
+@@ -22,12 +23,25 @@ export default function StatusChangeModal({
+   const [error, setError] = useState('')
+   const [statuses, setStatuses] = useState<ApplicationStatusInfo[]>([])
+   const [isLoadingStatuses, setIsLoadingStatuses] = useState(true)
++  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+ 
+-  // Загружаем статусы при монтировании
++  // Загружаем статусы и текущего пользователя при монтировании
+   useEffect(() => {
+     loadStatuses()
++    loadCurrentUser()
+   }, [])
+ 
++  async function loadCurrentUser() {
++    try {
++      const user = await getCurrentUser()
++      if (user) {
++        setCurrentUserId(user.id)
++      }
++    } catch (error) {
++      console.error('Error loading current user:', error)
++    }
++  }
++
+   async function loadStatuses() {
+     try {
+       const response = await fetch('/api/statuses')
+@@ -72,6 +86,7 @@ export default function StatusChangeModal({
+         body: JSON.stringify({
+           new_status: newStatus,
+           comment: comment || null,
++          changed_by: currentUserId,
+         }),
+       })
+ 
+diff --git a/app/dashboard/applications/[id]/edit/page.tsx b/app/dashboard/applications/[id]/edit/page.tsx
+index c2b9d6c..da14e8b 100644
+--- a/app/dashboard/applications/[id]/edit/page.tsx
++++ b/app/dashboard/applications/[id]/edit/page.tsx
+@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
+ import { zodResolver } from '@hookform/resolvers/zod'
+ import { z } from 'zod'
+ import { CustomerType, ServiceType, Urgency } from '@/lib/types'
++import { getCurrentUser } from '@/lib/auth-client'
+ 
+ // Схема валидации
+ const applicationSchema = z.object({
+@@ -64,6 +65,7 @@ export default function EditApplicationPage() {
+   const [isLoadingApplication, setIsLoadingApplication] = useState(true)
+   const [isSubmitting, setIsSubmitting] = useState(false)
+   const [error, setError] = useState('')
++  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+ 
+   const {
+     register,
+@@ -85,6 +87,7 @@ export default function EditApplicationPage() {
+   useEffect(() => {
+     loadAddresses()
+     loadApplication()
++    loadCurrentUser()
+   }, [])
+ 
+   async function loadAddresses() {
+@@ -133,6 +136,17 @@ export default function EditApplicationPage() {
+     }
+   }
+ 
++  async function loadCurrentUser() {
++    try {
++      const user = await getCurrentUser()
++      if (user) {
++        setCurrentUserId(user.id)
++      }
++    } catch (error) {
++      console.error('Error loading current user:', error)
++    }
++  }
++
+   async function onSubmit(data: ApplicationFormData) {
+     setIsSubmitting(true)
+     setError('')
+@@ -143,7 +157,10 @@ export default function EditApplicationPage() {
+         headers: {
+           'Content-Type': 'application/json',
+         },
+-        body: JSON.stringify(data),
++        body: JSON.stringify({
++          ...data,
++          updated_by: currentUserId,
++        }),
+       })
+ 
+       if (!response.ok) {
+diff --git a/app/dashboard/applications/[id]/page.tsx b/app/dashboard/applications/[id]/page.tsx
+index f1ad563..a6b7b94 100644
+--- a/app/dashboard/applications/[id]/page.tsx
++++ b/app/dashboard/applications/[id]/page.tsx
+@@ -6,6 +6,7 @@ import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, Use
+ import StatusChangeModal from '@/app/components/StatusChangeModal'
+ import AuditLog from '@/app/components/AuditLog'
+ import Comments from '@/app/components/Comments'
++import { getCurrentUser } from '@/lib/auth-client'
+ 
+ // Расширенный тип для заявки с адресом
+ interface ApplicationWithAddress extends Application {
+@@ -86,10 +87,12 @@ export default function ApplicationDetailPage() {
+   const [showStatusModal, setShowStatusModal] = useState(false)
+   const [users, setUsers] = useState<User[]>([])
+   const [isAssigning, setIsAssigning] = useState(false)
++  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+ 
+   useEffect(() => {
+     loadApplication()
+     loadUsers()
++    loadCurrentUser()
+   }, [id])
+ 
+   async function loadApplication() {
+@@ -127,6 +130,17 @@ export default function ApplicationDetailPage() {
+     }
+   }
+ 
++  async function loadCurrentUser() {
++    try {
++      const user = await getCurrentUser()
++      if (user) {
++        setCurrentUserId(user.id)
++      }
++    } catch (error) {
++      console.error('Error loading current user:', error)
++    }
++  }
++
+   async function handleAssignUser(userId: string) {
+     setIsAssigning(true)
+     try {
+@@ -137,6 +151,7 @@ export default function ApplicationDetailPage() {
+         },
+         body: JSON.stringify({
+           assigned_to: userId,
++          changed_by: currentUserId,
+         }),
+       })
+ 
+diff --git a/app/dashboard/applications/new/page.tsx b/app/dashboard/applications/new/page.tsx
+index 0a07c37..3d8a1c4 100644
+--- a/app/dashboard/applications/new/page.tsx
++++ b/app/dashboard/applications/new/page.tsx
+@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
+ import { useForm } from 'react-hook-form'
+ import { zodResolver } from '@hookform/resolvers/zod'
+ import { z } from 'zod'
++import { getCurrentUser } from '@/lib/auth-client'
+ 
+ // Схема валидации
+ const applicationSchema = z.object({
+@@ -46,6 +47,7 @@ export default function NewApplicationPage() {
+   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true)
+   const [isSubmitting, setIsSubmitting] = useState(false)
+   const [error, setError] = useState('')
++  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+ 
+   const {
+     register,
+@@ -65,6 +67,7 @@ export default function NewApplicationPage() {
+ 
+   useEffect(() => {
+     loadAddresses()
++    loadCurrentUser()
+   }, [])
+ 
+   async function loadAddresses() {
+@@ -81,6 +84,17 @@ export default function NewApplicationPage() {
+     }
+   }
+ 
++  async function loadCurrentUser() {
++    try {
++      const user = await getCurrentUser()
++      if (user) {
++        setCurrentUserId(user.id)
++      }
++    } catch (error) {
++      console.error('Error loading current user:', error)
++    }
++  }
++
+   async function onSubmit(data: ApplicationFormData) {
+     setIsSubmitting(true)
+     setError('')
+@@ -91,7 +105,10 @@ export default function NewApplicationPage() {
+         headers: {
+           'Content-Type': 'application/json',
+         },
+-        body: JSON.stringify(data),
++        body: JSON.stringify({
++          ...data,
++          created_by: currentUserId,
++        }),
+       })
+ 
+       if (!response.ok) {
+-- 
+2.43.0
+
