@@ -6,6 +6,8 @@ import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, Use
 import StatusChangeModal from '@/app/components/StatusChangeModal'
 import AuditLog from '@/app/components/AuditLog'
 import Comments from '@/app/components/Comments'
+import FileUpload from '@/app/components/FileUpload'
+import FileList from '@/app/components/FileList'
 
 // Расширенный тип для заявки с адресом
 interface ApplicationWithAddress extends Application {
@@ -86,6 +88,7 @@ export default function ApplicationDetailPage() {
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [isAssigning, setIsAssigning] = useState(false)
+  const [fileRefreshTrigger, setFileRefreshTrigger] = useState(0)
 
   useEffect(() => {
     loadApplication()
@@ -409,6 +412,28 @@ export default function ApplicationDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">История изменений</h2>
               <AuditLog applicationId={id} />
             </div>
+          </div>
+        </div>
+
+        {/* Блок - Файлы заявки */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Файлы заявки</h2>
+
+          {/* Список файлов */}
+          <FileList
+            applicationId={id}
+            showDirectFilesOnly={true}
+            refreshTrigger={fileRefreshTrigger}
+            className="mb-4"
+          />
+
+          {/* Загрузка файлов */}
+          <div className="pt-4 border-t border-gray-200">
+            <FileUpload
+              applicationId={id}
+              onFileUploaded={() => setFileRefreshTrigger(prev => prev + 1)}
+              maxFiles={5}
+            />
           </div>
         </div>
 
