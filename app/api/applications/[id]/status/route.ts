@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
+import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
 
 // Функция для получения названия статуса из БД
 async function getStatusLabel(supabase: ReturnType<typeof createDirectClient>, statusCode: string): Promise<string> {
@@ -109,8 +109,11 @@ export async function POST(
     const oldStatusLabel = await getStatusLabel(supabase, oldStatus)
     const newStatusLabel = await getStatusLabel(supabase, body.new_status)
 
+    // Получаем данные пользователя для аудита
+    const userData = await getUserData(body.changed_by)
+
     await logAudit({
-      userId: body.changed_by || undefined,
+      ...userData,
       actionType: 'status_change',
       entityType: 'application',
       entityId: id,

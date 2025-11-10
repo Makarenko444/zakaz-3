@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
+import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
 
 export async function PATCH(
   request: NextRequest,
@@ -87,8 +87,11 @@ export async function PATCH(
         : 'Снято назначение исполнителя'
     }
 
+    // Получаем данные пользователя для аудита
+    const userData = await getUserData(body.changed_by)
+
     await logAudit({
-      userId: body.changed_by || undefined,
+      ...userData,
       actionType: assignedTo ? 'assign' : 'unassign',
       entityType: 'application',
       entityId: id,

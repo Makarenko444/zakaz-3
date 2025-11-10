@@ -71,3 +71,40 @@ export function getClientIP(request: Request): string | undefined {
 export function getUserAgent(request: Request): string | undefined {
   return request.headers.get('user-agent') || undefined
 }
+
+/**
+ * Получает данные пользователя по ID для записи в аудит
+ */
+export async function getUserData(userId: string | null | undefined): Promise<{
+  userId?: string
+  userEmail?: string
+  userName?: string
+}> {
+  if (!userId) {
+    return {}
+  }
+
+  try {
+    const supabase = createDirectClient()
+
+    const { data: user, error } = await supabase
+      .from('zakaz_users')
+      .select('id, email, full_name')
+      .eq('id', userId)
+      .single() as { data: { id: string; email: string; full_name: string } | null; error: unknown }
+
+    if (error || !user) {
+      console.warn('Failed to fetch user data for audit log:', error)
+      return { userId }
+    }
+
+    return {
+      userId: user.id,
+      userEmail: user.email,
+      userName: user.full_name,
+    }
+  } catch (error) {
+    console.error('Error fetching user data for audit:', error)
+    return { userId }
+  }
+}
