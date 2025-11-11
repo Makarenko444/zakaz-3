@@ -8,6 +8,7 @@ import AuditLog from '@/app/components/AuditLog'
 import Comments from '@/app/components/Comments'
 import FileUpload from '@/app/components/FileUpload'
 import FileList from '@/app/components/FileList'
+import { getCurrentUser } from '@/lib/auth-client'
 
 // Расширенный тип для заявки с адресом
 interface ApplicationWithAddress extends Application {
@@ -89,10 +90,12 @@ export default function ApplicationDetailPage() {
   const [users, setUsers] = useState<User[]>([])
   const [isAssigning, setIsAssigning] = useState(false)
   const [fileRefreshTrigger, setFileRefreshTrigger] = useState(0)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
     loadApplication()
     loadUsers()
+    loadCurrentUser()
   }, [id])
 
   async function loadApplication() {
@@ -130,6 +133,17 @@ export default function ApplicationDetailPage() {
     }
   }
 
+  async function loadCurrentUser() {
+    try {
+      const user = await getCurrentUser()
+      if (user) {
+        setCurrentUserId(user.id)
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error)
+    }
+  }
+
   async function handleAssignUser(userId: string) {
     setIsAssigning(true)
     try {
@@ -140,6 +154,7 @@ export default function ApplicationDetailPage() {
         },
         body: JSON.stringify({
           assigned_to: userId,
+          changed_by: currentUserId,
         }),
       })
 
