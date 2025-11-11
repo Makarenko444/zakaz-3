@@ -123,7 +123,7 @@ export async function GET(
       .select(
         `
         *,
-        uploaded_by_user:zakaz_users!zakaz_files_uploaded_by_fkey(id, full_name, email)
+        uploaded_by_user:zakaz_users!fk_user(id, full_name, email)
       `
       )
       .eq('application_id', applicationId)
