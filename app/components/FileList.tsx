@@ -82,7 +82,7 @@ export default function FileList({
     }
   }
 
-  const handleDownload = (fileId: string, filename: string) => {
+  const handleDownload = (fileId: string) => {
     // Открываем в новом окне для скачивания
     window.open(`/api/applications/${applicationId}/files/${fileId}`, '_blank')
   }
@@ -106,7 +106,8 @@ export default function FileList({
     })
   }
 
-  const getFileIcon = (mimeType: string): string => {
+  const getFileIcon = (mimeType: string | null | undefined): string => {
+    if (!mimeType) return '📎'
     if (mimeType.startsWith('image/')) return '🖼️'
     if (mimeType === 'application/pdf') return '📄'
     if (mimeType.includes('word')) return '📝'
@@ -160,7 +161,7 @@ export default function FileList({
 
           <div className="flex items-center gap-2 ml-3">
             <button
-              onClick={() => handleDownload(file.id, file.original_filename)}
+              onClick={() => handleDownload(file.id)}
               className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
               title="Скачать"
             >
