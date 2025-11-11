@@ -67,7 +67,7 @@ export async function POST(
     const { storedFilename } = await saveFile(applicationId, file)
 
     // Сохранение метаданных в БД
-    const { data: fileRecord, error: insertError} = await (
+    const { data: fileRecord, error: insertError } = await (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase.from('zakaz_files') as any
     )
