@@ -59,6 +59,18 @@ export interface ApplicationStatusInfo {
   updated_at: string
 }
 
+export interface FileAttachment {
+  id: string
+  application_id: string
+  comment_id: string | null
+  original_filename: string
+  stored_filename: string
+  file_size: number
+  mime_type: string
+  uploaded_by: string
+  uploaded_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -76,6 +88,11 @@ export interface Database {
         Row: ApplicationStatusInfo
         Insert: Omit<ApplicationStatusInfo, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<ApplicationStatusInfo, 'id' | 'created_at' | 'updated_at'>>
+      }
+      zakaz_files: {
+        Row: FileAttachment
+        Insert: Omit<FileAttachment, 'id' | 'uploaded_at'>
+        Update: Partial<Omit<FileAttachment, 'id' | 'uploaded_at'>>
       }
     }
   }
