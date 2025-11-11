@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { getUserBySessionToken, SESSION_COOKIE_OPTIONS } from '@/lib/session'
-import { saveFile, validateFile, MAX_FILE_SIZE } from '@/lib/file-upload'
+import { saveFile, validateFile } from '@/lib/file-upload'
 
 // POST /api/applications/[id]/files - Загрузка файла
 export async function POST(
@@ -67,9 +67,10 @@ export async function POST(
     const { storedFilename } = await saveFile(applicationId, file)
 
     // Сохранение метаданных в БД
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: fileRecord, error: insertError } = await (supabase
-      .from('zakaz_files') as any)
+    const { data: fileRecord, error: insertError} = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase.from('zakaz_files') as any
+    )
       .insert({
         application_id: applicationId,
         comment_id: commentId,
@@ -122,7 +123,7 @@ export async function GET(
       .select(
         `
         *,
-        uploaded_by_user:zakaz_users!zakaz_files_uploaded_by_fkey(id, full_name, email)
+        uploaded_by_user:zakaz_users!fk_user(id, full_name, email)
       `
       )
       .eq('application_id', applicationId)
