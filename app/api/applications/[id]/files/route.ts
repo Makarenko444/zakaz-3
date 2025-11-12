@@ -130,9 +130,9 @@ export async function GET(
       .order('uploaded_at', { ascending: false })
 
     // Фильтр по comment_id если указан
-    if (commentId) {
+    if (commentId && commentId !== 'null') {
       query = query.eq('comment_id', commentId)
-    } else if (searchParams.has('comment_id')) {
+    } else if (commentId === 'null') {
       // Если передан параметр comment_id=null, то показываем только файлы без комментария
       query = query.is('comment_id', null)
     }
