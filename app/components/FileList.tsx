@@ -9,6 +9,8 @@ interface FileListProps {
   showDirectFilesOnly?: boolean
   refreshTrigger?: number
   className?: string
+  limit?: number // Ограничение количества отображаемых файлов
+  showThumbnails?: boolean // Показывать миниатюры для картинок
 }
 
 export default function FileList({
@@ -17,11 +19,14 @@ export default function FileList({
   showDirectFilesOnly = false,
   refreshTrigger = 0,
   className = '',
+  limit,
+  showThumbnails = false,
 }: FileListProps) {
   const [files, setFiles] = useState<FileAttachment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
+  const [showAll, setShowAll] = useState(false)
 
   useEffect(() => {
     loadFiles()
@@ -142,15 +147,37 @@ export default function FileList({
     )
   }
 
+  // Определяем какие файлы показывать
+  const displayedFiles = limit && !showAll ? files.slice(0, limit) : files
+  const hasMore = limit && files.length > limit && !showAll
+
   return (
     <div className={`space-y-2 ${className}`}>
-      {files.map(file => (
+      {displayedFiles.map(file => (
         <div
           key={file.id}
           className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition"
         >
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <span className="text-2xl flex-shrink-0">{getFileIcon(file.mime_type)}</span>
+            {/* Миниатюра для картинок или иконка */}
+            {showThumbnails && file.mime_type?.startsWith('image/') ? (
+              <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-200">
+                <img
+                  src={`/api/applications/${applicationId}/files/${file.id}`}
+                  alt={file.original_filename}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Если не удалось загрузить картинку, показываем иконку
+                    e.currentTarget.style.display = 'none'
+                    if (e.currentTarget.parentElement) {
+                      e.currentTarget.parentElement.innerHTML = `<span class="flex items-center justify-center w-full h-full text-2xl">${getFileIcon(file.mime_type)}</span>`
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <span className="text-2xl flex-shrink-0">{getFileIcon(file.mime_type)}</span>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{file.original_filename}</p>
               <p className="text-xs text-gray-500">
@@ -196,6 +223,16 @@ export default function FileList({
           </div>
         </div>
       ))}
+
+      {/* Кнопка "Показать еще", если файлов больше чем лимит */}
+      {hasMore && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="w-full py-2 px-4 text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition border border-indigo-200"
+        >
+          Показать еще ({files.length - displayedFiles.length})
+        </button>
+      )}
     </div>
   )
 }

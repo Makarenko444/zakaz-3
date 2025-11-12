@@ -16,6 +16,8 @@ interface AuditLogEntry {
 interface AuditLogProps {
   applicationId: string
   refreshTrigger?: number // Когда меняется - перезагружаем логи
+  limit?: number // Ограничение количества записей
+  onShowAll?: () => void // Callback для кнопки "Показать все"
 }
 
 const actionTypeColors: Record<string, string> = {
@@ -38,11 +40,12 @@ const actionTypeLabels: Record<string, string> = {
   other: 'Действие',
 }
 
-export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProps) {
+export default function AuditLog({ applicationId, refreshTrigger, limit, onShowAll }: AuditLogProps) {
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [statusTranslations, setStatusTranslations] = useState<Record<string, string>>({})
+  const [totalCount, setTotalCount] = useState(0)
 
   // Загружаем статусы при монтировании компонента
   useEffect(() => {
@@ -99,7 +102,15 @@ export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProp
       }
 
       const data = await response.json()
-      setLogs(data.logs)
+      const allLogs = data.logs || []
+      setTotalCount(allLogs.length)
+
+      // Применяем limit, если задан
+      if (limit && limit > 0) {
+        setLogs(allLogs.slice(0, limit))
+      } else {
+        setLogs(allLogs)
+      }
     } catch (error) {
       console.error('Error loading logs:', error)
       setError('Не удалось загрузить историю')
@@ -173,6 +184,16 @@ export default function AuditLog({ applicationId, refreshTrigger }: AuditLogProp
           </div>
         </div>
       ))}
+
+      {/* Кнопка "Показать все", если записей больше чем лимит */}
+      {limit && totalCount > limit && onShowAll && (
+        <button
+          onClick={onShowAll}
+          className="w-full py-2 px-4 text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition border border-indigo-200"
+        >
+          Показать все ({totalCount})
+        </button>
+      )}
     </div>
   )
 }
