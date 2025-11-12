@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, User } from '@/lib/types'
 import StatusChangeModal from '@/app/components/StatusChangeModal'
 import AuditLog from '@/app/components/AuditLog'
+import AuditLogModal from '@/app/components/AuditLogModal'
 import Comments from '@/app/components/Comments'
 import FileUpload from '@/app/components/FileUpload'
 import FileList from '@/app/components/FileList'
@@ -91,6 +92,7 @@ export default function ApplicationDetailPage() {
   const [isAssigning, setIsAssigning] = useState(false)
   const [fileRefreshTrigger, setFileRefreshTrigger] = useState(0)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [showAuditLogModal, setShowAuditLogModal] = useState(false)
 
   useEffect(() => {
     loadApplication()
@@ -244,9 +246,10 @@ export default function ApplicationDetailPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Desktop header */}
+          <div className="hidden md:flex justify-between items-center h-16">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push('/dashboard/applications')}
                 className="text-gray-600 hover:text-gray-900"
@@ -255,7 +258,7 @@ export default function ApplicationDetailPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
                 Заявка #{application.application_number}
               </h1>
               <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusColors[application.status]}`}>
@@ -263,198 +266,207 @@ export default function ApplicationDetailPage() {
               </span>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={() => router.push(`/dashboard/applications/${id}/edit`)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium flex items-center gap-2"
+                className="px-3 lg:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium flex items-center gap-2 text-sm"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
-                Редактировать
+                <span className="hidden lg:inline">Редактировать</span>
               </button>
               <button
                 onClick={() => setShowStatusModal(true)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium flex items-center gap-2"
+                className="px-3 lg:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium flex items-center gap-2 text-sm"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
-                Изменить статус
+                <span className="hidden lg:inline">Изменить статус</span>
+                <span className="lg:hidden">Статус</span>
               </button>
+            </div>
+          </div>
+
+          {/* Mobile header */}
+          <div className="md:hidden py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => router.push('/dashboard/applications')}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h1 className="text-lg font-bold text-gray-900 flex-1">
+                Заявка #{application.application_number}
+              </h1>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[application.status]}`}>
+                {statusLabels[application.status]}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => router.push(`/dashboard/applications/${id}/edit`)}
+                  className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-xs font-medium"
+                >
+                  Редактировать
+                </button>
+                <button
+                  onClick={() => setShowStatusModal(true)}
+                  className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-xs font-medium"
+                >
+                  Статус
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 2-колоночный layout сверху */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Левая колонка - Информация о заявке */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Основная информация */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Информация о заявке</h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+        {/* 2-колоночный layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-6">
+          {/* Левая колонка - Компактная информация */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Компактная карточка с основной информацией */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              {/* Основные данные в компактном виде */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4 pb-4 border-b border-gray-200">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Дата создания</p>
-                  <p className="text-base font-medium text-gray-900">{formatDate(application.created_at)}</p>
+                  <span className="text-gray-500">Создана:</span>{' '}
+                  <span className="font-medium text-gray-900">{formatDate(application.created_at)}</span>
                 </div>
-
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Последнее обновление</p>
-                  <p className="text-base font-medium text-gray-900">{formatDate(application.updated_at)}</p>
+                  <span className="text-gray-500">Обновлена:</span>{' '}
+                  <span className="font-medium text-gray-900">{formatDate(application.updated_at)}</span>
                 </div>
-
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Срочность</p>
-                  <p className={`text-base font-semibold ${urgencyColors[application.urgency]}`}>
+                  <span className="text-gray-500">Срочность:</span>{' '}
+                  <span className={`font-semibold ${urgencyColors[application.urgency]}`}>
                     {urgencyLabels[application.urgency]}
-                  </p>
+                  </span>
                 </div>
-
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Тип услуги</p>
-                  <p className="text-base font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</p>
+                  <span className="text-gray-500">Услуга:</span>{' '}
+                  <span className="font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</span>
                 </div>
               </div>
-            </div>
 
-            {/* Назначение исполнителя */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Исполнитель</h2>
+              {/* Исполнитель */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Исполнитель</label>
+                <select
+                  value={application.assigned_to || ''}
+                  onChange={(e) => handleAssignUser(e.target.value)}
+                  disabled={isAssigning}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Не назначен</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.full_name} ({user.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <select
-                    value={application.assigned_to || ''}
-                    onChange={(e) => handleAssignUser(e.target.value)}
-                    disabled={isAssigning}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Не назначен</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.full_name} ({user.role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {application.assigned_user && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Назначен: {application.assigned_user.full_name}</span>
-                  </div>
+              {/* Адрес */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <p className="text-sm font-medium text-gray-700 mb-1">Адрес подключения</p>
+                <p className="text-sm text-gray-900">{formatAddress(application.zakaz_addresses)}</p>
+                {application.zakaz_addresses?.comment && (
+                  <p className="mt-1 text-xs text-gray-600">{application.zakaz_addresses.comment}</p>
                 )}
               </div>
-            </div>
 
-            {/* Адрес */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Адрес подключения</h2>
-              <p className="text-base font-medium text-gray-900">{formatAddress(application.zakaz_addresses)}</p>
-              {application.zakaz_addresses?.comment && (
-                <p className="mt-2 text-sm text-gray-600">{application.zakaz_addresses.comment}</p>
-              )}
-            </div>
-
-            {/* Информация о клиенте */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Информация о клиенте</h2>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Тип клиента</p>
-                  <p className="text-base font-medium text-gray-900">{customerTypeLabels[application.customer_type]}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">
-                    {application.customer_type === 'business' ? 'Название компании' : 'ФИО клиента'}
+              {/* Информация о клиенте - компактно */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <p className="text-sm font-medium text-gray-700 mb-2">Клиент</p>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    <span className="text-gray-500">{customerTypeLabels[application.customer_type]}:</span>{' '}
+                    <span className="font-medium text-gray-900">{application.customer_fullname}</span>
                   </p>
-                  <p className="text-base font-medium text-gray-900">{application.customer_fullname}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Телефон заказчика</p>
-                  <p className="text-base font-medium text-gray-900">
-                    <a href={`tel:${application.customer_phone}`} className="text-indigo-600 hover:text-indigo-700">
+                  <p>
+                    <span className="text-gray-500">Телефон:</span>{' '}
+                    <a href={`tel:${application.customer_phone}`} className="text-indigo-600 hover:text-indigo-700 font-medium">
                       {application.customer_phone}
                     </a>
                   </p>
-                </div>
-
-                {application.customer_type === 'business' && (
-                  <>
-                    {application.contact_person && (
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Контактное лицо</p>
-                        <p className="text-base font-medium text-gray-900">{application.contact_person}</p>
-                      </div>
-                    )}
-
-                    {application.contact_phone && (
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Телефон контактного лица</p>
-                        <p className="text-base font-medium text-gray-900">
+                  {application.customer_type === 'business' && application.contact_person && (
+                    <>
+                      <p>
+                        <span className="text-gray-500">Контакт:</span>{' '}
+                        <span className="text-gray-900">{application.contact_person}</span>
+                      </p>
+                      {application.contact_phone && (
+                        <p>
+                          <span className="text-gray-500">Тел. контакта:</span>{' '}
                           <a href={`tel:${application.contact_phone}`} className="text-indigo-600 hover:text-indigo-700">
                             {application.contact_phone}
                           </a>
                         </p>
-                      </div>
-                    )}
-                  </>
-                )}
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Комментарий клиента */}
-            {application.client_comment && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Комментарий клиента</h2>
-                <p className="text-base text-gray-700 whitespace-pre-wrap">{application.client_comment}</p>
-              </div>
-            )}
+              {/* Комментарий клиента */}
+              {application.client_comment && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Комментарий клиента</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{application.client_comment}</p>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Правая колонка - История изменений */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">История изменений</h2>
-              <AuditLog applicationId={id} />
+          {/* Правая колонка - История и файлы */}
+          <div className="lg:col-span-1 space-y-4">
+            {/* История изменений */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">История изменений</h3>
+              <AuditLog
+                applicationId={id}
+                limit={5}
+                onShowAll={() => setShowAuditLogModal(true)}
+              />
+            </div>
+
+            {/* Файлы заявки */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">Прикрепленные файлы</h3>
+
+              {/* Список файлов с миниатюрами */}
+              <FileList
+                applicationId={id}
+                showDirectFilesOnly={true}
+                refreshTrigger={fileRefreshTrigger}
+                limit={5}
+                showThumbnails={true}
+                className="mb-3"
+              />
+
+              {/* Загрузка файлов */}
+              <div className="pt-3 border-t border-gray-200">
+                <FileUpload
+                  applicationId={id}
+                  onFileUploaded={() => setFileRefreshTrigger(prev => prev + 1)}
+                  maxFiles={5}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Блок - Файлы заявки */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Файлы заявки</h2>
-
-          {/* Список файлов */}
-          <FileList
-            applicationId={id}
-            showDirectFilesOnly={true}
-            refreshTrigger={fileRefreshTrigger}
-            className="mb-4"
-          />
-
-          {/* Загрузка файлов */}
-          <div className="pt-4 border-t border-gray-200">
-            <FileUpload
-              applicationId={id}
-              onFileUploaded={() => setFileRefreshTrigger(prev => prev + 1)}
-              maxFiles={5}
-            />
-          </div>
-        </div>
-
-        {/* Нижний блок - Комментарии сотрудников */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Комментарии сотрудников</h2>
+        {/* Нижний блок - Комментарии сотрудников (на всю ширину) */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+          <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Комментарии сотрудников</h2>
           <Comments
             applicationId={id}
             currentUserId={undefined}
@@ -474,6 +486,14 @@ export default function ApplicationDetailPage() {
             setShowStatusModal(false)
             loadApplication()
           }}
+        />
+      )}
+
+      {/* Модальное окно полной истории */}
+      {showAuditLogModal && (
+        <AuditLogModal
+          applicationId={id}
+          onClose={() => setShowAuditLogModal(false)}
         />
       )}
     </div>
