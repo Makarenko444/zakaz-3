@@ -47,7 +47,7 @@ export async function POST(
     }
 
     // Если указан comment_id, проверим что комментарий существует и принадлежит этой заявке
-    if (commentId) {
+    if (commentId && commentId !== 'null') {
       const { data: comment, error: commentError } = await supabase
         .from('zakaz_comments')
         .select('id, application_id')
