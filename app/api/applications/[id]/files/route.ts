@@ -49,6 +49,7 @@ export async function POST(
 
     // Если указан comment_id, проверим что комментарий существует и принадлежит этой заявке
     if (commentId && commentId !== 'null') {
+      console.log('🔍 Checking comment:', { commentId, applicationId, commentIdType: typeof commentId })
       const { data: comment, error: commentError } = await supabase
         .from('zakaz_comments')
         .select('id, application_id')
@@ -56,12 +57,16 @@ export async function POST(
         .eq('application_id', applicationId)
         .single()
 
+      console.log('📊 Comment query result:', { comment, commentError, hasComment: !!comment })
+
       if (commentError || !comment) {
+        console.error('❌ Comment validation failed:', { commentError, comment, commentId, applicationId })
         return NextResponse.json(
           { error: 'Comment not found or does not belong to this application' },
           { status: 404 }
         )
       }
+      console.log('✅ Comment validated successfully')
     }
 
     // Сохранение файла на диск
