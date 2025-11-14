@@ -177,13 +177,30 @@ export default function Comments({
           {comments.map((comment) => (
             <div key={comment.id} className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="flex items-start justify-between mb-2">
-                <div>
+                <div className="flex-1">
                   <p className="font-medium text-gray-900">{comment.user_name}</p>
                   {comment.user_email && (
                     <p className="text-xs text-gray-500">{comment.user_email}</p>
                   )}
                 </div>
-                <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
+                  {/* Скрепка для прикрепления файлов */}
+                  <button
+                    onClick={() => toggleFileUpload(comment.id)}
+                    className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition"
+                    title="Прикрепить файлы"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <p className="text-gray-700 whitespace-pre-wrap mb-3">{comment.comment}</p>
 
@@ -195,37 +212,17 @@ export default function Comments({
                 className="mt-3"
               />
 
-              {/* Кнопка загрузки файлов */}
-              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
-                <button
-                  onClick={() => toggleFileUpload(comment.id)}
-                  className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition"
-                  title={showFileUpload[comment.id] ? 'Скрыть загрузку файлов' : 'Прикрепить файлы'}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                    />
-                  </svg>
-                </button>
-                {showFileUpload[comment.id] && (
-                  <span className="text-xs text-gray-500">Прикрепить файлы к комментарию</span>
-                )}
-
-                {showFileUpload[comment.id] && (
-                  <div className="mt-3">
-                    <FileUpload
-                      applicationId={applicationId}
-                      commentId={comment.id}
-                      onFileUploaded={() => refreshFiles(comment.id)}
-                      maxFiles={3}
-                    />
-                  </div>
-                )}
-              </div>
+              {/* Форма загрузки файлов (показывается по клику на скрепку) */}
+              {showFileUpload[comment.id] && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <FileUpload
+                    applicationId={applicationId}
+                    commentId={comment.id}
+                    onFileUploaded={() => refreshFiles(comment.id)}
+                    maxFiles={3}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -69,6 +69,7 @@ export interface FileAttachment {
   mime_type: string
   uploaded_by: string
   uploaded_at: string
+  description: string | null
 }
 
 export interface Database {

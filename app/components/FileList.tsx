@@ -140,11 +140,7 @@ export default function FileList({
   }
 
   if (files.length === 0) {
-    return (
-      <div className={`text-center py-4 text-sm text-gray-500 ${className}`}>
-        Файлы не прикреплены
-      </div>
-    )
+    return null
   }
 
   // Определяем какие файлы показывать
@@ -180,6 +176,9 @@ export default function FileList({
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{file.original_filename}</p>
+              {file.description && (
+                <p className="text-sm text-gray-700 mt-1">{file.description}</p>
+              )}
               <p className="text-xs text-gray-500">
                 {formatFileSize(file.file_size)} • {formatDate(file.uploaded_at)}
               </p>

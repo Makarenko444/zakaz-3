@@ -445,9 +445,7 @@ export default function ApplicationDetailPage() {
               {/* Список файлов с миниатюрами */}
               <FileList
                 applicationId={id}
-                showDirectFilesOnly={true}
                 refreshTrigger={fileRefreshTrigger}
-                limit={5}
                 showThumbnails={true}
                 className="mb-3"
               />
