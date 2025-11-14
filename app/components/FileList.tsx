@@ -27,10 +27,23 @@ export default function FileList({
   const [error, setError] = useState('')
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
+  const [imageModalOpen, setImageModalOpen] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<FileAttachment | null>(null)
 
   useEffect(() => {
     loadFiles()
   }, [applicationId, commentId, showDirectFilesOnly, refreshTrigger])
+
+  // Закрытие модального окна по ESC
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && imageModalOpen) {
+        setImageModalOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [imageModalOpen])
 
   async function loadFiles() {
     setIsLoading(true)
@@ -90,6 +103,13 @@ export default function FileList({
   const handleDownload = (fileId: string) => {
     // Открываем в новом окне для скачивания
     window.open(`/api/applications/${applicationId}/files/${fileId}`, '_blank')
+  }
+
+  const handleImageClick = (file: FileAttachment) => {
+    if (file.mime_type?.startsWith('image/')) {
+      setSelectedImage(file)
+      setImageModalOpen(true)
+    }
   }
 
   const formatFileSize = (bytes: number): string => {
@@ -157,7 +177,11 @@ export default function FileList({
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Миниатюра для картинок или иконка */}
             {showThumbnails && file.mime_type?.startsWith('image/') ? (
-              <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-200">
+              <div
+                className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-200 cursor-pointer hover:ring-2 hover:ring-indigo-500 transition"
+                onClick={() => handleImageClick(file)}
+                title="Нажмите для просмотра"
+              >
                 <img
                   src={`/api/applications/${applicationId}/files/${file.id}`}
                   alt={file.original_filename}
@@ -231,6 +255,46 @@ export default function FileList({
         >
           Показать еще ({files.length - displayedFiles.length})
         </button>
+      )}
+
+      {/* Модальное окно для просмотра изображения */}
+      {imageModalOpen && selectedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
+          onClick={() => setImageModalOpen(false)}
+        >
+          <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            {/* Кнопка закрытия */}
+            <button
+              onClick={() => setImageModalOpen(false)}
+              className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition text-white"
+              title="Закрыть (ESC)"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Изображение */}
+            <img
+              src={`/api/applications/${applicationId}/files/${selectedImage.id}`}
+              alt={selectedImage.original_filename}
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {/* Информация о файле */}
+            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-60 text-white p-4 rounded-lg">
+              <p className="font-medium text-lg">{selectedImage.original_filename}</p>
+              {selectedImage.description && (
+                <p className="text-sm text-gray-300 mt-1">{selectedImage.description}</p>
+              )}
+              <p className="text-xs text-gray-400 mt-2">
+                {formatFileSize(selectedImage.file_size)} • {formatDate(selectedImage.uploaded_at)}
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
