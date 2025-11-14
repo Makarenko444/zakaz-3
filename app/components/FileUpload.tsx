@@ -10,6 +10,11 @@ interface FileUploadProps {
   className?: string
 }
 
+interface FileWithDescription {
+  file: File
+  description: string
+}
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 const ALLOWED_EXTENSIONS = [
   '.pdf',
@@ -37,15 +42,16 @@ export default function FileUpload({
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [error, setError] = useState('')
+  const [selectedFiles, setSelectedFiles] = useState<FileWithDescription[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
 
     if (files.length === 0) return
 
     // Проверка количества файлов
-    if (files.length > maxFiles) {
+    if (selectedFiles.length + files.length > maxFiles) {
       setError(`Можно загрузить максимум ${maxFiles} файлов за раз`)
       return
     }
@@ -67,18 +73,45 @@ export default function FileUpload({
     }
 
     setError('')
+
+    // Добавляем файлы к списку выбранных
+    const newFiles: FileWithDescription[] = files.map(file => ({
+      file,
+      description: ''
+    }))
+
+    setSelectedFiles(prev => [...prev, ...newFiles])
+
+    // Сброс input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDescriptionChange = (index: number, description: string) => {
+    setSelectedFiles(prev => prev.map((item, i) =>
+      i === index ? { ...item, description } : item
+    ))
+  }
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0) return
+
+    setError('')
     setIsUploading(true)
 
     try {
       // Загружаем файлы последовательно
-      for (const file of files) {
-        await uploadFile(file)
+      for (const { file, description } of selectedFiles) {
+        await uploadFile(file, description)
       }
 
-      // Сброс input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      // Очищаем список выбранных файлов
+      setSelectedFiles([])
 
       // Вызываем callback
       if (onFileUploaded) {
@@ -93,11 +126,14 @@ export default function FileUpload({
     }
   }
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = async (file: File, description: string) => {
     const formData = new FormData()
     formData.append('file', file)
     if (commentId) {
       formData.append('comment_id', commentId)
+    }
+    if (description) {
+      formData.append('description', description)
     }
 
     // Обновляем прогресс
@@ -135,14 +171,14 @@ export default function FileUpload({
           multiple={maxFiles > 1}
           accept={ALLOWED_EXTENSIONS.join(',')}
           onChange={handleFileSelect}
-          disabled={isUploading}
+          disabled={isUploading || selectedFiles.length >= maxFiles}
           className="hidden"
           id={`file-upload-${applicationId}-${commentId || 'direct'}`}
         />
         <label
           htmlFor={`file-upload-${applicationId}-${commentId || 'direct'}`}
           className={`inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer ${
-            isUploading ? 'opacity-50 cursor-not-allowed' : ''
+            isUploading || selectedFiles.length >= maxFiles ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,10 +189,49 @@ export default function FileUpload({
               d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
             />
           </svg>
-          {isUploading ? 'Загрузка...' : 'Прикрепить файл'}
+          Выбрать файл
         </label>
         <span className="text-xs text-gray-500">до {formatFileSize(MAX_FILE_SIZE)}</span>
       </div>
+
+      {/* Список выбранных файлов с полями для описания */}
+      {selectedFiles.length > 0 && !isUploading && (
+        <div className="mt-3 space-y-3">
+          {selectedFiles.map((item, index) => (
+            <div key={index} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{item.file.name}</p>
+                  <p className="text-xs text-gray-500">{formatFileSize(item.file.size)}</p>
+                </div>
+                <button
+                  onClick={() => handleRemoveFile(index)}
+                  className="p-1 text-red-600 hover:bg-red-50 rounded transition"
+                  title="Удалить"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <input
+                type="text"
+                value={item.description}
+                onChange={(e) => handleDescriptionChange(index, e.target.value)}
+                placeholder="Описание файла (необязательно)"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+            </div>
+          ))}
+          <button
+            onClick={handleUpload}
+            disabled={isUploading}
+            className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isUploading ? 'Загрузка...' : `Загрузить (${selectedFiles.length})`}
+          </button>
+        </div>
+      )}
 
       {/* Прогресс загрузки */}
       {isUploading && Object.keys(uploadProgress).length > 0 && (
