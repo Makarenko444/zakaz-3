@@ -51,7 +51,7 @@ export async function POST(
     if (commentId && commentId !== 'null') {
       console.log('🔍 Checking comment:', { commentId, applicationId, commentIdType: typeof commentId })
       const { data: comment, error: commentError } = await supabase
-        .from('zakaz_comments')
+        .from('zakaz_application_comments')
         .select('id, application_id')
         .eq('id', commentId)
         .eq('application_id', applicationId)
