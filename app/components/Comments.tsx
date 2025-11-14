@@ -18,13 +18,15 @@ interface CommentsProps {
   currentUserId?: string
   currentUserName?: string
   currentUserEmail?: string
+  onFileUploaded?: () => void  // Callback для обновления главного списка файлов
 }
 
 export default function Comments({
   applicationId,
   currentUserId,
   currentUserName,
-  currentUserEmail
+  currentUserEmail,
+  onFileUploaded
 }: CommentsProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
@@ -124,6 +126,10 @@ export default function Comments({
     }
     // Обновить список файлов комментария
     refreshFiles(commentId)
+    // Обновить главный список файлов заявки
+    if (onFileUploaded) {
+      onFileUploaded()
+    }
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,6 +215,7 @@ export default function Comments({
                 applicationId={applicationId}
                 commentId={comment.id}
                 refreshTrigger={fileRefreshTriggers[comment.id] || 0}
+                showThumbnails={true}
                 className="mt-3"
               />
 
@@ -218,7 +225,10 @@ export default function Comments({
                   <FileUpload
                     applicationId={applicationId}
                     commentId={comment.id}
-                    onFileUploaded={() => refreshFiles(comment.id)}
+                    onFileUploaded={() => {
+                      refreshFiles(comment.id)
+                      if (onFileUploaded) onFileUploaded()
+                    }}
                     maxFiles={3}
                   />
                 </div>

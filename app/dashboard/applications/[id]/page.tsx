@@ -92,7 +92,10 @@ export default function ApplicationDetailPage() {
   const [isAssigning, setIsAssigning] = useState(false)
   const [fileRefreshTrigger, setFileRefreshTrigger] = useState(0)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [currentUserName, setCurrentUserName] = useState<string>('')
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
   const [showAuditLogModal, setShowAuditLogModal] = useState(false)
+  const [showAssignModal, setShowAssignModal] = useState(false)
 
   useEffect(() => {
     loadApplication()
@@ -140,6 +143,8 @@ export default function ApplicationDetailPage() {
       const user = await getCurrentUser()
       if (user) {
         setCurrentUserId(user.id)
+        setCurrentUserName(user.full_name)
+        setCurrentUserEmail(user.email)
       }
     } catch (error) {
       console.error('Error loading current user:', error)
@@ -359,19 +364,16 @@ export default function ApplicationDetailPage() {
               {/* Исполнитель */}
               <div className="mb-4 pb-4 border-b border-gray-200">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Исполнитель</label>
-                <select
-                  value={application.assigned_to || ''}
-                  onChange={(e) => handleAssignUser(e.target.value)}
-                  disabled={isAssigning}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                <button
+                  onClick={() => setShowAssignModal(true)}
+                  className="w-full text-left px-3 py-2 text-sm border border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
-                  <option value="">Не назначен</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.full_name} ({user.role})
-                    </option>
-                  ))}
-                </select>
+                  {application.assigned_user ? (
+                    <span className="text-gray-900">{application.assigned_user.full_name} <span className="text-gray-500">({application.assigned_user.role})</span></span>
+                  ) : (
+                    <span className="text-gray-500">Не назначен</span>
+                  )}
+                </button>
               </div>
 
               {/* Адрес */}
@@ -430,9 +432,10 @@ export default function ApplicationDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Комментарии сотрудников</h2>
               <Comments
                 applicationId={id}
-                currentUserId={undefined}
-                currentUserName="Текущий пользователь"
-                currentUserEmail={undefined}
+                currentUserId={currentUserId || undefined}
+                currentUserName={currentUserName || 'Аноним'}
+                currentUserEmail={currentUserEmail || undefined}
+                onFileUploaded={() => setFileRefreshTrigger(prev => prev + 1)}
               />
             </div>
           </div>
@@ -493,6 +496,67 @@ export default function ApplicationDetailPage() {
           applicationId={id}
           onClose={() => setShowAuditLogModal(false)}
         />
+      )}
+
+      {/* Модальное окно назначения исполнителя */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Назначить исполнителя</h3>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              <div className="space-y-2">
+                {/* Опция "Не назначен" */}
+                <button
+                  onClick={() => {
+                    handleAssignUser('')
+                    setShowAssignModal(false)
+                  }}
+                  disabled={isAssigning}
+                  className={`w-full text-left px-4 py-3 rounded-lg border transition ${
+                    !application.assigned_to
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <span className="font-medium">Не назначен</span>
+                </button>
+
+                {/* Список пользователей */}
+                {users.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => {
+                      handleAssignUser(user.id)
+                      setShowAssignModal(false)
+                    }}
+                    disabled={isAssigning}
+                    className={`w-full text-left px-4 py-3 rounded-lg border transition ${
+                      application.assigned_to === user.id
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <div className="font-medium">{user.full_name}</div>
+                    <div className="text-sm text-gray-500">{user.role} • {user.email}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+              <button
+                onClick={() => setShowAssignModal(false)}
+                disabled={isAssigning}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
