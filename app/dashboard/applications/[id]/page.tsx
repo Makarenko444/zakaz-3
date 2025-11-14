@@ -259,7 +259,7 @@ export default function ApplicationDetailPage() {
                 </svg>
               </button>
               <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-                Заявка #{application.application_number}
+                Заявка №{application.application_number}
               </h1>
               <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusColors[application.status]}`}>
                 {statusLabels[application.status]}
@@ -301,7 +301,7 @@ export default function ApplicationDetailPage() {
                 </svg>
               </button>
               <h1 className="text-lg font-bold text-gray-900 flex-1">
-                Заявка #{application.application_number}
+                Заявка №{application.application_number}
               </h1>
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -424,20 +424,21 @@ export default function ApplicationDetailPage() {
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Правая колонка - История и файлы */}
-          <div className="lg:col-span-1 space-y-4">
-            {/* История изменений */}
+            {/* Комментарии сотрудников */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="text-base font-semibold text-gray-900 mb-3">История изменений</h3>
-              <AuditLog
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Комментарии сотрудников</h2>
+              <Comments
                 applicationId={id}
-                limit={5}
-                onShowAll={() => setShowAuditLogModal(true)}
+                currentUserId={undefined}
+                currentUserName="Текущий пользователь"
+                currentUserEmail={undefined}
               />
             </div>
+          </div>
 
+          {/* Правая колонка - Файлы и история */}
+          <div className="lg:col-span-1 space-y-4">
             {/* Файлы заявки */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h3 className="text-base font-semibold text-gray-900 mb-3">Прикрепленные файлы</h3>
@@ -461,18 +462,17 @@ export default function ApplicationDetailPage() {
                 />
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Нижний блок - Комментарии сотрудников (на всю ширину) */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
-          <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Комментарии сотрудников</h2>
-          <Comments
-            applicationId={id}
-            currentUserId={undefined}
-            currentUserName="Текущий пользователь"
-            currentUserEmail={undefined}
-          />
+            {/* История изменений */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">История изменений</h3>
+              <AuditLog
+                applicationId={id}
+                limit={5}
+                onShowAll={() => setShowAuditLogModal(true)}
+              />
+            </div>
+          </div>
         </div>
       </main>
 
