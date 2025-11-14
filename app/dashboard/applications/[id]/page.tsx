@@ -359,21 +359,19 @@ export default function ApplicationDetailPage() {
                   <span className="text-gray-500">Услуга:</span>{' '}
                   <span className="font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</span>
                 </div>
-              </div>
-
-              {/* Исполнитель */}
-              <div className="mb-4 pb-4 border-b border-gray-200">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Исполнитель</label>
-                <button
-                  onClick={() => setShowAssignModal(true)}
-                  className="w-full text-left px-3 py-2 text-sm border border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  {application.assigned_user ? (
-                    <span className="text-gray-900">{application.assigned_user.full_name} <span className="text-gray-500">({application.assigned_user.role})</span></span>
-                  ) : (
-                    <span className="text-gray-500">Не назначен</span>
-                  )}
-                </button>
+                <div className="sm:col-span-2">
+                  <span className="text-gray-500">Исполнитель:</span>{' '}
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition"
+                  >
+                    {application.assigned_user ? (
+                      <>{application.assigned_user.full_name} <span className="text-gray-500 text-xs">({application.assigned_user.role})</span></>
+                    ) : (
+                      'Не назначен'
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Адрес */}
