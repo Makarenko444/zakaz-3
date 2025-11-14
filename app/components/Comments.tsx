@@ -181,20 +181,23 @@ export default function Comments({
       ) : (
         <div className="space-y-3">
           {comments.map((comment) => (
-            <div key={comment.id} className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{comment.user_name}</p>
-                  {comment.user_email && (
-                    <p className="text-xs text-gray-500">{comment.user_email}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
+            <div key={comment.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              {/* Заголовок комментария - отдельный блок */}
+              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">{comment.user_name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {comment.user_email && (
+                        <span className="text-xs text-gray-600">{comment.user_email}</span>
+                      )}
+                      <span className="text-xs text-gray-500">• {formatDate(comment.created_at)}</span>
+                    </div>
+                  </div>
                   {/* Скрепка для прикрепления файлов */}
                   <button
                     onClick={() => toggleFileUpload(comment.id)}
-                    className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition"
+                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 rounded transition"
                     title="Прикрепить файлы"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -208,16 +211,22 @@ export default function Comments({
                   </button>
                 </div>
               </div>
-              <p className="text-gray-700 whitespace-pre-wrap mb-3">{comment.comment}</p>
+
+              {/* Текст комментария */}
+              <div className="px-4 py-3">
+                <p className="text-gray-800 whitespace-pre-wrap">{comment.comment}</p>
+              </div>
 
               {/* Список файлов комментария */}
-              <FileList
-                applicationId={applicationId}
-                commentId={comment.id}
-                refreshTrigger={fileRefreshTriggers[comment.id] || 0}
-                showThumbnails={true}
-                className="mt-3"
-              />
+              {/* Показываем только если есть файлы */}
+              <div className="px-4 pb-3">
+                <FileList
+                  applicationId={applicationId}
+                  commentId={comment.id}
+                  refreshTrigger={fileRefreshTriggers[comment.id] || 0}
+                  showThumbnails={true}
+                />
+              </div>
 
               {/* Форма загрузки файлов (показывается по клику на скрепку) */}
               {showFileUpload[comment.id] && (
