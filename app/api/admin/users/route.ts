@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { validateSession } from '@/lib/session'
-import bcrypt from 'bcryptjs'
+import { validateSession, hashPassword } from '@/lib/session'
 
 // GET - получить всех пользователей (включая неактивных)
 export async function GET(request: NextRequest) {
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Хешируем пароль
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = hashPassword(password)
 
     const supabase = createDirectClient()
 

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { validateSession } from '@/lib/session'
-import bcrypt from 'bcryptjs'
+import { validateSession, hashPassword } from '@/lib/session'
 
 // PATCH - обновить пользователя
 export async function PATCH(
@@ -29,7 +28,7 @@ export async function PATCH(
 
     // Если передан новый пароль, хешируем его
     if (password) {
-      updateData.password_hash = await bcrypt.hash(password, 10)
+      updateData.password_hash = hashPassword(password)
     }
 
     const { data, error } = await supabase
