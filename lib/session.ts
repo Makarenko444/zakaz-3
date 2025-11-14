@@ -149,10 +149,34 @@ export async function verifyPassword(
 
 // Простое хеширование пароля (для демо)
 // В production используйте bcrypt!
-function hashPassword(password: string): string {
+export function hashPassword(password: string): string {
   // Временная реализация - простой SHA256
   // TODO: Заменить на bcrypt для production
   return crypto.createHash('sha256').update(password).digest('hex')
+}
+
+// Валидация сессии из запроса (утилита для API endpoints)
+export async function validateSession(request: Request): Promise<{ user: User } | null> {
+  const cookieHeader = request.headers.get('cookie')
+  if (!cookieHeader) {
+    return null
+  }
+
+  // Извлекаем session token из cookies
+  const cookies = cookieHeader.split(';').map(c => c.trim())
+  const sessionCookie = cookies.find(c => c.startsWith(`${SESSION_COOKIE_NAME}=`))
+  if (!sessionCookie) {
+    return null
+  }
+
+  const sessionToken = sessionCookie.split('=')[1]
+  const user = await getUserBySessionToken(sessionToken)
+
+  if (!user) {
+    return null
+  }
+
+  return { user }
 }
 
 // Константа для cookie
