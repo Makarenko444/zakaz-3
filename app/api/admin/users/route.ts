@@ -1,0 +1,93 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createDirectClient } from '@/lib/supabase-direct'
+import { validateSession } from '@/lib/session'
+import bcrypt from 'bcryptjs'
+
+// GET - получить всех пользователей (включая неактивных)
+export async function GET(request: NextRequest) {
+  try {
+    const session = await validateSession(request)
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const supabase = createDirectClient()
+    const { data, error } = await supabase
+      .from('zakaz_users')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching users:', error)
+      return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+    }
+
+    return NextResponse.json({ users: data || [] })
+  } catch (error) {
+    console.error('Error in admin users GET:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// POST - создать нового пользователя
+export async function POST(request: NextRequest) {
+  try {
+    const session = await validateSession(request)
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { email, full_name, phone, role, password } = body
+
+    if (!email || !full_name || !role || !password) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    // Хешируем пароль
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    const supabase = createDirectClient()
+
+    // Проверяем, не существует ли уже пользователь с таким email
+    const { data: existingUser } = await supabase
+      .from('zakaz_users')
+      .select('id')
+      .eq('email', email)
+      .single()
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 400 }
+      )
+    }
+
+    // Создаем пользователя
+    const { data, error } = await supabase
+      .from('zakaz_users')
+      .insert({
+        email,
+        full_name,
+        phone: phone || null,
+        role,
+        password_hash: hashedPassword,
+        active: true,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating user:', error)
+      return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+    }
+
+    return NextResponse.json({ user: data })
+  } catch (error) {
+    console.error('Error in admin users POST:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
