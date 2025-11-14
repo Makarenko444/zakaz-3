@@ -167,19 +167,21 @@ ssh makar@ai.tomica.ru
 cd ~/projects/zakaz-3
 ```
 
-**Получить последние изменения:**
+**Быстрый деплой (рекомендуется):**
+```bash
+pr-main
+```
+
+Эта команда автоматически выполнит:
+- `git pull origin main` - получение изменений
+- `rm -rf .next` - очистка старого билда
+- `npm run build` - сборка проекта
+- `pm2 restart zakaz-3-dev` - перезапуск
+
+**Или вручную:**
 ```bash
 git pull origin main
-```
-
-**Внести изменения:**
-```bash
-# Редактируйте файлы
-nano app/...
-```
-
-**Тестирование:**
-```bash
+rm -rf .next
 npm run build
 pm2 restart zakaz-3-dev
 pm2 logs zakaz-3-dev --lines 50
@@ -188,6 +190,19 @@ pm2 logs zakaz-3-dev --lines 50
 **Проверка в браузере:**
 ```
 https://zakaz3.tomica.ru
+```
+
+**Настройка команды pr-main:**
+```bash
+# Создаем директорию bin
+mkdir -p ~/bin
+
+# Создаем симлинк
+ln -sf ~/projects/zakaz-3/pr-main.sh ~/bin/pr-main
+
+# Добавляем в PATH (если еще не добавлено)
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 ### 2. Коммит изменений
