@@ -10,7 +10,7 @@ export async function PATCH(
   try {
     const session = await validateSession(request)
     if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Доступ запрещен' }, { status: 401 })
     }
 
     const { id } = await context.params
@@ -33,13 +33,13 @@ export async function PATCH(
 
     if (error) {
       console.error('Error updating address:', error)
-      return NextResponse.json({ error: 'Failed to update address' }, { status: 500 })
+      return NextResponse.json({ error: 'Не удалось обновить адрес' }, { status: 500 })
     }
 
     return NextResponse.json({ address: data })
   } catch (error) {
     console.error('Error in admin addresses PATCH:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 })
   }
 }
 
@@ -51,7 +51,7 @@ export async function DELETE(
   try {
     const session = await validateSession(request)
     if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Доступ запрещен' }, { status: 401 })
     }
 
     const { id } = await context.params
@@ -64,8 +64,9 @@ export async function DELETE(
       .eq('address_id', id)
 
     if (count && count > 0) {
+      const applicationsText = count === 1 ? 'заявке' : count > 1 && count < 5 ? 'заявках' : 'заявках'
       return NextResponse.json(
-        { error: `Cannot delete address. It is used in ${count} application(s)` },
+        { error: `Невозможно удалить адрес. Он используется в ${count} ${applicationsText}` },
         { status: 400 }
       )
     }
@@ -78,12 +79,12 @@ export async function DELETE(
 
     if (error) {
       console.error('Error deleting address:', error)
-      return NextResponse.json({ error: 'Failed to delete address' }, { status: 500 })
+      return NextResponse.json({ error: 'Не удалось удалить адрес' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error in admin addresses DELETE:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 })
   }
 }

@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await validateSession(request)
     if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Доступ запрещен' }, { status: 401 })
     }
 
     const supabase = createDirectClient()
@@ -19,13 +19,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching addresses:', error)
-      return NextResponse.json({ error: 'Failed to fetch addresses' }, { status: 500 })
+      return NextResponse.json({ error: 'Не удалось загрузить адреса' }, { status: 500 })
     }
 
     return NextResponse.json({ addresses: data || [] })
   } catch (error) {
     console.error('Error in admin addresses GET:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 })
   }
 }
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await validateSession(request)
     if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Доступ запрещен' }, { status: 401 })
     }
 
     const body = await request.json()
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     if (!street || !house) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Отсутствуют обязательные поля' },
         { status: 400 }
       )
     }
@@ -61,12 +61,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating address:', error)
-      return NextResponse.json({ error: 'Failed to create address' }, { status: 500 })
+      return NextResponse.json({ error: 'Не удалось создать адрес' }, { status: 500 })
     }
 
     return NextResponse.json({ address: data })
   } catch (error) {
     console.error('Error in admin addresses POST:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 })
   }
 }
