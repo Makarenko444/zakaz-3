@@ -26,12 +26,12 @@ export async function PATCH(
     if (sort_order !== undefined) updateData.sort_order = sort_order
     if (is_active !== undefined) updateData.is_active = is_active
 
-    const { data, error } = await supabase
-      .from('zakaz_application_statuses')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    const table = supabase.from('zakaz_application_statuses') as unknown
+    const updateBuilder = (table as { update: (data: Record<string, unknown>) => unknown }).update(updateData) as unknown
+    const eqBuilder = (updateBuilder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
+    const selectBuilder = (eqBuilder as { select: () => unknown }).select() as unknown
+    const result = await (selectBuilder as { single: () => Promise<unknown> }).single()
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error updating status:', error)
@@ -60,12 +60,12 @@ export async function DELETE(
     const supabase = createDirectClient()
 
     // Деактивируем статус вместо удаления
-    const { data, error } = await supabase
-      .from('zakaz_application_statuses')
-      .update({ is_active: false })
-      .eq('id', id)
-      .select()
-      .single()
+    const table = supabase.from('zakaz_application_statuses') as unknown
+    const updateBuilder = (table as { update: (data: Record<string, unknown>) => unknown }).update({ is_active: false }) as unknown
+    const eqBuilder = (updateBuilder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
+    const selectBuilder = (eqBuilder as { select: () => unknown }).select() as unknown
+    const result = await (selectBuilder as { single: () => Promise<unknown> }).single()
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error deleting status:', error)

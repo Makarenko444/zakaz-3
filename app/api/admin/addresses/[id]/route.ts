@@ -25,12 +25,12 @@ export async function PATCH(
     if (entrance !== undefined) updateData.entrance = entrance || null
     if (comment !== undefined) updateData.comment = comment || null
 
-    const { data, error } = await supabase
-      .from('zakaz_addresses')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    const table = supabase.from('zakaz_addresses') as unknown
+    const updateBuilder = (table as { update: (data: Record<string, unknown>) => unknown }).update(updateData) as unknown
+    const eqBuilder = (updateBuilder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
+    const selectBuilder = (eqBuilder as { select: () => unknown }).select() as unknown
+    const result = await (selectBuilder as { single: () => Promise<unknown> }).single()
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error updating address:', error)
