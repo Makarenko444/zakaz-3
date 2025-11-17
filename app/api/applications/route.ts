@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     // Обходим проблемы с автогенерируемыми типами Supabase через unknown
     const table = supabase.from('zakaz_applications') as unknown
     const builder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert(applicationData) as unknown
-    const selector = (builder as { select: (cols: string) => unknown }).select('*, zakaz_addresses(street, house, entrance)') as unknown
+    const selector = (builder as { select: (cols: string) => unknown }).select('*, zakaz_addresses(street, house)') as unknown
     const query = (selector as { single: () => Promise<unknown> }).single()
     const result = await query
     const { data, error } = result as { data: { id: string; application_number: string; [key: string]: unknown } | null; error: { message?: string; [key: string]: unknown } | null }
