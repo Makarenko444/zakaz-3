@@ -124,14 +124,14 @@ export default function NewApplicationPage() {
 
       // В зависимости от режима очищаем неиспользуемые поля
       if (address_mode === 'freeform') {
-        // Режим свободного ввода - очищаем address_id и дополнительные поля
-        applicationData.address_id = undefined
-        applicationData.entrance = undefined
-        applicationData.floor = undefined
-        applicationData.apartment = undefined
+        // Режим свободного ввода - удаляем поля из справочника
+        delete applicationData.address_id
+        delete applicationData.entrance
+        delete applicationData.floor
+        delete applicationData.apartment
       } else {
-        // Режим выбора из справочника - очищаем freeform_address
-        applicationData.freeform_address = undefined
+        // Режим выбора из справочника - удаляем freeform_address
+        delete applicationData.freeform_address
       }
 
       const response = await fetch('/api/applications', {
