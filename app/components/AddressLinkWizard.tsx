@@ -16,6 +16,7 @@ interface AddressLinkWizardProps {
   currentAddressId: string | null
   onClose: () => void
   onLink: (addressId: string) => Promise<void>
+  onUnlink?: () => Promise<void>
 }
 
 export default function AddressLinkWizard({
@@ -25,12 +26,14 @@ export default function AddressLinkWizard({
   currentAddressId,
   onClose,
   onLink,
+  onUnlink,
 }: AddressLinkWizardProps) {
   const [addresses, setAddresses] = useState<Address[]>([])
   const [filteredAddresses, setFilteredAddresses] = useState<Address[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isLinking, setIsLinking] = useState(false)
+  const [isUnlinking, setIsUnlinking] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -81,15 +84,35 @@ export default function AddressLinkWizard({
     }
   }
 
+  async function handleUnlink() {
+    if (!onUnlink) return
+
+    setIsUnlinking(true)
+    setError('')
+
+    try {
+      await onUnlink()
+    } catch (error) {
+      console.error('Error unlinking address:', error)
+      setError(error instanceof Error ? error.message : 'Не удалось отвязать адрес')
+    } finally {
+      setIsUnlinking(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Привязка адреса к узлу</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              {currentAddressId ? 'Изменить привязку к узлу' : 'Привязка адреса к узлу'}
+            </h2>
             <p className="text-sm text-gray-600 mt-1">
-              Найдите адрес в справочнике узлов или закройте окно для привязки позже
+              {currentAddressId
+                ? 'Выберите другой адрес или отвяжите текущий'
+                : 'Найдите адрес в справочнике узлов или закройте окно для привязки позже'}
             </p>
           </div>
           <button
@@ -161,38 +184,41 @@ export default function AddressLinkWizard({
               <p className="text-sm text-gray-600 mb-3">
                 Найдено адресов: {filteredAddresses.length}
               </p>
-              {filteredAddresses.map((address) => (
-                <button
-                  key={address.id}
-                  onClick={() => handleLink(address.id)}
-                  disabled={isLinking || address.id === currentAddressId}
-                  className={`w-full text-left p-4 rounded-lg border-2 transition ${
-                    address.id === currentAddressId
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-indigo-500 hover:bg-indigo-50'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">
-                        {address.street}, {address.house}
-                      </p>
-                      {address.comment && (
-                        <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
+              {filteredAddresses.map((address) => {
+                const isCurrent = address.id === currentAddressId
+                return (
+                  <button
+                    key={address.id}
+                    onClick={() => handleLink(address.id)}
+                    disabled={isLinking || isUnlinking}
+                    className={`w-full text-left p-4 rounded-lg border-2 transition ${
+                      isCurrent
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-indigo-500 hover:bg-indigo-50'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">
+                          {address.street}, {address.house}
+                        </p>
+                        {address.comment && (
+                          <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
+                        )}
+                      </div>
+                      {isCurrent ? (
+                        <span className="ml-2 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                          Текущий
+                        </span>
+                      ) : (
+                        <span className="ml-2 text-indigo-600 text-sm font-medium">
+                          {currentAddressId ? 'Изменить →' : 'Выбрать →'}
+                        </span>
                       )}
                     </div>
-                    {address.id === currentAddressId ? (
-                      <span className="ml-2 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                        Текущий
-                      </span>
-                    ) : (
-                      <span className="ml-2 text-indigo-600 text-sm font-medium">
-                        Выбрать →
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -200,9 +226,22 @@ export default function AddressLinkWizard({
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-600">
-              Если адреса нет в списке, вы можете привязать его позже через раздел администрирования
-            </p>
+            <div className="flex items-center gap-3">
+              {currentAddressId && onUnlink && (
+                <button
+                  onClick={handleUnlink}
+                  disabled={isUnlinking || isLinking}
+                  className="px-4 py-2 border border-red-300 rounded-lg text-red-700 hover:bg-red-50 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isUnlinking ? 'Отвязка...' : 'Отвязать от узла'}
+                </button>
+              )}
+              <p className="text-sm text-gray-600">
+                {currentAddressId
+                  ? 'Вы можете изменить привязку или отвязать заявку от узла'
+                  : 'Если адреса нет в списке, вы можете привязать его позже'}
+              </p>
+            </div>
             <button
               onClick={onClose}
               className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition font-medium"
