@@ -92,9 +92,9 @@ export default function Header() {
             <nav className="hidden md:flex items-center gap-4">
               <button
                 onClick={() => router.push('/dashboard')}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive('/dashboard') && pathname === '/dashboard'
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:scale-105'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -103,9 +103,9 @@ export default function Header() {
 
               <button
                 onClick={() => router.push('/dashboard/applications')}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
                   isActive('/dashboard/applications')
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:scale-105'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -124,9 +124,9 @@ export default function Header() {
               {user?.role === 'admin' && (
                 <button
                   onClick={() => router.push('/dashboard/admin')}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     isActive('/dashboard/admin')
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:scale-105'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -202,9 +202,9 @@ export default function Header() {
                   router.push('/dashboard')
                   setIsMenuOpen(false)
                 }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive('/dashboard') && pathname === '/dashboard'
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -216,9 +216,9 @@ export default function Header() {
                   router.push('/dashboard/applications')
                   setIsMenuOpen(false)
                 }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-between ${
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-between ${
                   isActive('/dashboard/applications')
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -240,9 +240,9 @@ export default function Header() {
                     router.push('/dashboard/admin')
                     setIsMenuOpen(false)
                   }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     isActive('/dashboard/admin')
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
