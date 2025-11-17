@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     // Базовый запрос
     let query = supabase
       .from('zakaz_applications')
-      .select('*, zakaz_addresses(street, house, entrance)', { count: 'exact' })
+      .select('*, zakaz_addresses(street, house)', { count: 'exact' })
       .order('created_at', { ascending: false })
 
     // Применяем фильтры

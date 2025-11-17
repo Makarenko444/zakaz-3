@@ -14,7 +14,7 @@ export async function GET(
       .from('zakaz_applications')
       .select(`
         *,
-        zakaz_addresses(street, house, entrance, comment),
+        zakaz_addresses(street, house, comment),
         assigned_user:zakaz_users!assigned_to(id, full_name, email, role)
       `)
       .eq('id', id)
@@ -120,7 +120,7 @@ export async function PATCH(
     const filtered = (builder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
     const selector = (filtered as { select: (cols: string) => unknown }).select(`
       *,
-      zakaz_addresses(street, house, entrance),
+      zakaz_addresses(street, house, comment),
       assigned_user:zakaz_users!assigned_to(id, full_name, email, role)
     `) as unknown
     const query = (selector as { single: () => Promise<unknown> }).single()

@@ -52,7 +52,6 @@ interface Address {
   id: string
   street: string
   house: string
-  entrance: string | null
 }
 
 interface Application {
@@ -214,9 +213,7 @@ export default function EditApplicationPage() {
   }
 
   const formatAddress = (address: Address) => {
-    const parts = [address.street, address.house]
-    if (address.entrance) parts.push(`подъезд ${address.entrance}`)
-    return parts.join(', ')
+    return `${address.street}, ${address.house}`
   }
 
   if (isLoadingApplication || isLoadingAddresses) {

@@ -193,9 +193,7 @@ export default function ApplicationsPage() {
 
   const formatAddress = (address: ApplicationWithAddress['zakaz_addresses']) => {
     if (!address) return 'Адрес не указан'
-    const parts = [address.street, address.house]
-    if (address.entrance) parts.push(`подъезд ${address.entrance}`)
-    return parts.join(', ')
+    return `${address.street}, ${address.house}`
   }
 
   return (
