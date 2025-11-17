@@ -13,11 +13,21 @@ export async function GET(request: NextRequest) {
     const supabase = createDirectClient()
 
     // Получаем все адреса
-    const { data: addresses, error: addressesError } = await supabase
+    const addressesQuery = await supabase
       .from('zakaz_addresses')
       .select('*')
       .order('street', { ascending: true })
       .order('house', { ascending: true })
+
+    const addresses = addressesQuery.data as Array<{
+      id: string
+      street: string
+      house: string
+      comment: string | null
+      created_at?: string
+      updated_at?: string
+    }> | null
+    const addressesError = addressesQuery.error
 
     if (addressesError) {
       console.error('Error fetching addresses:', addressesError)
