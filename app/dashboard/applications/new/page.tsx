@@ -119,13 +119,16 @@ export default function NewApplicationPage() {
     setError('')
 
     try {
+      // Удаляем address_mode - это поле только для UI
+      const { address_mode, ...applicationData } = data
+
       const response = await fetch('/api/applications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...data,
+          ...applicationData,
           created_by: currentUserId,
         }),
       })
