@@ -107,7 +107,7 @@ export async function PATCH(
       .from('zakaz_applications')
       .select(`
         *,
-        zakaz_addresses(street, house, entrance, comment),
+        zakaz_addresses(street, house, comment),
         assigned_user:zakaz_users!assigned_to(id, full_name, email, role)
       `)
       .eq('id', id)

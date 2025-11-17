@@ -127,7 +127,7 @@ export async function POST(
     // Получаем обновленную заявку
     const { data: updatedApp, error: selectError } = await supabase
       .from('zakaz_applications')
-      .select('*, zakaz_addresses(street, house, entrance, comment)')
+      .select('*, zakaz_addresses(street, house, comment)')
       .eq('id', id)
       .single()
 
