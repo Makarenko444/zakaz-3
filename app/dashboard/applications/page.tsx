@@ -82,6 +82,46 @@ export default function ApplicationsPage() {
   const [selectedUrgency, setSelectedUrgency] = useState<Urgency | ''>('')
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('')
 
+  const loadApplications = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '20',
+      })
+
+      if (selectedStatuses.length > 0) {
+        params.append('status', selectedStatuses.join(','))
+      }
+
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim())
+      }
+
+      if (selectedUrgency) {
+        params.append('urgency', selectedUrgency)
+      }
+
+      if (selectedServiceType) {
+        params.append('service_type', selectedServiceType)
+      }
+
+      const response = await fetch(`/api/applications?${params.toString()}`)
+
+      if (!response.ok) {
+        throw new Error('Failed to load applications')
+      }
+
+      const data = await response.json()
+      setApplications(data.applications)
+      setTotal(data.total)
+    } catch (error) {
+      console.error('Error loading applications:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType])
+
   // Загрузка статусов из БД при монтировании
   useEffect(() => {
     loadStatuses()
@@ -124,46 +164,6 @@ export default function ApplicationsPage() {
       setStatusesLoaded(true)
     }
   }
-
-  const loadApplications = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-      })
-
-      if (selectedStatuses.length > 0) {
-        params.append('status', selectedStatuses.join(','))
-      }
-
-      if (searchQuery.trim()) {
-        params.append('search', searchQuery.trim())
-      }
-
-      if (selectedUrgency) {
-        params.append('urgency', selectedUrgency)
-      }
-
-      if (selectedServiceType) {
-        params.append('service_type', selectedServiceType)
-      }
-
-      const response = await fetch(`/api/applications?${params.toString()}`)
-
-      if (!response.ok) {
-        throw new Error('Failed to load applications')
-      }
-
-      const data = await response.json()
-      setApplications(data.applications)
-      setTotal(data.total)
-    } catch (error) {
-      console.error('Error loading applications:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType])
 
   const toggleStatus = (status: ApplicationStatus) => {
     if (selectedStatuses.includes(status)) {
