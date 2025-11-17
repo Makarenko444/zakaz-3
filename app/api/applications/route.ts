@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
 
     // Валидация обязательных полей
     const requiredFields = [
-      'address_id',
       'customer_type',
       'service_type',
       'customer_fullname',
@@ -101,6 +100,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Проверяем что указан либо address_id, либо freeform_address
+    if (!body.address_id && !body.freeform_address) {
+      return NextResponse.json(
+        { error: 'Either address_id or freeform_address is required' },
+        { status: 400 }
+      )
+    }
+
     // Для юр.лиц обязательны контактные данные
     if (body.customer_type === 'business') {
       if (!body.contact_person || !body.contact_phone) {
@@ -113,7 +120,11 @@ export async function POST(request: NextRequest) {
 
     // Подготовка данных для вставки
     const applicationData = {
-      address_id: body.address_id,
+      address_id: body.address_id || null,
+      freeform_address: body.freeform_address || null,
+      entrance: body.entrance || null,
+      floor: body.floor || null,
+      apartment: body.apartment || null,
       customer_type: body.customer_type,
       service_type: body.service_type,
       customer_fullname: body.customer_fullname,
