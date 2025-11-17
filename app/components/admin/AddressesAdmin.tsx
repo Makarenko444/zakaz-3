@@ -135,12 +135,6 @@ export default function AddressesAdmin() {
     }
   }
 
-  function formatAddress(address: Address) {
-    const parts = [address.street, address.house]
-    if (address.entrance) parts.push(`подъезд ${address.entrance}`)
-    return parts.join(', ')
-  }
-
   if (isLoading) {
     return <div className="text-center py-8">Загрузка...</div>
   }

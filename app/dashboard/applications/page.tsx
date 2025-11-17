@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, ServiceType, CustomerType } from '@/lib/types'
 
@@ -91,7 +91,7 @@ export default function ApplicationsPage() {
     if (statusesLoaded) {
       loadApplications()
     }
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, statusesLoaded])
+  }, [statusesLoaded, loadApplications])
 
   async function loadStatuses() {
     try {
@@ -125,7 +125,7 @@ export default function ApplicationsPage() {
     }
   }
 
-  async function loadApplications() {
+  const loadApplications = useCallback(async () => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams({
@@ -163,7 +163,7 @@ export default function ApplicationsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType])
 
   const toggleStatus = (status: ApplicationStatus) => {
     if (selectedStatuses.includes(status)) {

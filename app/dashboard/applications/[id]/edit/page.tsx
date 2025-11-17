@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -84,27 +84,7 @@ export default function EditApplicationPage() {
 
   const customerType = watch('customer_type')
 
-  useEffect(() => {
-    loadAddresses()
-    loadApplication()
-    loadCurrentUser()
-  }, [])
-
-  async function loadAddresses() {
-    try {
-      const response = await fetch('/api/addresses')
-      if (!response.ok) throw new Error('Failed to load addresses')
-      const data = await response.json()
-      setAddresses(data.addresses)
-    } catch (error) {
-      console.error('Error loading addresses:', error)
-      setError('Не удалось загрузить список адресов')
-    } finally {
-      setIsLoadingAddresses(false)
-    }
-  }
-
-  async function loadApplication() {
+  const loadApplication = useCallback(async () => {
     try {
       const response = await fetch(`/api/applications/${applicationId}`)
       if (!response.ok) {
@@ -133,6 +113,26 @@ export default function EditApplicationPage() {
       setError(error instanceof Error ? error.message : 'Не удалось загрузить заявку')
     } finally {
       setIsLoadingApplication(false)
+    }
+  }, [applicationId, reset])
+
+  useEffect(() => {
+    loadAddresses()
+    loadApplication()
+    loadCurrentUser()
+  }, [loadApplication])
+
+  async function loadAddresses() {
+    try {
+      const response = await fetch('/api/addresses')
+      if (!response.ok) throw new Error('Failed to load addresses')
+      const data = await response.json()
+      setAddresses(data.addresses)
+    } catch (error) {
+      console.error('Error loading addresses:', error)
+      setError('Не удалось загрузить список адресов')
+    } finally {
+      setIsLoadingAddresses(false)
     }
   }
 
