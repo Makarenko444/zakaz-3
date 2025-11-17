@@ -502,53 +502,48 @@ export default function ApplicationDetailPage() {
 
               {/* Адрес */}
               <div className="mb-4 pb-4 border-b border-gray-200">
-                <div className="flex justify-between items-start mb-2">
-                  <p className="text-sm font-medium text-gray-700">Адрес подключения</p>
-                  {application.street_and_house && (
-                    <button
-                      onClick={() => setShowAddressWizard(true)}
-                      className={`text-xs px-2 py-1 rounded transition ${
-                        application.address_id
-                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                          : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                      }`}
-                    >
-                      {application.address_id ? 'Изменить привязку' : 'Привязать к узлу'}
-                    </button>
-                  )}
-                </div>
-
-                {/* Адрес заявки (всегда есть) */}
-                {application.street_and_house && (
-                  <div>
-                    <p className="text-sm text-gray-900 font-medium">{application.street_and_house}</p>
-                    {application.address_details && (
-                      <p className="text-sm text-gray-700">{application.address_details}</p>
+                <div className="flex justify-between items-center gap-3">
+                  {/* Адрес заявки */}
+                  <div className="flex-1">
+                    {application.street_and_house && (
+                      <p className="text-base text-gray-900">
+                        <span className="text-gray-500">Адрес:</span>{' '}
+                        <span className="font-medium">
+                          {application.street_and_house}
+                          {application.address_details && `, ${application.address_details}`}
+                        </span>
+                      </p>
                     )}
                   </div>
-                )}
 
-                {/* Привязка к узлу из справочника */}
-                {application.address_id && application.zakaz_addresses ? (
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                    <div className="flex items-start gap-2">
-                      <svg className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-green-900">Привязан к узлу:</p>
-                        <p className="text-xs text-green-800">{formatAddress(application.zakaz_addresses)}</p>
-                        {application.zakaz_addresses.comment && (
-                          <p className="text-xs text-green-700 mt-0.5">{application.zakaz_addresses.comment}</p>
-                        )}
+                  {/* Привязка к узлу справа */}
+                  <div className="flex items-center gap-2">
+                    {application.address_id && application.zakaz_addresses ? (
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded">
+                        <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs font-medium text-green-700" title={`Привязан к узлу: ${formatAddress(application.zakaz_addresses)}`}>
+                          Узел
+                        </span>
                       </div>
-                    </div>
+                    ) : (
+                      <span className="text-xs text-amber-600 px-2 py-1">Без узла</span>
+                    )}
+                    {application.street_and_house && (
+                      <button
+                        onClick={() => setShowAddressWizard(true)}
+                        className={`text-xs px-2 py-1 rounded transition ${
+                          application.address_id
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                            : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                        }`}
+                      >
+                        {application.address_id ? 'Изменить' : 'Привязать'}
+                      </button>
+                    )}
                   </div>
-                ) : !application.address_id && (
-                  <p className="mt-2 text-xs text-amber-600">
-                    Адрес не привязан к узлу из справочника
-                  </p>
-                )}
+                </div>
               </div>
 
               {/* Информация о клиенте - компактно */}
