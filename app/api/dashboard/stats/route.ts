@@ -3,9 +3,11 @@ import { createDirectClient } from '@/lib/supabase-direct'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[Dashboard Stats API] Получен запрос на статистику')
     const supabase = createDirectClient()
 
     // Параллельные запросы для оптимизации
+    console.log('[Dashboard Stats API] Выполняю запросы к БД...')
     const [
       totalResult,
       newResult,
@@ -132,6 +134,7 @@ export async function GET(request: NextRequest) {
       recentApplications: recentApplicationsResult.data || [],
     }
 
+    console.log('[Dashboard Stats API] Статистика успешно собрана:', stats)
     return NextResponse.json(stats)
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)

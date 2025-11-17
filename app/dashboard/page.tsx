@@ -67,12 +67,17 @@ export default function DashboardPage() {
         setUser(currentUser)
 
         // Загружаем статистику дашборда
+        console.log('Загрузка статистики дашборда...')
         const response = await fetch('/api/dashboard/stats')
+        console.log('Ответ API:', response.status, response.statusText)
+
         if (response.ok) {
           const data = await response.json()
+          console.log('Полученные данные:', data)
           setStats(data)
         } else {
-          console.error('Failed to load dashboard stats')
+          const errorText = await response.text()
+          console.error('Failed to load dashboard stats:', response.status, errorText)
         }
       } catch (error: unknown) {
         console.error('Error loading data:', error)
@@ -102,15 +107,6 @@ export default function DashboardPage() {
 
   return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Добро пожаловать, {user.full_name}!
-          </h2>
-          <p className="text-gray-600">
-            Роль: {roleNames[user.role]} • Email: {user.email}
-          </p>
-        </div>
-
         {/* Dashboard Cards - Основная статистика */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/applications?status=new')}>
