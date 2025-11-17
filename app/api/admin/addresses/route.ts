@@ -25,10 +25,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Получаем все заявки с address_id для подсчета
-    const { data: applications, error: appsError } = await supabase
+    const applicationsQuery = await supabase
       .from('zakaz_applications')
       .select('address_id')
       .not('address_id', 'is', null)
+
+    const applications = applicationsQuery.data as { address_id: string }[] | null
+    const appsError = applicationsQuery.error
 
     if (appsError) {
       console.error('Error fetching applications:', appsError)
