@@ -246,6 +246,35 @@ export default function ApplicationDetailPage() {
     }
   }
 
+  async function handleUnlinkAddress() {
+    if (!application) return
+
+    try {
+      const response = await fetch(`/api/applications/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...application,
+          address_id: null,
+          updated_by: currentUserId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to unlink address')
+      }
+
+      const data = await response.json()
+      setApplication(data.application)
+      setShowAddressWizard(false)
+    } catch (error) {
+      console.error('Error unlinking address:', error)
+      throw error
+    }
+  }
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('ru-RU', {
@@ -443,12 +472,16 @@ export default function ApplicationDetailPage() {
               <div className="mb-4 pb-4 border-b border-gray-200">
                 <div className="flex justify-between items-start mb-2">
                   <p className="text-sm font-medium text-gray-700">Адрес подключения</p>
-                  {!application.address_id && application.street_and_house && (
+                  {application.street_and_house && (
                     <button
                       onClick={() => setShowAddressWizard(true)}
-                      className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                      className={`text-xs px-2 py-1 rounded transition ${
+                        application.address_id
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                      }`}
                     >
-                      Привязать к узлу
+                      {application.address_id ? 'Изменить привязку' : 'Привязать к узлу'}
                     </button>
                   )}
                 </div>
@@ -669,6 +702,7 @@ export default function ApplicationDetailPage() {
           currentAddressId={application.address_id}
           onClose={() => setShowAddressWizard(false)}
           onLink={handleLinkAddress}
+          onUnlink={handleUnlinkAddress}
         />
       )}
     </div>
