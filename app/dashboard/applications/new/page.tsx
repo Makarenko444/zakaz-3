@@ -56,7 +56,6 @@ interface Address {
   id: string
   street: string
   house: string
-  entrance: string | null
 }
 
 export default function NewApplicationPage() {
@@ -150,9 +149,7 @@ export default function NewApplicationPage() {
   }
 
   const formatAddress = (address: Address) => {
-    const parts = [address.street, address.house]
-    if (address.entrance) parts.push(`подъезд ${address.entrance}`)
-    return parts.join(', ')
+    return `${address.street}, ${address.house}`
   }
 
   return (
