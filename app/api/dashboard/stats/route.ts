@@ -72,15 +72,42 @@ export async function GET(request: NextRequest) {
     ])
 
     // Проверка на ошибки
-    if (totalResult.error) throw totalResult.error
-    if (newResult.error) throw newResult.error
-    if (inProgressResult.error) throw inProgressResult.error
-    if (installedResult.error) throw installedResult.error
-    if (rejectedResult.error) throw rejectedResult.error
-    if (urgencyResult.error) throw urgencyResult.error
-    if (serviceTypeResult.error) throw serviceTypeResult.error
-    if (customerTypeResult.error) throw customerTypeResult.error
-    if (recentApplicationsResult.error) throw recentApplicationsResult.error
+    if (totalResult.error) {
+      console.error('[Dashboard Stats API] Ошибка totalResult:', totalResult.error)
+      throw totalResult.error
+    }
+    if (newResult.error) {
+      console.error('[Dashboard Stats API] Ошибка newResult:', newResult.error)
+      throw newResult.error
+    }
+    if (inProgressResult.error) {
+      console.error('[Dashboard Stats API] Ошибка inProgressResult:', inProgressResult.error)
+      throw inProgressResult.error
+    }
+    if (installedResult.error) {
+      console.error('[Dashboard Stats API] Ошибка installedResult:', installedResult.error)
+      throw installedResult.error
+    }
+    if (rejectedResult.error) {
+      console.error('[Dashboard Stats API] Ошибка rejectedResult:', rejectedResult.error)
+      throw rejectedResult.error
+    }
+    if (urgencyResult.error) {
+      console.error('[Dashboard Stats API] Ошибка urgencyResult:', urgencyResult.error)
+      throw urgencyResult.error
+    }
+    if (serviceTypeResult.error) {
+      console.error('[Dashboard Stats API] Ошибка serviceTypeResult:', serviceTypeResult.error)
+      throw serviceTypeResult.error
+    }
+    if (customerTypeResult.error) {
+      console.error('[Dashboard Stats API] Ошибка customerTypeResult:', customerTypeResult.error)
+      throw customerTypeResult.error
+    }
+    if (recentApplicationsResult.error) {
+      console.error('[Dashboard Stats API] Ошибка recentApplicationsResult:', recentApplicationsResult.error)
+      throw recentApplicationsResult.error
+    }
 
     // Подсчитываем статистику по срочности
     const urgencyStats = {
@@ -137,9 +164,15 @@ export async function GET(request: NextRequest) {
     console.log('[Dashboard Stats API] Статистика успешно собрана:', stats)
     return NextResponse.json(stats)
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error)
+    console.error('[Dashboard Stats API] КРИТИЧЕСКАЯ ОШИБКА:', error)
+    console.error('[Dashboard Stats API] Тип ошибки:', typeof error)
+    console.error('[Dashboard Stats API] Детали:', JSON.stringify(error, null, 2))
+
     return NextResponse.json(
-      { error: 'Failed to fetch dashboard statistics' },
+      {
+        error: 'Failed to fetch dashboard statistics',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     )
   }
