@@ -6,14 +6,12 @@ interface Address {
   id: string
   street: string
   house: string
-  entrance: string | null
   comment: string | null
 }
 
 interface AddressFormData {
   street: string
   house: string
-  entrance: string
   comment: string
 }
 
@@ -25,7 +23,6 @@ export default function AddressesAdmin() {
   const [formData, setFormData] = useState<AddressFormData>({
     street: '',
     house: '',
-    entrance: '',
     comment: '',
   })
   const [error, setError] = useState<string | null>(null)
@@ -55,7 +52,6 @@ export default function AddressesAdmin() {
     setFormData({
       street: '',
       house: '',
-      entrance: '',
       comment: '',
     })
     setError(null)
@@ -67,7 +63,6 @@ export default function AddressesAdmin() {
     setFormData({
       street: address.street,
       house: address.house,
-      entrance: address.entrance || '',
       comment: address.comment || '',
     })
     setError(null)
@@ -176,9 +171,6 @@ export default function AddressesAdmin() {
                 Дом
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Подъезд
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Комментарий
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -194,9 +186,6 @@ export default function AddressesAdmin() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{address.house}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">{address.entrance || '—'}</div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-500 max-w-md truncate">
@@ -263,19 +252,6 @@ export default function AddressesAdmin() {
                   onChange={(e) => setFormData({ ...formData, house: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="10"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Подъезд
-                </label>
-                <input
-                  type="text"
-                  value={formData.entrance}
-                  onChange={(e) => setFormData({ ...formData, entrance: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="1"
                 />
               </div>
 
