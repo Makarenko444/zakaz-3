@@ -95,7 +95,7 @@ export default function Header() {
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive('/dashboard') && pathname === '/dashboard'
                     ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:scale-105'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-700 hover:bg-gray-200 hover:shadow-md'
                 }`}
               >
                 Главная
@@ -106,7 +106,7 @@ export default function Header() {
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
                   isActive('/dashboard/applications')
                     ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:scale-105'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-700 hover:bg-gray-200 hover:shadow-md'
                 }`}
               >
                 Заявки
@@ -127,7 +127,7 @@ export default function Header() {
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     isActive('/dashboard/admin')
                       ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:scale-105'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      : 'text-gray-700 hover:bg-gray-200 hover:shadow-md'
                   }`}
                 >
                   Админка
@@ -205,7 +205,7 @@ export default function Header() {
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive('/dashboard') && pathname === '/dashboard'
                     ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-700 hover:bg-gray-200 hover:shadow-md'
                 }`}
               >
                 Главная
@@ -219,7 +219,7 @@ export default function Header() {
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-between ${
                   isActive('/dashboard/applications')
                     ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-700 hover:bg-gray-200 hover:shadow-md'
                 }`}
               >
                 <span>Заявки</span>
@@ -243,7 +243,7 @@ export default function Header() {
                   className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     isActive('/dashboard/admin')
                       ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      : 'text-gray-700 hover:bg-gray-200 hover:shadow-md'
                   }`}
                 >
                   Админка
