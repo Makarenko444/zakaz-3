@@ -337,7 +337,7 @@ export default function ApplicationsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-base font-semibold text-gray-900">
-                        Заявка #{app.application_number}
+                        Заявка №{app.application_number}
                       </h3>
                       <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${statusColors[app.status]}`}>
                         {statusLabels[app.status]}
