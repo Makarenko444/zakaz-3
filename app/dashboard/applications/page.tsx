@@ -199,37 +199,37 @@ export default function ApplicationsPage() {
   }
 
   return (
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Page Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">Все заявки</h1>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900">Все заявки</h1>
             <span className="text-sm text-gray-500">({total})</span>
           </div>
 
           <button
             onClick={() => router.push('/dashboard/applications/new')}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium flex items-center gap-2"
+            className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition font-medium flex items-center gap-2"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Создать заявку
           </button>
         </div>
         {/* Поиск */}
-        <div className="mb-6">
-          <form onSubmit={handleSearch} className="flex gap-4">
+        <div className="mb-3">
+          <form onSubmit={handleSearch} className="flex gap-2">
             <input
               type="text"
               placeholder="Поиск по ФИО или телефону..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             <button
               type="submit"
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+              className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
             >
               Найти
             </button>
@@ -243,7 +243,7 @@ export default function ApplicationsPage() {
                   setSelectedServiceType('')
                   setPage(1)
                 }}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
+                className="px-4 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
               >
                 Сбросить
               </button>
@@ -252,14 +252,14 @@ export default function ApplicationsPage() {
         </div>
 
         {/* Фильтры по статусам */}
-        <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Фильтр по статусам:</h3>
-          <div className="flex flex-wrap gap-2">
+        <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
+          <h3 className="text-xs font-medium text-gray-700 mb-2">Фильтр по статусам:</h3>
+          <div className="flex flex-wrap gap-1.5">
             {(Object.keys(statusLabels) as ApplicationStatus[]).map((status) => (
               <button
                 key={status}
                 onClick={() => toggleStatus(status)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-full transition ${
+                className={`px-2.5 py-1 text-xs font-medium rounded-full transition ${
                   selectedStatuses.includes(status)
                     ? statusColors[status] + ' ring-2 ring-indigo-500'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -272,17 +272,17 @@ export default function ApplicationsPage() {
         </div>
 
         {/* Дополнительные фильтры */}
-        <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Срочность:</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Срочность:</label>
               <select
                 value={selectedUrgency}
                 onChange={(e) => {
                   setSelectedUrgency(e.target.value as Urgency | '')
                   setPage(1)
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">Все</option>
                 {(Object.keys(urgencyLabels) as Urgency[]).map((urgency) => (
@@ -294,14 +294,14 @@ export default function ApplicationsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Тип услуги:</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Тип услуги:</label>
               <select
                 value={selectedServiceType}
                 onChange={(e) => {
                   setSelectedServiceType(e.target.value as ServiceType | '')
                   setPage(1)
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">Все</option>
                 {(Object.keys(serviceTypeLabels) as ServiceType[]).map((type) => (
@@ -316,62 +316,62 @@ export default function ApplicationsPage() {
 
         {/* Список заявок */}
         {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
         ) : applications.length === 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Заявки не найдены</h3>
-            <p className="text-gray-500">Попробуйте изменить фильтры или создайте новую заявку</p>
+            <h3 className="text-base font-medium text-gray-900 mb-1">Заявки не найдены</h3>
+            <p className="text-sm text-gray-500">Попробуйте изменить фильтры или создайте новую заявку</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {applications.map((app) => (
               <div
                 key={app.id}
                 onClick={() => router.push(`/dashboard/applications/${app.id}`)}
-                className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition cursor-pointer"
+                className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition cursor-pointer"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-base font-semibold text-gray-900">
                         Заявка #{app.application_number}
                       </h3>
-                      <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${statusColors[app.status]}`}>
+                      <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${statusColors[app.status]}`}>
                         {statusLabels[app.status]}
                       </span>
-                      <span className={`text-sm font-medium ${urgencyColors[app.urgency]}`}>
+                      <span className={`text-xs font-medium ${urgencyColors[app.urgency]}`}>
                         {urgencyLabels[app.urgency]}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500">{formatDate(app.created_at)}</p>
+                    <p className="text-xs text-gray-500">{formatDate(app.created_at)}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <p className="text-sm text-gray-500">Клиент:</p>
-                    <p className="font-medium text-gray-900">{app.customer_fullname}</p>
-                    <p className="text-sm text-gray-600">{app.customer_phone}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500">Клиент:</p>
+                    <p className="text-sm font-medium text-gray-900">{app.customer_fullname}</p>
+                    <p className="text-xs text-gray-600">{app.customer_phone}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
                       {customerTypeLabels[app.customer_type]} • {serviceTypeLabels[app.service_type]}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-sm text-gray-500">Адрес:</p>
-                    <p className="font-medium text-gray-900">{formatAddress(app.zakaz_addresses)}</p>
+                    <p className="text-xs text-gray-500">Адрес:</p>
+                    <p className="text-sm font-medium text-gray-900">{formatAddress(app.zakaz_addresses)}</p>
                   </div>
                 </div>
 
                 {app.client_comment && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-sm text-gray-500">Комментарий:</p>
-                    <p className="text-sm text-gray-700 line-clamp-2">{app.client_comment}</p>
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <p className="text-xs text-gray-500">Комментарий:</p>
+                    <p className="text-xs text-gray-700 line-clamp-2">{app.client_comment}</p>
                   </div>
                 )}
               </div>
@@ -381,21 +381,21 @@ export default function ApplicationsPage() {
 
         {/* Пагинация */}
         {!isLoading && total > 20 && (
-          <div className="mt-8 flex justify-center gap-2">
+          <div className="mt-4 flex justify-center gap-2">
             <button
               onClick={() => setPage(page - 1)}
               disabled={page === 1}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Назад
             </button>
-            <span className="px-4 py-2 text-gray-700">
+            <span className="px-3 py-1.5 text-sm text-gray-700">
               Страница {page} из {Math.ceil(total / 20)}
             </span>
             <button
               onClick={() => setPage(page + 1)}
               disabled={page >= Math.ceil(total / 20)}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Вперёд
             </button>
