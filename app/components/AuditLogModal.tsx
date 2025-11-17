@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 interface AuditLogEntry {
   id: string
@@ -47,7 +47,7 @@ export default function AuditLogModal({ applicationId, onClose }: AuditLogModalP
   useEffect(() => {
     loadStatuses()
     loadLogs()
-  }, [applicationId])
+  }, [applicationId, loadLogs])
 
   async function loadStatuses() {
     try {
@@ -81,7 +81,7 @@ export default function AuditLogModal({ applicationId, onClose }: AuditLogModalP
     return translated
   }
 
-  async function loadLogs() {
+  const loadLogs = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch(`/api/applications/${applicationId}/logs`)
@@ -98,7 +98,7 @@ export default function AuditLogModal({ applicationId, onClose }: AuditLogModalP
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [applicationId])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)

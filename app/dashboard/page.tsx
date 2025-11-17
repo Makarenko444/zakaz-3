@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, signOut } from '@/lib/auth-client'
+import { getCurrentUser } from '@/lib/auth-client'
 import { User } from '@/lib/types'
 
 const roleNames: Record<string, string> = {
@@ -36,16 +36,6 @@ export default function DashboardPage() {
 
     loadUser()
   }, [router])
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      router.push('/login')
-      router.refresh()
-    } catch (error: unknown) {
-      console.error('Error signing out:', error)
-    }
-  }
 
   if (isLoading) {
     return (

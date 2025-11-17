@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 interface AuditLogEntry {
   id: string
@@ -54,7 +54,7 @@ export default function AuditLog({ applicationId, refreshTrigger, limit, onShowA
 
   useEffect(() => {
     loadLogs()
-  }, [applicationId, refreshTrigger])
+  }, [applicationId, refreshTrigger, loadLogs])
 
   async function loadStatuses() {
     try {
@@ -92,7 +92,7 @@ export default function AuditLog({ applicationId, refreshTrigger, limit, onShowA
     return translated
   }
 
-  async function loadLogs() {
+  const loadLogs = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch(`/api/applications/${applicationId}/logs`)
@@ -117,7 +117,7 @@ export default function AuditLog({ applicationId, refreshTrigger, limit, onShowA
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [applicationId, limit])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import FileList from './FileList'
 import FileUpload from './FileUpload'
 
@@ -37,11 +37,7 @@ export default function Comments({
   const [showFileUpload, setShowFileUpload] = useState<Record<string, boolean>>({})
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
 
-  useEffect(() => {
-    loadComments()
-  }, [applicationId])
-
-  async function loadComments() {
+  const loadComments = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch(`/api/applications/${applicationId}/comments`)
@@ -58,7 +54,11 @@ export default function Comments({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [applicationId])
+
+  useEffect(() => {
+    loadComments()
+  }, [loadComments])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, User } from '@/lib/types'
 import StatusChangeModal from '@/app/components/StatusChangeModal'
@@ -96,12 +96,36 @@ export default function ApplicationDetailPage() {
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
 
+  const loadApplication = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/applications/${id}`)
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError('Заявка не найдена')
+        } else {
+          throw new Error('Failed to load application')
+        }
+        return
+      }
+
+      const data = await response.json()
+      setApplication(data.application)
+    } catch (error) {
+      console.error('Error loading application:', error)
+      setError('Не удалось загрузить заявку')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [id])
+
   useEffect(() => {
     loadStatuses()
     loadApplication()
     loadUsers()
     loadCurrentUser()
-  }, [id])
+  }, [id, loadApplication])
 
   async function loadStatuses() {
     try {
@@ -130,30 +154,6 @@ export default function ApplicationDetailPage() {
         rejected: 'Отказ',
         no_tech: 'Нет тех. возможности',
       })
-    }
-  }
-
-  async function loadApplication() {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`/api/applications/${id}`)
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          setError('Заявка не найдена')
-        } else {
-          throw new Error('Failed to load application')
-        }
-        return
-      }
-
-      const data = await response.json()
-      setApplication(data.application)
-    } catch (error) {
-      console.error('Error loading application:', error)
-      setError('Не удалось загрузить заявку')
-    } finally {
-      setIsLoading(false)
     }
   }
 

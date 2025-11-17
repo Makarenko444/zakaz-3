@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { FileAttachment } from '@/lib/types'
 
 interface FileListProps {
@@ -30,22 +31,7 @@ export default function FileList({
   const [imageModalOpen, setImageModalOpen] = useState(false)
   const [selectedImage, setSelectedImage] = useState<FileAttachment | null>(null)
 
-  useEffect(() => {
-    loadFiles()
-  }, [applicationId, commentId, showDirectFilesOnly, refreshTrigger])
-
-  // Закрытие модального окна по ESC
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && imageModalOpen) {
-        setImageModalOpen(false)
-      }
-    }
-    window.addEventListener('keydown', handleEsc)
-    return () => window.removeEventListener('keydown', handleEsc)
-  }, [imageModalOpen])
-
-  async function loadFiles() {
+  const loadFiles = useCallback(async () => {
     setIsLoading(true)
     setError('')
 
@@ -72,7 +58,22 @@ export default function FileList({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [applicationId, commentId, showDirectFilesOnly])
+
+  useEffect(() => {
+    loadFiles()
+  }, [loadFiles, refreshTrigger])
+
+  // Закрытие модального окна по ESC
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && imageModalOpen) {
+        setImageModalOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [imageModalOpen])
 
   async function handleDelete(fileId: string) {
     if (!confirm('Вы уверены, что хотите удалить этот файл?')) {
@@ -178,14 +179,16 @@ export default function FileList({
             {/* Миниатюра для картинок или иконка */}
             {showThumbnails && file.mime_type?.startsWith('image/') ? (
               <div
-                className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-200 cursor-pointer hover:ring-2 hover:ring-indigo-500 transition"
+                className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-200 cursor-pointer hover:ring-2 hover:ring-indigo-500 transition relative"
                 onClick={() => handleImageClick(file)}
                 title="Нажмите для просмотра"
               >
-                <img
+                <Image
                   src={`/api/applications/${applicationId}/files/${file.id}`}
                   alt={file.original_filename}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  unoptimized
                   onError={(e) => {
                     // Если не удалось загрузить картинку, показываем иконку
                     e.currentTarget.style.display = 'none'
@@ -276,6 +279,7 @@ export default function FileList({
             </button>
 
             {/* Изображение */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`/api/applications/${applicationId}/files/${selectedImage.id}`}
               alt={selectedImage.original_filename}
