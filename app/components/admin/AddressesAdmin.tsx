@@ -7,6 +7,7 @@ interface Address {
   street: string
   house: string
   comment: string | null
+  applications_count: number
 }
 
 interface AddressFormData {
@@ -173,6 +174,9 @@ export default function AddressesAdmin() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Комментарий
               </th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Заявок
+              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Действия
               </th>
@@ -191,6 +195,15 @@ export default function AddressesAdmin() {
                   <div className="text-sm text-gray-500 max-w-md truncate">
                     {address.comment || '—'}
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    address.applications_count > 0
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {address.applications_count}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
