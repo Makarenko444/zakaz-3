@@ -2,30 +2,58 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { validateSession } from '@/lib/session'
 
-// GET - получить все адреса
+// GET - получить все адреса с количеством привязанных заявок
 export async function GET(request: NextRequest) {
   try {
     const session = await validateSession(request)
     if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Доступ запрещен' }, { status: 401 })
     }
 
     const supabase = createDirectClient()
-    const { data, error } = await supabase
+
+    // Получаем все адреса
+    const { data: addresses, error: addressesError } = await supabase
       .from('zakaz_addresses')
       .select('*')
       .order('street', { ascending: true })
       .order('house', { ascending: true })
 
-    if (error) {
-      console.error('Error fetching addresses:', error)
-      return NextResponse.json({ error: 'Failed to fetch addresses' }, { status: 500 })
+    if (addressesError) {
+      console.error('Error fetching addresses:', addressesError)
+      return NextResponse.json({ error: 'Не удалось загрузить адреса' }, { status: 500 })
     }
 
-    return NextResponse.json({ addresses: data || [] })
+    // Получаем все заявки с address_id для подсчета
+    const { data: applications, error: appsError } = await supabase
+      .from('zakaz_applications')
+      .select('address_id')
+      .not('address_id', 'is', null)
+
+    if (appsError) {
+      console.error('Error fetching applications:', appsError)
+      return NextResponse.json({ error: 'Не удалось загрузить счетчики' }, { status: 500 })
+    }
+
+    // Подсчитываем количество заявок для каждого адреса
+    const countMap = new Map<string, number>()
+    if (applications) {
+      for (const app of applications) {
+        const count = countMap.get(app.address_id) || 0
+        countMap.set(app.address_id, count + 1)
+      }
+    }
+
+    // Добавляем счетчики к адресам
+    const addressesWithCounts = (addresses || []).map(addr => ({
+      ...addr,
+      applications_count: countMap.get(addr.id) || 0
+    }))
+
+    return NextResponse.json({ addresses: addressesWithCounts })
   } catch (error) {
     console.error('Error in admin addresses GET:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 })
   }
 }
 
@@ -34,7 +62,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await validateSession(request)
     if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Доступ запрещен' }, { status: 401 })
     }
 
     const body = await request.json()
@@ -42,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     if (!street || !house) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Отсутствуют обязательные поля' },
         { status: 400 }
       )
     }
@@ -61,12 +89,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating address:', error)
-      return NextResponse.json({ error: 'Failed to create address' }, { status: 500 })
+      return NextResponse.json({ error: 'Не удалось создать адрес' }, { status: 500 })
     }
 
     return NextResponse.json({ address: data })
   } catch (error) {
     console.error('Error in admin addresses POST:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 })
   }
 }
