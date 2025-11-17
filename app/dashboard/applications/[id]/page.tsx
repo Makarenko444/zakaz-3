@@ -27,18 +27,14 @@ interface ApplicationWithAddress extends Application {
   } | null
 }
 
-// Переводы
-const statusLabels: Record<ApplicationStatus, string> = {
-  new: 'Новая',
-  thinking: 'Думает',
-  estimation: 'Расчёт',
-  waiting_payment: 'Ожидание оплаты',
-  contract: 'Договор',
-  queue_install: 'Очередь на монтаж',
-  install: 'Монтаж',
-  installed: 'Выполнено',
-  rejected: 'Отказ',
-  no_tech: 'Нет тех. возможности',
+// Тип для статуса из БД
+interface StatusFromDB {
+  id: string
+  code: string
+  name_ru: string
+  description_ru: string | null
+  sort_order: number
+  is_active: boolean
 }
 
 const statusColors: Record<ApplicationStatus, string> = {
@@ -97,11 +93,45 @@ export default function ApplicationDetailPage() {
   const [showAuditLogModal, setShowAuditLogModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
 
+  // Статусы из БД
+  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
+
   useEffect(() => {
+    loadStatuses()
     loadApplication()
     loadUsers()
     loadCurrentUser()
   }, [id])
+
+  async function loadStatuses() {
+    try {
+      const response = await fetch('/api/statuses')
+      if (!response.ok) {
+        throw new Error('Failed to load statuses')
+      }
+      const data = await response.json()
+      const labels: Record<string, string> = {}
+      data.statuses.forEach((status: StatusFromDB) => {
+        labels[status.code] = status.name_ru
+      })
+      setStatusLabels(labels)
+    } catch (error) {
+      console.error('Error loading statuses:', error)
+      // Используем fallback значения при ошибке
+      setStatusLabels({
+        new: 'Новая',
+        thinking: 'Думает',
+        estimation: 'Расчёт',
+        waiting_payment: 'Ожидание оплаты',
+        contract: 'Договор',
+        queue_install: 'Очередь на монтаж',
+        install: 'Монтаж',
+        installed: 'Выполнено',
+        rejected: 'Отказ',
+        no_tech: 'Нет тех. возможности',
+      })
+    }
+  }
 
   async function loadApplication() {
     setIsLoading(true)
