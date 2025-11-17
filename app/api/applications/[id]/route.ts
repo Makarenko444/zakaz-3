@@ -71,14 +71,6 @@ export async function PATCH(
       }
     }
 
-    // Проверяем что указан либо address_id, либо freeform_address
-    if (!body.address_id && !body.freeform_address) {
-      return NextResponse.json(
-        { error: 'Either address_id or freeform_address is required' },
-        { status: 400 }
-      )
-    }
-
     // Для юр.лиц обязательны контактные данные
     if (body.customer_type === 'business') {
       if (!body.contact_person || !body.contact_phone) {
@@ -99,10 +91,8 @@ export async function PATCH(
     // Подготовка данных для обновления
     const updateData = {
       address_id: body.address_id || null,
-      freeform_address: body.freeform_address || null,
-      entrance: body.entrance || null,
-      floor: body.floor || null,
-      apartment: body.apartment || null,
+      street_and_house: body.street_and_house || null,
+      address_details: body.address_details || null,
       customer_type: body.customer_type,
       service_type: body.service_type,
       customer_fullname: body.customer_fullname,
