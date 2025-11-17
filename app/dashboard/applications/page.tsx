@@ -13,18 +13,14 @@ interface ApplicationWithAddress extends Application {
   } | null
 }
 
-// Переводы статусов
-const statusLabels: Record<ApplicationStatus, string> = {
-  new: 'Новая',
-  thinking: 'Думает',
-  estimation: 'Расчёт',
-  waiting_payment: 'Ожидание оплаты',
-  contract: 'Договор',
-  queue_install: 'Очередь на монтаж',
-  install: 'Монтаж',
-  installed: 'Выполнено',
-  rejected: 'Отказ',
-  no_tech: 'Нет тех. возможности',
+// Тип для статуса из БД
+interface StatusFromDB {
+  id: string
+  code: string
+  name_ru: string
+  description_ru: string | null
+  sort_order: number
+  is_active: boolean
 }
 
 // Цвета статусов (согласно ТЗ)
@@ -76,15 +72,58 @@ export default function ApplicationsPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
 
+  // Статусы из БД
+  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
+  const [statusesLoaded, setStatusesLoaded] = useState(false)
+
   // Фильтры
   const [selectedStatuses, setSelectedStatuses] = useState<ApplicationStatus[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUrgency, setSelectedUrgency] = useState<Urgency | ''>('')
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('')
 
+  // Загрузка статусов из БД при монтировании
   useEffect(() => {
-    loadApplications()
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType])
+    loadStatuses()
+  }, [])
+
+  useEffect(() => {
+    if (statusesLoaded) {
+      loadApplications()
+    }
+  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, statusesLoaded])
+
+  async function loadStatuses() {
+    try {
+      const response = await fetch('/api/statuses')
+      if (!response.ok) {
+        throw new Error('Failed to load statuses')
+      }
+      const data = await response.json()
+      const labels: Record<string, string> = {}
+      data.statuses.forEach((status: StatusFromDB) => {
+        labels[status.code] = status.name_ru
+      })
+      setStatusLabels(labels)
+      setStatusesLoaded(true)
+    } catch (error) {
+      console.error('Error loading statuses:', error)
+      // Используем fallback значения при ошибке
+      setStatusLabels({
+        new: 'Новая',
+        thinking: 'Думает',
+        estimation: 'Расчёт',
+        waiting_payment: 'Ожидание оплаты',
+        contract: 'Договор',
+        queue_install: 'Очередь на монтаж',
+        install: 'Монтаж',
+        installed: 'Выполнено',
+        rejected: 'Отказ',
+        no_tech: 'Нет тех. возможности',
+      })
+      setStatusesLoaded(true)
+    }
+  }
 
   async function loadApplications() {
     setIsLoading(true)
