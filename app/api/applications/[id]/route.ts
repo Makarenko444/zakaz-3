@@ -15,7 +15,8 @@ export async function GET(
       .select(`
         *,
         zakaz_addresses(street, house, comment),
-        assigned_user:zakaz_users!assigned_to(id, full_name, email, role)
+        assigned_user:zakaz_users!assigned_to(id, full_name, email, role),
+        created_by_user:zakaz_users!created_by(id, full_name, email, role)
       `)
       .eq('id', id)
       .single()

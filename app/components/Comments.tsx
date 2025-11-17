@@ -89,7 +89,7 @@ export default function Comments({
 
       const data = await response.json()
       const newCommentData = data.comment
-      setComments([...comments, newCommentData])
+      setComments([newCommentData, ...comments])
       setNewComment('')
 
       // Загрузить файлы к новому комментарию, если они были выбраны
