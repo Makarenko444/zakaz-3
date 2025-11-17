@@ -49,16 +49,16 @@ export async function POST(request: NextRequest) {
 
     const supabase = createDirectClient()
 
-    const { data, error } = await supabase
-      .from('zakaz_addresses')
-      .insert({
-        street,
-        house,
-        entrance: entrance || null,
-        comment: comment || null,
-      })
-      .select()
-      .single()
+    const table = supabase.from('zakaz_addresses') as unknown
+    const insertBuilder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert({
+      street,
+      house,
+      entrance: entrance || null,
+      comment: comment || null,
+    }) as unknown
+    const selectBuilder = (insertBuilder as { select: () => unknown }).select() as unknown
+    const result = await (selectBuilder as { single: () => Promise<unknown> }).single()
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error creating address:', error)

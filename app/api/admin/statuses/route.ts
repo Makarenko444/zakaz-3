@@ -62,17 +62,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_application_statuses')
-      .insert({
-        code,
-        name_ru,
-        description_ru: description_ru || null,
-        sort_order: sort_order || 0,
-        is_active: is_active !== undefined ? is_active : true,
-      })
-      .select()
-      .single()
+    const table = supabase.from('zakaz_application_statuses') as unknown
+    const insertBuilder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert({
+      code,
+      name_ru,
+      description_ru: description_ru || null,
+      sort_order: sort_order || 0,
+      is_active: is_active !== undefined ? is_active : true,
+    }) as unknown
+    const selectBuilder = (insertBuilder as { select: () => unknown }).select() as unknown
+    const result = await (selectBuilder as { single: () => Promise<unknown> }).single()
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error creating status:', error)

@@ -66,18 +66,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Создаем пользователя
-    const { data, error } = await supabase
-      .from('zakaz_users')
-      .insert({
-        email,
-        full_name,
-        phone: phone || null,
-        role,
-        password_hash: hashedPassword,
-        active: true,
-      })
-      .select()
-      .single()
+    const table = supabase.from('zakaz_users') as unknown
+    const insertBuilder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert({
+      email,
+      full_name,
+      phone: phone || null,
+      role,
+      password_hash: hashedPassword,
+      active: true,
+    }) as unknown
+    const selectBuilder = (insertBuilder as { select: () => unknown }).select() as unknown
+    const result = await (selectBuilder as { single: () => Promise<unknown> }).single()
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error creating user:', error)

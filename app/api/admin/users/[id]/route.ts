@@ -31,12 +31,12 @@ export async function PATCH(
       updateData.password_hash = hashPassword(password)
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_users')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    const table = supabase.from('zakaz_users') as unknown
+    const updateBuilder = (table as { update: (data: Record<string, unknown>) => unknown }).update(updateData) as unknown
+    const eqBuilder = (updateBuilder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
+    const selectBuilder = (eqBuilder as { select: () => unknown }).select() as unknown
+    const result = await (selectBuilder as { single: () => Promise<unknown> }).single()
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error updating user:', error)
@@ -65,12 +65,12 @@ export async function DELETE(
     const supabase = createDirectClient()
 
     // Деактивируем пользователя вместо удаления
-    const { data, error } = await supabase
-      .from('zakaz_users')
-      .update({ active: false })
-      .eq('id', id)
-      .select()
-      .single()
+    const table = supabase.from('zakaz_users') as unknown
+    const updateBuilder = (table as { update: (data: Record<string, unknown>) => unknown }).update({ active: false }) as unknown
+    const eqBuilder = (updateBuilder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
+    const selectBuilder = (eqBuilder as { select: () => unknown }).select() as unknown
+    const result = await (selectBuilder as { single: () => Promise<unknown> }).single()
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error deleting user:', error)
