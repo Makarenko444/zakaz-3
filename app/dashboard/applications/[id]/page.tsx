@@ -16,9 +16,12 @@ interface ApplicationWithAddress extends Application {
   zakaz_addresses: {
     street: string
     house: string
-    entrance: string | null
     comment: string | null
   } | null
+  freeform_address: string | null
+  entrance: string | null
+  floor: string | null
+  apartment: string | null
   assigned_user?: {
     id: string
     full_name: string
@@ -405,9 +408,26 @@ export default function ApplicationDetailPage() {
               {/* Адрес */}
               <div className="mb-4 pb-4 border-b border-gray-200">
                 <p className="text-sm font-medium text-gray-700 mb-1">Адрес подключения</p>
-                <p className="text-sm text-gray-900">{formatAddress(application.zakaz_addresses)}</p>
-                {application.zakaz_addresses?.comment && (
-                  <p className="mt-1 text-xs text-gray-600">{application.zakaz_addresses.comment}</p>
+                {application.freeform_address ? (
+                  <div>
+                    <p className="text-sm text-gray-900">{application.freeform_address}</p>
+                    <p className="mt-1 text-xs text-blue-600">Адрес введен вручную</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-gray-900">{formatAddress(application.zakaz_addresses)}</p>
+                    {application.zakaz_addresses?.comment && (
+                      <p className="mt-1 text-xs text-gray-600">{application.zakaz_addresses.comment}</p>
+                    )}
+                  </div>
+                )}
+                {/* Дополнительные данные адреса */}
+                {(application.entrance || application.floor || application.apartment) && (
+                  <div className="mt-2 text-xs text-gray-600 space-y-0.5">
+                    {application.entrance && <p>Подъезд: {application.entrance}</p>}
+                    {application.floor && <p>Этаж: {application.floor}</p>}
+                    {application.apartment && <p>Квартира: {application.apartment}</p>}
+                  </div>
                 )}
               </div>
 
