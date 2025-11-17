@@ -9,12 +9,8 @@ import { getCurrentUser } from '@/lib/auth-client'
 
 // Схема валидации
 const applicationSchema = z.object({
-  address_mode: z.enum(['select', 'freeform']),
-  address_id: z.string().optional(),
-  freeform_address: z.string().optional(),
-  entrance: z.string().optional(),
-  floor: z.string().optional(),
-  apartment: z.string().optional(),
+  street_and_house: z.string().min(3, 'Укажите улицу и номер дома'),
+  address_details: z.string().optional(),
   customer_type: z.enum(['individual', 'business']),
   service_type: z.enum(['apartment', 'office', 'scs']),
   customer_fullname: z.string().min(2, 'Введите ФИО/название компании'),
@@ -35,33 +31,12 @@ const applicationSchema = z.object({
     message: 'Для юридического лица обязательны контактное лицо и телефон',
     path: ['contact_person'],
   }
-).refine(
-  (data) => {
-    // Проверяем что указан либо адрес из справочника, либо адрес в свободной форме
-    if (data.address_mode === 'select') {
-      return !!data.address_id && data.address_id.length > 0
-    } else {
-      return !!data.freeform_address && data.freeform_address.length > 0
-    }
-  },
-  {
-    message: 'Укажите адрес',
-    path: ['freeform_address'],
-  }
 )
 
 type ApplicationFormData = z.infer<typeof applicationSchema>
 
-interface Address {
-  id: string
-  street: string
-  house: string
-}
-
 export default function NewApplicationPage() {
   const router = useRouter()
-  const [addresses, setAddresses] = useState<Address[]>([])
-  const [isLoadingAddresses, setIsLoadingAddresses] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -74,7 +49,6 @@ export default function NewApplicationPage() {
   } = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
-      address_mode: 'freeform',
       customer_type: 'individual',
       service_type: 'apartment',
       urgency: 'normal',
@@ -82,26 +56,10 @@ export default function NewApplicationPage() {
   })
 
   const customerType = watch('customer_type')
-  const addressMode = watch('address_mode')
 
   useEffect(() => {
-    loadAddresses()
     loadCurrentUser()
   }, [])
-
-  async function loadAddresses() {
-    try {
-      const response = await fetch('/api/addresses')
-      if (!response.ok) throw new Error('Failed to load addresses')
-      const data = await response.json()
-      setAddresses(data.addresses)
-    } catch (error) {
-      console.error('Error loading addresses:', error)
-      setError('Не удалось загрузить список адресов')
-    } finally {
-      setIsLoadingAddresses(false)
-    }
-  }
 
   async function loadCurrentUser() {
     try {
@@ -119,28 +77,13 @@ export default function NewApplicationPage() {
     setError('')
 
     try {
-      // Удаляем address_mode - это поле только для UI
-      const { address_mode, ...applicationData } = data
-
-      // В зависимости от режима очищаем неиспользуемые поля
-      if (address_mode === 'freeform') {
-        // Режим свободного ввода - удаляем поля из справочника
-        delete applicationData.address_id
-        delete applicationData.entrance
-        delete applicationData.floor
-        delete applicationData.apartment
-      } else {
-        // Режим выбора из справочника - удаляем freeform_address
-        delete applicationData.freeform_address
-      }
-
       const response = await fetch('/api/applications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...applicationData,
+          ...data,
           created_by: currentUserId,
         }),
       })
@@ -150,10 +93,10 @@ export default function NewApplicationPage() {
         throw new Error(errorData.error || 'Failed to create application')
       }
 
-      await response.json()
+      const result = await response.json()
 
-      // Редирект на страницу созданной заявки или на список
-      router.push('/dashboard/applications')
+      // Редирект на страницу созданной заявки (для запуска мастера привязки)
+      router.push(`/dashboard/applications/${result.application.id}`)
       router.refresh()
     } catch (error: unknown) {
       console.error('Error creating application:', error)
@@ -161,10 +104,6 @@ export default function NewApplicationPage() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const formatAddress = (address: Address) => {
-    return `${address.street}, ${address.house}`
   }
 
   return (
@@ -201,116 +140,39 @@ export default function NewApplicationPage() {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg border border-gray-200 p-6">
-          {/* Режим ввода адреса */}
+          {/* Адрес подключения */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Способ указания адреса <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Улица и номер дома <span className="text-red-500">*</span>
             </label>
-            <div className="flex gap-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  {...register('address_mode')}
-                  value="freeform"
-                  className="mr-2"
-                />
-                <span className="text-sm text-gray-700">Ввести адрес вручную</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  {...register('address_mode')}
-                  value="select"
-                  className="mr-2"
-                />
-                <span className="text-sm text-gray-700">Выбрать из справочника</span>
-              </label>
-            </div>
+            <input
+              type="text"
+              {...register('street_and_house')}
+              placeholder="Например: ул. Ленина, д. 10"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+            {errors.street_and_house && (
+              <p className="mt-1 text-sm text-red-600">{errors.street_and_house.message}</p>
+            )}
           </div>
 
-          {/* Адрес подключения */}
-          {addressMode === 'freeform' ? (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Адрес подключения <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                {...register('freeform_address')}
-                placeholder="Например: ул. Ленина, д. 10, кв. 5"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              {errors.freeform_address && (
-                <p className="mt-1 text-sm text-red-600">{errors.freeform_address.message}</p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">
-                После создания заявки адрес можно будет добавить в справочник
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Адрес из справочника <span className="text-red-500">*</span>
-                </label>
-                {isLoadingAddresses ? (
-                  <div className="text-sm text-gray-500">Загрузка адресов...</div>
-                ) : (
-                  <select
-                    {...register('address_id')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">Выберите адрес</option>
-                    {addresses.map((address) => (
-                      <option key={address.id} value={address.id}>
-                        {formatAddress(address)}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {errors.address_id && (
-                  <p className="mt-1 text-sm text-red-600">{errors.address_id.message}</p>
-                )}
-              </div>
-
-              {/* Дополнительные данные адреса */}
-              <div className="mb-6 grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Подъезд
-                  </label>
-                  <input
-                    type="text"
-                    {...register('entrance')}
-                    placeholder="1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Этаж
-                  </label>
-                  <input
-                    type="text"
-                    {...register('floor')}
-                    placeholder="5"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Квартира
-                  </label>
-                  <input
-                    type="text"
-                    {...register('apartment')}
-                    placeholder="42"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-            </>
-          )}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Подъезд, этаж, квартира/офис
+            </label>
+            <input
+              type="text"
+              {...register('address_details')}
+              placeholder="Например: подъезд 2, этаж 5, кв. 42"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+            {errors.address_details && (
+              <p className="mt-1 text-sm text-red-600">{errors.address_details.message}</p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              После создания заявки адрес можно будет привязать к узлу из справочника
+            </p>
+          </div>
 
           {/* Тип клиента */}
           <div className="mb-6">

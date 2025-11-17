@@ -9,6 +9,7 @@ import AuditLogModal from '@/app/components/AuditLogModal'
 import Comments from '@/app/components/Comments'
 import FileUpload from '@/app/components/FileUpload'
 import FileList from '@/app/components/FileList'
+import AddressLinkWizard from '@/app/components/AddressLinkWizard'
 import { getCurrentUser } from '@/lib/auth-client'
 
 // Расширенный тип для заявки с адресом
@@ -18,10 +19,6 @@ interface ApplicationWithAddress extends Application {
     house: string
     comment: string | null
   } | null
-  freeform_address: string | null
-  entrance: string | null
-  floor: string | null
-  apartment: string | null
   assigned_user?: {
     id: string
     full_name: string
@@ -95,6 +92,7 @@ export default function ApplicationDetailPage() {
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
   const [showAuditLogModal, setShowAuditLogModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
+  const [showAddressWizard, setShowAddressWizard] = useState(false)
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
@@ -129,6 +127,13 @@ export default function ApplicationDetailPage() {
     loadUsers()
     loadCurrentUser()
   }, [id, loadApplication])
+
+  // Автоматически открываем мастера привязки, если адрес не привязан к справочнику
+  useEffect(() => {
+    if (application && !application.address_id && (application.street_and_house)) {
+      setShowAddressWizard(true)
+    }
+  }, [application])
 
   async function loadStatuses() {
     try {
@@ -209,6 +214,35 @@ export default function ApplicationDetailPage() {
       alert('Не удалось назначить исполнителя')
     } finally {
       setIsAssigning(false)
+    }
+  }
+
+  async function handleLinkAddress(addressId: string) {
+    if (!application) return
+
+    try {
+      const response = await fetch(`/api/applications/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...application,
+          address_id: addressId,
+          updated_by: currentUserId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to link address')
+      }
+
+      const data = await response.json()
+      setApplication(data.application)
+      setShowAddressWizard(false)
+    } catch (error) {
+      console.error('Error linking address:', error)
+      throw error
     }
   }
 
@@ -407,27 +441,48 @@ export default function ApplicationDetailPage() {
 
               {/* Адрес */}
               <div className="mb-4 pb-4 border-b border-gray-200">
-                <p className="text-sm font-medium text-gray-700 mb-1">Адрес подключения</p>
-                {application.freeform_address ? (
+                <div className="flex justify-between items-start mb-2">
+                  <p className="text-sm font-medium text-gray-700">Адрес подключения</p>
+                  {!application.address_id && application.street_and_house && (
+                    <button
+                      onClick={() => setShowAddressWizard(true)}
+                      className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                    >
+                      Привязать к узлу
+                    </button>
+                  )}
+                </div>
+
+                {/* Адрес заявки (всегда есть) */}
+                {application.street_and_house && (
                   <div>
-                    <p className="text-sm text-gray-900">{application.freeform_address}</p>
-                    <p className="mt-1 text-xs text-blue-600">Адрес введен вручную</p>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-sm text-gray-900">{formatAddress(application.zakaz_addresses)}</p>
-                    {application.zakaz_addresses?.comment && (
-                      <p className="mt-1 text-xs text-gray-600">{application.zakaz_addresses.comment}</p>
+                    <p className="text-sm text-gray-900 font-medium">{application.street_and_house}</p>
+                    {application.address_details && (
+                      <p className="text-sm text-gray-700">{application.address_details}</p>
                     )}
                   </div>
                 )}
-                {/* Дополнительные данные адреса */}
-                {(application.entrance || application.floor || application.apartment) && (
-                  <div className="mt-2 text-xs text-gray-600 space-y-0.5">
-                    {application.entrance && <p>Подъезд: {application.entrance}</p>}
-                    {application.floor && <p>Этаж: {application.floor}</p>}
-                    {application.apartment && <p>Квартира: {application.apartment}</p>}
+
+                {/* Привязка к узлу из справочника */}
+                {application.address_id && application.zakaz_addresses ? (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-green-900">Привязан к узлу:</p>
+                        <p className="text-xs text-green-800">{formatAddress(application.zakaz_addresses)}</p>
+                        {application.zakaz_addresses.comment && (
+                          <p className="text-xs text-green-700 mt-0.5">{application.zakaz_addresses.comment}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                ) : !application.address_id && (
+                  <p className="mt-2 text-xs text-amber-600">
+                    Адрес не привязан к узлу из справочника
+                  </p>
                 )}
               </div>
 
@@ -603,6 +658,18 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Мастер привязки адреса */}
+      {showAddressWizard && application && application.street_and_house && (
+        <AddressLinkWizard
+          applicationId={id}
+          streetAndHouse={application.street_and_house}
+          addressDetails={application.address_details}
+          currentAddressId={application.address_id}
+          onClose={() => setShowAddressWizard(false)}
+          onLink={handleLinkAddress}
+        />
       )}
     </div>
   )

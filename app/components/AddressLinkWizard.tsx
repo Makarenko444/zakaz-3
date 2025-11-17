@@ -1,0 +1,217 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+
+interface Address {
+  id: string
+  street: string
+  house: string
+  comment: string | null
+}
+
+interface AddressLinkWizardProps {
+  applicationId: string
+  streetAndHouse: string
+  addressDetails: string | null
+  currentAddressId: string | null
+  onClose: () => void
+  onLink: (addressId: string) => Promise<void>
+}
+
+export default function AddressLinkWizard({
+  applicationId,
+  streetAndHouse,
+  addressDetails,
+  currentAddressId,
+  onClose,
+  onLink,
+}: AddressLinkWizardProps) {
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [filteredAddresses, setFilteredAddresses] = useState<Address[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLinking, setIsLinking] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    loadAddresses()
+  }, [])
+
+  useEffect(() => {
+    // Автоматически фильтруем адреса по введенному адресу заявки
+    if (addresses.length > 0) {
+      const query = searchQuery || streetAndHouse
+      if (query) {
+        const filtered = addresses.filter((addr) => {
+          const addressStr = `${addr.street} ${addr.house}`.toLowerCase()
+          return addressStr.includes(query.toLowerCase())
+        })
+        setFilteredAddresses(filtered)
+      } else {
+        setFilteredAddresses(addresses)
+      }
+    }
+  }, [addresses, searchQuery, streetAndHouse])
+
+  async function loadAddresses() {
+    try {
+      const response = await fetch('/api/addresses')
+      if (!response.ok) throw new Error('Failed to load addresses')
+      const data = await response.json()
+      setAddresses(data.addresses)
+    } catch (error) {
+      console.error('Error loading addresses:', error)
+      setError('Не удалось загрузить список адресов')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleLink(addressId: string) {
+    setIsLinking(true)
+    setError('')
+
+    try {
+      await onLink(addressId)
+    } catch (error) {
+      console.error('Error linking address:', error)
+      setError(error instanceof Error ? error.message : 'Не удалось привязать адрес')
+    } finally {
+      setIsLinking(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Привязка адреса к узлу</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Найдите адрес в справочнике узлов или закройте окно для привязки позже
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Адрес заявки */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-sm font-medium text-blue-900 mb-2">Адрес из заявки:</h3>
+            <p className="text-base font-semibold text-blue-900">{streetAndHouse}</p>
+            {addressDetails && (
+              <p className="text-sm text-blue-700 mt-1">{addressDetails}</p>
+            )}
+          </div>
+
+          {/* Поиск */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Поиск по справочнику адресов
+            </label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Введите улицу или номер дома для уточнения..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Список адресов */}
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+              <p className="mt-2 text-sm text-gray-600">Загрузка адресов...</p>
+            </div>
+          ) : filteredAddresses.length === 0 ? (
+            <div className="text-center py-8">
+              <svg className="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="mt-4 text-gray-600">
+                {searchQuery || streetAndHouse ? 'Адреса не найдены' : 'Справочник адресов пуст'}
+              </p>
+              <p className="mt-2 text-sm text-gray-500">
+                Попробуйте изменить поисковый запрос или закройте окно
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600 mb-3">
+                Найдено адресов: {filteredAddresses.length}
+              </p>
+              {filteredAddresses.map((address) => (
+                <button
+                  key={address.id}
+                  onClick={() => handleLink(address.id)}
+                  disabled={isLinking || address.id === currentAddressId}
+                  className={`w-full text-left p-4 rounded-lg border-2 transition ${
+                    address.id === currentAddressId
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-indigo-500 hover:bg-indigo-50'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">
+                        {address.street}, {address.house}
+                      </p>
+                      {address.comment && (
+                        <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
+                      )}
+                    </div>
+                    {address.id === currentAddressId ? (
+                      <span className="ml-2 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                        Текущий
+                      </span>
+                    ) : (
+                      <span className="ml-2 text-indigo-600 text-sm font-medium">
+                        Выбрать →
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-600">
+              Если адреса нет в списке, вы можете привязать его позже через раздел администрирования
+            </p>
+            <button
+              onClick={onClose}
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition font-medium"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

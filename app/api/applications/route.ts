@@ -88,7 +88,8 @@ export async function POST(request: NextRequest) {
       'service_type',
       'customer_fullname',
       'customer_phone',
-      'urgency'
+      'urgency',
+      'street_and_house'
     ]
 
     for (const field of requiredFields) {
@@ -98,14 +99,6 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-    }
-
-    // Проверяем что указан либо address_id, либо freeform_address
-    if (!body.address_id && !body.freeform_address) {
-      return NextResponse.json(
-        { error: 'Either address_id or freeform_address is required' },
-        { status: 400 }
-      )
     }
 
     // Для юр.лиц обязательны контактные данные
@@ -121,10 +114,8 @@ export async function POST(request: NextRequest) {
     // Подготовка данных для вставки
     const applicationData = {
       address_id: body.address_id || null,
-      freeform_address: body.freeform_address || null,
-      entrance: body.entrance || null,
-      floor: body.floor || null,
-      apartment: body.apartment || null,
+      street_and_house: body.street_and_house,
+      address_details: body.address_details || null,
       customer_type: body.customer_type,
       service_type: body.service_type,
       customer_fullname: body.customer_fullname,

@@ -32,6 +32,8 @@ export interface User {
 export interface Application {
   id: string
   address_id: string | null
+  street_and_house: string | null
+  address_details: string | null
   customer_type: CustomerType
   customer_fullname: string
   customer_phone: string
