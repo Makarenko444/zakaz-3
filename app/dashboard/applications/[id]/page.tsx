@@ -366,7 +366,7 @@ export default function ApplicationDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -548,7 +548,7 @@ export default function ApplicationDetailPage() {
 
               {/* Информация о клиенте - компактно */}
               <div className="mb-4 pb-4 border-b border-gray-200">
-                <p className="text-sm font-medium text-gray-700 mb-2">Клиент</p>
+                <p className="text-base font-bold text-gray-900 mb-2">Клиент</p>
                 <div className="space-y-1 text-sm">
                   <p>
                     <span className="text-gray-500">{customerTypeLabels[application.customer_type]}:</span>{' '}
@@ -582,7 +582,7 @@ export default function ApplicationDetailPage() {
               {/* Комментарий клиента */}
               {application.client_comment && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Комментарий клиента</p>
+                  <p className="text-base font-bold text-gray-900 mb-2">Комментарий клиента</p>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{application.client_comment}</p>
                 </div>
               )}
@@ -590,7 +590,7 @@ export default function ApplicationDetailPage() {
 
             {/* Комментарии сотрудников */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Комментарии сотрудников</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4 pb-3 border-b border-gray-200">Комментарии сотрудников</h2>
               <Comments
                 applicationId={id}
                 currentUserId={currentUserId || undefined}
@@ -605,7 +605,7 @@ export default function ApplicationDetailPage() {
           <div className="lg:col-span-1 space-y-4">
             {/* Файлы заявки */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="text-base font-semibold text-gray-900 mb-3">Прикрепленные файлы</h3>
+              <h3 className="text-base font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">Прикрепленные файлы</h3>
 
               {/* Список файлов с миниатюрами */}
               <FileList
@@ -627,7 +627,7 @@ export default function ApplicationDetailPage() {
 
             {/* История изменений */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="text-base font-semibold text-gray-900 mb-3">История изменений</h3>
+              <h3 className="text-base font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">История изменений</h3>
               <AuditLog
                 applicationId={id}
                 limit={5}
