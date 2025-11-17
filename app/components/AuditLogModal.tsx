@@ -44,6 +44,25 @@ export default function AuditLogModal({ applicationId, onClose }: AuditLogModalP
   const [error, setError] = useState('')
   const [statusTranslations, setStatusTranslations] = useState<Record<string, string>>({})
 
+  const loadLogs = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/logs`)
+
+      if (!response.ok) {
+        throw new Error('Failed to load logs')
+      }
+
+      const data = await response.json()
+      setLogs(data.logs)
+    } catch (error) {
+      console.error('Error loading logs:', error)
+      setError('Не удалось загрузить историю')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [applicationId])
+
   useEffect(() => {
     loadStatuses()
     loadLogs()
@@ -80,25 +99,6 @@ export default function AuditLogModal({ applicationId, onClose }: AuditLogModalP
 
     return translated
   }
-
-  const loadLogs = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`/api/applications/${applicationId}/logs`)
-
-      if (!response.ok) {
-        throw new Error('Failed to load logs')
-      }
-
-      const data = await response.json()
-      setLogs(data.logs)
-    } catch (error) {
-      console.error('Error loading logs:', error)
-      setError('Не удалось загрузить историю')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [applicationId])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)

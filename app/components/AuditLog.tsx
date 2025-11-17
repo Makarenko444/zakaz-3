@@ -47,6 +47,33 @@ export default function AuditLog({ applicationId, refreshTrigger, limit, onShowA
   const [statusTranslations, setStatusTranslations] = useState<Record<string, string>>({})
   const [totalCount, setTotalCount] = useState(0)
 
+  const loadLogs = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/logs`)
+
+      if (!response.ok) {
+        throw new Error('Failed to load logs')
+      }
+
+      const data = await response.json()
+      const allLogs = data.logs || []
+      setTotalCount(allLogs.length)
+
+      // Применяем limit, если задан
+      if (limit && limit > 0) {
+        setLogs(allLogs.slice(0, limit))
+      } else {
+        setLogs(allLogs)
+      }
+    } catch (error) {
+      console.error('Error loading logs:', error)
+      setError('Не удалось загрузить историю')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [applicationId, limit])
+
   // Загружаем статусы при монтировании компонента
   useEffect(() => {
     loadStatuses()
@@ -91,33 +118,6 @@ export default function AuditLog({ applicationId, refreshTrigger, limit, onShowA
 
     return translated
   }
-
-  const loadLogs = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`/api/applications/${applicationId}/logs`)
-
-      if (!response.ok) {
-        throw new Error('Failed to load logs')
-      }
-
-      const data = await response.json()
-      const allLogs = data.logs || []
-      setTotalCount(allLogs.length)
-
-      // Применяем limit, если задан
-      if (limit && limit > 0) {
-        setLogs(allLogs.slice(0, limit))
-      } else {
-        setLogs(allLogs)
-      }
-    } catch (error) {
-      console.error('Error loading logs:', error)
-      setError('Не удалось загрузить историю')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [applicationId, limit])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
