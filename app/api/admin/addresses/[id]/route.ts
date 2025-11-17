@@ -15,14 +15,13 @@ export async function PATCH(
 
     const { id } = await context.params
     const body = await request.json()
-    const { street, house, entrance, comment } = body
+    const { street, house, comment } = body
 
     const supabase = createDirectClient()
 
     const updateData: Record<string, unknown> = {}
     if (street !== undefined) updateData.street = street
     if (house !== undefined) updateData.house = house
-    if (entrance !== undefined) updateData.entrance = entrance || null
     if (comment !== undefined) updateData.comment = comment || null
 
     const table = supabase.from('zakaz_addresses') as unknown

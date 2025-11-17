@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { street, house, entrance, comment } = body
+    const { street, house, comment } = body
 
     if (!street || !house) {
       return NextResponse.json(
@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
     const insertBuilder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert({
       street,
       house,
-      entrance: entrance || null,
       comment: comment || null,
     }) as unknown
     const selectBuilder = (insertBuilder as { select: () => unknown }).select() as unknown
