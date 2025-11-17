@@ -486,7 +486,7 @@ export default function ApplicationDetailPage() {
                   <span className="font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</span>
                 </div>
                 <div className="sm:col-span-2">
-                  <span className="text-gray-500">Исполнитель:</span>{' '}
+                  <span className="text-gray-500">Менеджер:</span>{' '}
                   <button
                     onClick={() => setShowAssignModal(true)}
                     className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition"
@@ -664,12 +664,12 @@ export default function ApplicationDetailPage() {
         />
       )}
 
-      {/* Модальное окно назначения исполнителя */}
+      {/* Модальное окно назначения менеджера */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Назначить исполнителя</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Назначить менеджера</h3>
             </div>
 
             <div className="p-6 overflow-y-auto">
@@ -690,8 +690,8 @@ export default function ApplicationDetailPage() {
                   <span className="font-medium">Не назначен</span>
                 </button>
 
-                {/* Список пользователей */}
-                {users.map((user) => (
+                {/* Список менеджеров (только operator) */}
+                {users.filter(user => user.role === 'operator').map((user) => (
                   <button
                     key={user.id}
                     onClick={() => {
