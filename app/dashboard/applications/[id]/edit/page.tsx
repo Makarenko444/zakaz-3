@@ -10,7 +10,11 @@ import { getCurrentUser } from '@/lib/auth-client'
 
 // Схема валидации
 const applicationSchema = z.object({
-  address_id: z.string().min(1, 'Выберите адрес'),
+  address_id: z.string().optional(),
+  freeform_address: z.string().optional(),
+  entrance: z.string().optional(),
+  floor: z.string().optional(),
+  apartment: z.string().optional(),
   customer_type: z.enum(['individual', 'business']),
   service_type: z.enum(['apartment', 'office', 'scs']),
   customer_fullname: z.string().min(2, 'Введите ФИО/название компании'),
@@ -31,6 +35,15 @@ const applicationSchema = z.object({
     message: 'Для юридического лица обязательны контактное лицо и телефон',
     path: ['contact_person'],
   }
+).refine(
+  (data) => {
+    // Проверяем что указан либо адрес из справочника, либо адрес в свободной форме
+    return !!data.address_id || !!data.freeform_address
+  },
+  {
+    message: 'Укажите адрес',
+    path: ['freeform_address'],
+  }
 )
 
 type ApplicationFormData = z.infer<typeof applicationSchema>
@@ -44,7 +57,11 @@ interface Address {
 
 interface Application {
   id: string
-  address_id: string
+  address_id: string | null
+  freeform_address: string | null
+  entrance: string | null
+  floor: string | null
+  apartment: string | null
   customer_type: CustomerType
   service_type: ServiceType
   customer_fullname: string
@@ -72,6 +89,7 @@ export default function EditApplicationPage() {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
@@ -83,6 +101,16 @@ export default function EditApplicationPage() {
   })
 
   const customerType = watch('customer_type')
+  const freeformAddress = watch('freeform_address')
+  const addressId = watch('address_id')
+
+  // Функция для копирования адреса в справочник
+  const handleCopyToFormalized = () => {
+    if (!freeformAddress) return
+
+    // Показываем сообщение пользователю
+    alert('Для добавления адреса в справочник перейдите в раздел "Администрирование" → "Адреса" и создайте новый адрес. После этого вы сможете выбрать его из списка.')
+  }
 
   const loadApplication = useCallback(async () => {
     try {
@@ -98,7 +126,11 @@ export default function EditApplicationPage() {
 
       // Заполняем форму данными заявки
       reset({
-        address_id: app.address_id,
+        address_id: app.address_id || '',
+        freeform_address: app.freeform_address || '',
+        entrance: app.entrance || '',
+        floor: app.floor || '',
+        apartment: app.apartment || '',
         customer_type: app.customer_type,
         service_type: app.service_type,
         customer_fullname: app.customer_fullname,
@@ -232,14 +264,49 @@ export default function EditApplicationPage() {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg border border-gray-200 p-6">
-          {/* Адрес подключения */}
+          {/* Адрес в свободной форме */}
+          {freeformAddress && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-blue-900 mb-2">
+                    Адрес (свободная форма)
+                  </label>
+                  <input
+                    type="text"
+                    {...register('freeform_address')}
+                    className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  />
+                  <p className="mt-2 text-xs text-blue-700">
+                    Этот адрес был введен вручную. Вы можете изменить его или добавить в справочник.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyToFormalized}
+                className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+              >
+                Добавить в справочник адресов
+              </button>
+            </div>
+          )}
+
+          {/* Адрес подключения из справочника */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Адрес подключения <span className="text-red-500">*</span>
+              Адрес из справочника {!freeformAddress && <span className="text-red-500">*</span>}
             </label>
             <select
               {...register('address_id')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              onChange={(e) => {
+                setValue('address_id', e.target.value)
+                if (e.target.value) {
+                  // Если выбран адрес из справочника, очищаем адрес в свободной форме
+                  setValue('freeform_address', '')
+                }
+              }}
             >
               <option value="">Выберите адрес</option>
               {addresses.map((address) => (
@@ -251,7 +318,49 @@ export default function EditApplicationPage() {
             {errors.address_id && (
               <p className="mt-1 text-sm text-red-600">{errors.address_id.message}</p>
             )}
+            {errors.freeform_address && !freeformAddress && !addressId && (
+              <p className="mt-1 text-sm text-red-600">{errors.freeform_address.message}</p>
+            )}
           </div>
+
+          {/* Дополнительные данные адреса */}
+          {addressId && (
+            <div className="mb-6 grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Подъезд
+                </label>
+                <input
+                  type="text"
+                  {...register('entrance')}
+                  placeholder="1"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Этаж
+                </label>
+                <input
+                  type="text"
+                  {...register('floor')}
+                  placeholder="5"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Квартира
+                </label>
+                <input
+                  type="text"
+                  {...register('apartment')}
+                  placeholder="42"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Тип клиента */}
           <div className="mb-6">
