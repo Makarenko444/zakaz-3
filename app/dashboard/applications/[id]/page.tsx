@@ -25,6 +25,12 @@ interface ApplicationWithAddress extends Application {
     email: string
     role: string
   } | null
+  created_by_user?: {
+    id: string
+    full_name: string
+    email: string
+    role: string
+  } | null
 }
 
 // Тип для статуса из БД
@@ -291,6 +297,24 @@ export default function ApplicationDetailPage() {
     return `${address.street}, ${address.house}`
   }
 
+  const formatTitle = () => {
+    if (!application) return ''
+
+    let title = `№${application.application_number}`
+
+    // Добавляем адрес из заявки
+    if (application.street_and_house) {
+      title += `. ${application.street_and_house}`
+    }
+
+    // Добавляем детали адреса (подъезд, квартира)
+    if (application.address_details) {
+      title += `. ${application.address_details}`
+    }
+
+    return title
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -358,10 +382,13 @@ export default function ApplicationDetailPage() {
                 </svg>
               </button>
               <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-                Заявка №{application.application_number}
+                {formatTitle()}
               </h1>
               <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusColors[application.status]}`}>
                 {statusLabels[application.status]}
+              </span>
+              <span className={`px-3 py-1 text-sm font-semibold ${urgencyColors[application.urgency]}`}>
+                {urgencyLabels[application.urgency]}
               </span>
             </div>
 
@@ -400,13 +427,18 @@ export default function ApplicationDetailPage() {
                 </svg>
               </button>
               <h1 className="text-lg font-bold text-gray-900 flex-1">
-                Заявка №{application.application_number}
+                {formatTitle()}
               </h1>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[application.status]}`}>
-                {statusLabels[application.status]}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[application.status]}`}>
+                  {statusLabels[application.status]}
+                </span>
+                <span className={`px-2 py-1 text-xs font-semibold ${urgencyColors[application.urgency]}`}>
+                  {urgencyLabels[application.urgency]}
+                </span>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => router.push(`/dashboard/applications/${id}/edit`)}
@@ -440,14 +472,14 @@ export default function ApplicationDetailPage() {
                   <span className="font-medium text-gray-900">{formatDate(application.created_at)}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">Обновлена:</span>{' '}
-                  <span className="font-medium text-gray-900">{formatDate(application.updated_at)}</span>
+                  <span className="text-gray-500">Автор:</span>{' '}
+                  <span className="font-medium text-gray-900">
+                    {application.created_by_user ? application.created_by_user.full_name : 'Неизвестен'}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-gray-500">Срочность:</span>{' '}
-                  <span className={`font-semibold ${urgencyColors[application.urgency]}`}>
-                    {urgencyLabels[application.urgency]}
-                  </span>
+                  <span className="text-gray-500">Обновлена:</span>{' '}
+                  <span className="font-medium text-gray-900">{formatDate(application.updated_at)}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Услуга:</span>{' '}
