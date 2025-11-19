@@ -138,3 +138,79 @@ body {
 .theme-toggle:hover svg {
   transform: rotate(20deg);
 }
+
+/* Tailwind-совместимые стили с поддержкой тем */
+.bg-gray-50 {
+  background-color: var(--surface);
+}
+
+.bg-white {
+  background-color: var(--surface-strong);
+}
+
+.text-gray-900 {
+  color: var(--text-primary);
+}
+
+.text-gray-700 {
+  color: var(--text-secondary);
+}
+
+.text-gray-600 {
+  color: var(--text-secondary);
+}
+
+.text-gray-500 {
+  color: var(--text-muted);
+}
+
+.border-gray-200 {
+  border-color: var(--border-color);
+}
+
+.border-gray-300 {
+  border-color: var(--border-color);
+}
+
+.hover\:bg-gray-100:hover {
+  background-color: var(--surface-hover);
+}
+
+.hover\:bg-gray-50:hover {
+  background-color: var(--surface-hover);
+}
+
+.hover\:bg-gray-200:hover {
+  background-color: var(--surface-hover);
+}
+
+/* Карточки и панели */
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+.hover\:shadow-md:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.hover\:shadow-lg:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* Градиенты для header */
+.bg-gradient-to-r.from-indigo-50.to-white {
+  background: linear-gradient(to right, var(--surface), var(--surface-strong));
+}
+
+.border-indigo-100 {
+  border-color: var(--border-light);
+}
+
+/* Загрузочный экран */
+.border-indigo-600 {
+  border-color: var(--accent);
+}
