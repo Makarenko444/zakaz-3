@@ -20,7 +20,7 @@ interface AddressLinkWizardProps {
 }
 
 export default function AddressLinkWizard({
-  applicationId,
+  applicationId: _applicationId,
   streetAndHouse,
   addressDetails,
   currentAddressId,

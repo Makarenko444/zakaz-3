@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     console.log('[Dashboard Stats API] Получен запрос на статистику')
     const supabase = createDirectClient()

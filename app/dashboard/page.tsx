@@ -5,13 +5,6 @@ import { useRouter } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth-client'
 import { User } from '@/lib/types'
 
-const roleNames: Record<string, string> = {
-  admin: 'Администратор',
-  operator: 'Оператор',
-  engineer: 'Инженер',
-  lead: 'Бригадир',
-}
-
 interface DashboardStats {
   total: number
   new: number

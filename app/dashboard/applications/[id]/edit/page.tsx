@@ -65,7 +65,6 @@ export default function EditApplicationPage() {
     handleSubmit,
     watch,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
