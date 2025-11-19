@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 
+interface Address {
+  id: string
+  street: string
+  house: string
+  comment: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+interface Application {
+  id: string
+  status: string
+  application_number: number
+}
+
 export async function GET() {
   try {
     const supabase = createDirectClient()
@@ -11,6 +26,7 @@ export async function GET() {
       .select('*')
       .order('street', { ascending: true })
       .order('house', { ascending: true })
+      .returns<Address[]>()
 
     if (addressesError) {
       console.error('Database error:', addressesError)
@@ -27,6 +43,7 @@ export async function GET() {
           .from('zakaz_applications')
           .select('id, status, application_number')
           .eq('address_id', address.id)
+          .returns<Application[]>()
 
         if (applicationsError) {
           console.error('Error fetching applications for address:', applicationsError)
