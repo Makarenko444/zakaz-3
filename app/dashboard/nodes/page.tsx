@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface Address {
   id: string
@@ -389,9 +390,12 @@ export default function NodesPage() {
                   {filteredAndSortedAddresses.map((address) => (
                     <tr key={address.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <Link
+                          href={`/dashboard/applications?address_id=${address.id}&address_street=${encodeURIComponent(address.street)}&address_house=${encodeURIComponent(address.house)}`}
+                          className="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                        >
                           {address.street}, {address.house}
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-sm text-gray-600 max-w-xs truncate" title={address.comment || ''}>

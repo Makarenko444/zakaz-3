@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const urgency = searchParams.get('urgency')
     const serviceType = searchParams.get('service_type')
     const customerType = searchParams.get('customer_type')
+    const addressId = searchParams.get('address_id')
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -39,6 +40,10 @@ export async function GET(request: NextRequest) {
 
     if (customerType) {
       query = query.eq('customer_type', customerType)
+    }
+
+    if (addressId) {
+      query = query.eq('address_id', addressId)
     }
 
     // Поиск по имени или телефону
