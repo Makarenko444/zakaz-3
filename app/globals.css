@@ -46,15 +46,15 @@
   --radius-full: 9999px;
 }
 
-/* Темная тема - Битрикс-24 стиль */
+/* Темная тема - Битрикс-24 стиль (мягкая версия) */
 [data-theme="dark"] {
-  --background: #181818;
-  --foreground: #e8e8e8;
-  --surface: #1f1f1f;
-  --surface-strong: #262626;
-  --surface-hover: #2d2d2d;
-  --border-color: #333333;
-  --border-light: #2a2a2a;
+  --background: #2c3e50;
+  --foreground: #ecf0f1;
+  --surface: #34495e;
+  --surface-strong: #3d566e;
+  --surface-hover: #445c75;
+  --border-color: #4a6278;
+  --border-light: #3f566d;
 
   /* Акценты для темной темы */
   --accent: #2fc6f6;
@@ -73,16 +73,16 @@
   --danger-soft: rgba(255, 87, 82, 0.15);
 
   /* Текст */
-  --text-primary: #e8e8e8;
-  --text-secondary: #b8b8b8;
-  --text-muted: #8a8a8a;
-  --text-disabled: #5a5a5a;
+  --text-primary: #ecf0f1;
+  --text-secondary: #bdc3c7;
+  --text-muted: #95a5a6;
+  --text-disabled: #7f8c8d;
 
   /* Тени для темной темы */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
-  --shadow-hover: 0 6px 20px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
 @theme inline {
@@ -142,6 +142,10 @@ body {
 /* Tailwind-совместимые стили с поддержкой тем */
 .bg-gray-50 {
   background-color: var(--surface);
+}
+
+.bg-gray-100 {
+  background-color: var(--background);
 }
 
 .bg-white {
