@@ -18,16 +18,16 @@ interface Address {
 }
 
 const statusLabelsDefault: Record<string, string> = {
-  new: '>20O',
-  thinking: 'C<05B',
-  estimation: ' 0AGQB',
-  waiting_payment: '6840=85 >?;0BK',
-  contract: '>3>2>@',
-  queue_install: 'G5@54L =0 <>=B06',
-  install: '>=B06',
-  installed: 'K?>;=5=>',
-  rejected: 'B:07',
-  no_tech: '5B B5E. 2>7<>6=>AB8',
+  new: 'Новая',
+  thinking: 'Думает',
+  estimation: 'Расчёт',
+  waiting_payment: 'Ожидание оплаты',
+  contract: 'Договор',
+  queue_install: 'Очередь на монтаж',
+  install: 'Монтаж',
+  installed: 'Выполнено',
+  rejected: 'Отказ',
+  no_tech: 'Нет тех. возможности',
 }
 
 const statusColors: Record<string, string> = {
@@ -69,7 +69,7 @@ export default function NodesPage() {
       setStatusLabels(labels)
     } catch (error) {
       console.error('Error loading statuses:', error)
-      // A?>;L7C5< fallback 7=0G5=8O ?@8 >H81:5
+      // Используем fallback значения при ошибке
       setStatusLabels(statusLabelsDefault)
     }
   }
@@ -87,7 +87,7 @@ export default function NodesPage() {
       setAddresses(data.addresses)
     } catch (error) {
       console.error('Error loading addresses:', error)
-      setError('5 C40;>AL 703@C78BL A?8A>: C7;>2')
+      setError('Не удалось загрузить список узлов')
     } finally {
       setIsLoading(false)
     }
@@ -98,7 +98,7 @@ export default function NodesPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">03@C7:0...</p>
+          <p className="mt-4 text-gray-600">Загрузка...</p>
         </div>
       </div>
     )
@@ -134,10 +134,10 @@ export default function NodesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">#7;K ?>4:;NG5=8O</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Узлы подключения</h1>
             </div>
             <div className="text-sm text-gray-600">
-              A53> C7;>2: <span className="font-semibold">{addresses.length}</span>
+              Всего узлов: <span className="font-semibold">{addresses.length}</span>
             </div>
           </div>
         </div>
@@ -149,8 +149,8 @@ export default function NodesPage() {
             <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">5B C7;>2</h3>
-            <p className="text-gray-600">!?8A>: C7;>2 ?>4:;NG5=8O ?CAB</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Нет узлов</h3>
+            <p className="text-gray-600">Список узлов подключения пуст</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -166,7 +166,7 @@ export default function NodesPage() {
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">A53> 70O2>:</p>
+                    <p className="text-sm text-gray-500">Всего заявок:</p>
                     <p className="text-2xl font-bold text-gray-900">{address.total_applications}</p>
                   </div>
                 </div>
@@ -184,7 +184,7 @@ export default function NodesPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 italic">5B 0:B82=KE 70O2>:</p>
+                  <p className="text-sm text-gray-500 italic">Нет активных заявок</p>
                 )}
               </div>
             ))}
