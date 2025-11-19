@@ -3,13 +3,13 @@
 /* Светлая тема (по умолчанию) - Битрикс-24 стиль */
 :root,
 [data-theme="light"] {
-  --background: #eef2f7;
-  --foreground: #262626;
-  --surface: #f8fafb;
+  --background: #91afc7;
+  --foreground: #1a1a1a;
+  --surface: #b8cfe0;
   --surface-strong: #ffffff;
-  --surface-hover: #eceff4;
-  --border-color: #dfe4ea;
-  --border-light: #e8ecf1;
+  --surface-hover: #a3c0d6;
+  --border-color: #7a98b0;
+  --border-light: #8da8bd;
 
   /* Битрикс-24 стиль акцентов */
   --accent: #2fc6f6;
