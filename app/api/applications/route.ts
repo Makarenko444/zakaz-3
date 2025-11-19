@@ -48,7 +48,19 @@ export async function GET(request: NextRequest) {
 
     // Поиск по ФИО, организации, телефону и адресу
     if (search) {
-      query = query.or(`customer_fullname.ilike.%${search}%,customer_company.ilike.%${search}%,customer_phone.ilike.%${search}%,street_and_house.ilike.%${search}%`)
+      // Экранируем специальные символы для LIKE
+      const escapedSearch = search.replace(/[%_]/g, '\\$&')
+      const searchPattern = `%${escapedSearch}%`
+
+      console.log('[Applications API] Search query:', search)
+      console.log('[Applications API] Escaped pattern:', searchPattern)
+
+      query = query.or(
+        `customer_fullname.ilike.${searchPattern},` +
+        `customer_company.ilike.${searchPattern},` +
+        `customer_phone.ilike.${searchPattern},` +
+        `street_and_house.ilike.${searchPattern}`
+      )
     }
 
     // Пагинация
@@ -65,6 +77,15 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    console.log('[Applications API] Found', count, 'applications with filters:', {
+      status,
+      urgency,
+      serviceType,
+      customerType,
+      addressId,
+      search
+    })
 
     return NextResponse.json({
       applications: data || [],
