@@ -6,13 +6,14 @@ import ThemeToggle from '@/components/ThemeToggle'
 interface HeaderProps {
   onLogout: () => void
   isLoggingOut: boolean
+  isCollapsed: boolean
 }
 
-export default function Header({ onLogout, isLoggingOut }: HeaderProps) {
+export default function Header({ onLogout, isLoggingOut, isCollapsed }: HeaderProps) {
   const router = useRouter()
 
   return (
-    <header className="h-14 bg-white border-b border-gray-200 fixed top-0 right-0 left-64 z-20 transition-all">
+    <header className={`h-14 bg-white border-b border-gray-200 fixed top-0 right-0 z-20 transition-all ${isCollapsed ? 'left-16' : 'left-64'}`}>
       <div className="h-full px-4 flex items-center justify-between">
         {/* Поиск */}
         <div className="flex-1 max-w-xl">
