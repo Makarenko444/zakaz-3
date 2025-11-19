@@ -3,9 +3,9 @@
 /* Светлая тема (по умолчанию) - Битрикс-24 стиль */
 :root,
 [data-theme="light"] {
-  --background: #ffffff;
+  --background: #eef2f7;
   --foreground: #262626;
-  --surface: #f5f7fa;
+  --surface: #f8fafb;
   --surface-strong: #ffffff;
   --surface-hover: #eceff4;
   --border-color: #dfe4ea;
