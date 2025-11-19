@@ -17,6 +17,12 @@ interface Address {
   }>
 }
 
+interface Status {
+  code: string
+  name_ru: string
+  sort_order: number
+}
+
 type SortField = 'address' | 'total' | string
 type SortDirection = 'asc' | 'desc'
 
@@ -52,6 +58,7 @@ export default function NodesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>(statusLabelsDefault)
+  const [statuses, setStatuses] = useState<Status[]>([])
 
   // Фильтры и поиск
   const [searchQuery, setSearchQuery] = useState('')
@@ -72,10 +79,11 @@ export default function NodesPage() {
       }
       const data = await response.json()
       const labels: Record<string, string> = {}
-      data.statuses.forEach((status: { code: string; name_ru: string }) => {
+      data.statuses.forEach((status: Status) => {
         labels[status.code] = status.name_ru
       })
       setStatusLabels(labels)
+      setStatuses(data.statuses)
     } catch (error) {
       console.error('Error loading statuses:', error)
       setStatusLabels(statusLabelsDefault)
@@ -101,14 +109,20 @@ export default function NodesPage() {
     }
   }
 
-  // Получаем список всех уникальных статусов
+  // Получаем список всех уникальных статусов, отсортированных по sort_order из БД
   const allStatuses = useMemo(() => {
-    const statuses = new Set<string>()
+    const addressStatuses = new Set<string>()
     addresses.forEach(addr => {
-      Object.keys(addr.status_counts).forEach(status => statuses.add(status))
+      Object.keys(addr.status_counts).forEach(status => addressStatuses.add(status))
     })
-    return Array.from(statuses).sort()
-  }, [addresses])
+
+    // Фильтруем статусы из БД, оставляя только те, что есть в адресах
+    // и сортируем по sort_order
+    return statuses
+      .filter(status => addressStatuses.has(status.code))
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(status => status.code)
+  }, [addresses, statuses])
 
   // Фильтрация и сортировка
   const filteredAndSortedAddresses = useMemo(() => {
