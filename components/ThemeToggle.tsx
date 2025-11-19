@@ -1,9 +1,26 @@
 "use client";
 
 import { useTheme } from "@/contexts/ThemeContext";
+import { useEffect, useState } from "react";
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Предотвращаем гидратацию mismatch
+  if (!mounted) {
+    return (
+      <button className="theme-toggle" aria-label="Переключить тему">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 3.5C6.41 3.5 3.5 6.41 3.5 10C3.5 13.59 6.41 16.5 10 16.5C13.59 16.5 16.5 13.59 16.5 10C16.5 6.41 13.59 3.5 10 3.5ZM10 15.5C6.96 15.5 4.5 13.04 4.5 10C4.5 6.96 6.96 4.5 10 4.5C13.04 4.5 15.5 6.96 15.5 10C15.5 13.04 13.04 15.5 10 15.5Z" fill="currentColor" />
+        </svg>
+      </button>
+    );
+  }
 
   return (
     <button

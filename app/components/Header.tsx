@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth-client'
 import { User } from '@/lib/types'
+import ThemeToggle from '@/components/ThemeToggle'
 
 export default function Header() {
   const router = useRouter()
@@ -136,8 +137,11 @@ export default function Header() {
             </nav>
           </div>
 
-          {/* Правая часть - Пользователь и выход */}
+          {/* Правая часть - Переключатель темы, Пользователь и выход */}
           <div className="flex items-center gap-3">
+            {/* Переключатель темы */}
+            <ThemeToggle />
+
             {/* Информация о пользователе */}
             {user && (
               <div className="hidden lg:flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
@@ -249,6 +253,12 @@ export default function Header() {
                   Админка
                 </button>
               )}
+
+              {/* Переключатель темы в мобильном меню */}
+              <div className="px-3 py-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Тема оформления</span>
+                <ThemeToggle />
+              </div>
 
               <button
                 onClick={handleLogout}
