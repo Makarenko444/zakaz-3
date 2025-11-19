@@ -19,8 +19,33 @@ export async function PATCH(
 
     const supabase = createDirectClient()
 
+    // Если меняется email, проверяем, не занят ли он другим пользователем
+    if (email !== undefined) {
+      const normalizedEmail = email.trim().toLowerCase()
+
+      const { data: existingUser, error: checkError } = await supabase
+        .from('zakaz_users')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .neq('id', id)
+        .maybeSingle()
+
+      // Игнорируем ошибку "нет записей" - это нормально при проверке
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing user:', checkError)
+        return NextResponse.json({ error: 'Failed to check existing user' }, { status: 500 })
+      }
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'User with this email already exists' },
+          { status: 400 }
+        )
+      }
+    }
+
     const updateData: Record<string, unknown> = {}
-    if (email !== undefined) updateData.email = email
+    if (email !== undefined) updateData.email = email.trim().toLowerCase()
     if (full_name !== undefined) updateData.full_name = full_name
     if (phone !== undefined) updateData.phone = phone || null
     if (role !== undefined) updateData.role = role

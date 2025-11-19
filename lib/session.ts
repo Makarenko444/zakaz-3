@@ -107,10 +107,13 @@ export async function verifyPassword(
 ): Promise<User | null> {
   const supabase = createDirectClient()
 
+  // Нормализуем email для поиска
+  const normalizedEmail = email.trim().toLowerCase()
+
   const { data: user, error } = await supabase
     .from('zakaz_users')
     .select('*')
-    .eq('email', email)
+    .eq('email', normalizedEmail)
     .eq('active', true)
     .single() as { data: User & { password_hash?: string } | null; error: unknown }
 
