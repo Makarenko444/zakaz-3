@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('address_id', addressId)
     }
 
-    // Поиск по ФИО, организации, телефону и адресу
+    // Поиск по ФИО, телефону и адресу
     if (search) {
       // Экранируем специальные символы для LIKE
       const escapedSearch = search.replace(/[%_]/g, '\\$&')
@@ -55,12 +55,14 @@ export async function GET(request: NextRequest) {
       console.log('[Applications API] Search query:', search)
       console.log('[Applications API] Escaped pattern:', searchPattern)
 
+      // Поиск по основным полям (без customer_company, так как оно может быть NULL)
       query = query.or(
         `customer_fullname.ilike.${searchPattern},` +
-        `customer_company.ilike.${searchPattern},` +
         `customer_phone.ilike.${searchPattern},` +
         `street_and_house.ilike.${searchPattern}`
       )
+
+      console.log('[Applications API] Search conditions applied')
     }
 
     // Пагинация

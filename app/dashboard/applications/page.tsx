@@ -270,7 +270,7 @@ function ApplicationsContent() {
           <form onSubmit={handleSearch} className="flex gap-2">
             <input
               type="text"
-              placeholder="Поиск по ФИО, организации, телефону или адресу..."
+              placeholder="Поиск по ФИО, телефону или адресу..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
