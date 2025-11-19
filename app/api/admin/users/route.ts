@@ -46,17 +46,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Нормализуем email (приводим к нижнему регистру и убираем пробелы)
+    const normalizedEmail = email.trim().toLowerCase()
+
     // Хешируем пароль
     const hashedPassword = hashPassword(password)
 
     const supabase = createDirectClient()
 
     // Проверяем, не существует ли уже пользователь с таким email
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: checkError } = await supabase
       .from('zakaz_users')
       .select('id')
-      .eq('email', email)
-      .single()
+      .eq('email', normalizedEmail)
+      .maybeSingle()
+
+    // Игнорируем ошибку "нет записей" - это нормально при проверке
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Error checking existing user:', checkError)
+      return NextResponse.json({ error: 'Failed to check existing user' }, { status: 500 })
+    }
 
     if (existingUser) {
       return NextResponse.json(
@@ -68,7 +77,7 @@ export async function POST(request: NextRequest) {
     // Создаем пользователя
     const table = supabase.from('zakaz_users') as unknown
     const insertBuilder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert({
-      email,
+      email: normalizedEmail,
       full_name,
       phone: phone || null,
       role,
