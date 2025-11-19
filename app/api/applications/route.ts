@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
       query = query.eq('address_id', addressId)
     }
 
-    // Поиск по имени или телефону
+    // Поиск по ФИО, организации, телефону и адресу
     if (search) {
-      query = query.or(`customer_fullname.ilike.%${search}%,customer_phone.ilike.%${search}%`)
+      query = query.or(`customer_fullname.ilike.%${search}%,customer_company.ilike.%${search}%,customer_phone.ilike.%${search}%,street_and_house.ilike.%${search}%`)
     }
 
     // Пагинация

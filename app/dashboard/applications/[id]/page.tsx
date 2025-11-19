@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import Link from 'next/link'
 import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, User } from '@/lib/types'
 import StatusChangeModal from '@/app/components/StatusChangeModal'
 import AuditLog from '@/app/components/AuditLog'
@@ -519,14 +520,17 @@ export default function ApplicationDetailPage() {
                   {/* Привязка к узлу справа */}
                   <div className="flex items-center gap-2">
                     {application.address_id && application.zakaz_addresses ? (
-                      <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded">
+                      <Link
+                        href={`/dashboard/applications?address_id=${application.address_id}&address_street=${encodeURIComponent(application.zakaz_addresses.street)}&address_house=${encodeURIComponent(application.zakaz_addresses.house)}`}
+                        className="flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition"
+                      >
                         <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span className="text-xs font-medium text-green-700">
+                        <span className="text-xs font-medium text-green-700 hover:text-green-800">
                           Узел: {formatAddress(application.zakaz_addresses)}
                         </span>
-                      </div>
+                      </Link>
                     ) : (
                       <span className="text-xs text-amber-600 px-2 py-1">Без узла</span>
                     )}
