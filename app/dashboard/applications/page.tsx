@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, ServiceType, CustomerType } from '@/lib/types'
 
 // Расширенный тип для заявки с адресом
@@ -65,8 +65,9 @@ const serviceTypeLabels: Record<ServiceType, string> = {
   scs: 'СКС',
 }
 
-export default function ApplicationsPage() {
+function ApplicationsContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [applications, setApplications] = useState<ApplicationWithAddress[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -81,6 +82,8 @@ export default function ApplicationsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUrgency, setSelectedUrgency] = useState<Urgency | ''>('')
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('')
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('')
+  const [addressInfo, setAddressInfo] = useState<{ street: string; house: string } | null>(null)
 
   const loadApplications = useCallback(async () => {
     setIsLoading(true)
@@ -106,6 +109,10 @@ export default function ApplicationsPage() {
         params.append('service_type', selectedServiceType)
       }
 
+      if (selectedAddressId) {
+        params.append('address_id', selectedAddressId)
+      }
+
       const response = await fetch(`/api/applications?${params.toString()}`)
 
       if (!response.ok) {
@@ -120,7 +127,21 @@ export default function ApplicationsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType])
+  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedAddressId])
+
+  // Инициализация фильтра по адресу из URL при монтировании
+  useEffect(() => {
+    const addressId = searchParams.get('address_id')
+    const addressStreet = searchParams.get('address_street')
+    const addressHouse = searchParams.get('address_house')
+
+    if (addressId) {
+      setSelectedAddressId(addressId)
+      if (addressStreet && addressHouse) {
+        setAddressInfo({ street: addressStreet, house: addressHouse })
+      }
+    }
+  }, [searchParams])
 
   // Загрузка статусов из БД при монтировании
   useEffect(() => {
@@ -215,6 +236,35 @@ export default function ApplicationsPage() {
             Создать заявку
           </button>
         </div>
+
+        {/* Фильтр по адресу */}
+        {addressInfo && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="text-sm text-blue-900">
+                <span className="font-medium">Фильтр по адресу:</span> {addressInfo.street}, {addressInfo.house}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedAddressId('')
+                setAddressInfo(null)
+                router.push('/dashboard/applications')
+              }}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+            >
+              Сбросить
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Поиск */}
         <div className="mb-3">
           <form onSubmit={handleSearch} className="flex gap-2">
@@ -400,5 +450,19 @@ export default function ApplicationsPage() {
           </div>
         )}
       </main>
+  )
+}
+
+export default function ApplicationsPage() {
+  return (
+    <Suspense fallback={
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        </div>
+      </main>
+    }>
+      <ApplicationsContent />
+    </Suspense>
   )
 }
