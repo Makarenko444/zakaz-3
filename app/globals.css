@@ -147,7 +147,7 @@ body {
 }
 
 .bg-gray-100 {
-  background-color: var(--background);
+  background-color: var(--surface-hover);
 }
 
 .bg-white {
