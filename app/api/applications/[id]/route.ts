@@ -16,7 +16,8 @@ export async function GET(
         *,
         zakaz_addresses(street, house, comment),
         assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
-        created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role)
+        created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
+        updated_by_user:zakaz_users!zakaz_applications_updated_by_fkey(id, full_name, email, role)
       `)
       .eq('id', id)
       .single()

@@ -32,6 +32,12 @@ interface ApplicationWithAddress extends Application {
     email: string
     role: string
   } | null
+  updated_by_user?: {
+    id: string
+    full_name: string
+    email: string
+    role: string
+  } | null
 }
 
 // Тип для статуса из БД
@@ -466,38 +472,41 @@ export default function ApplicationDetailPage() {
           <div className="lg:col-span-2 space-y-4">
             {/* Компактная карточка с основной информацией */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              {/* Основные данные в компактном виде */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4 pb-4 border-b border-gray-200">
-                <div>
-                  <span className="text-gray-500">Создана:</span>{' '}
-                  <span className="font-medium text-gray-900">{formatDate(application.created_at)}</span>
+              {/* Основные данные в двухколоночном виде */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4 pb-4 border-b border-gray-200">
+                {/* Первая колонка */}
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-gray-500">Создана:</span>{' '}
+                    <span className="font-medium text-gray-900">
+                      {application.created_by_user ? application.created_by_user.full_name : 'Неизвестен'}
+                    </span>
+                    <span className="text-gray-500"> ({formatDate(application.created_at)})</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Обновлена:</span>{' '}
+                    <span className="font-medium text-gray-900">
+                      {application.updated_by_user ? application.updated_by_user.full_name : 'Неизвестен'}
+                    </span>
+                    <span className="text-gray-500"> ({formatDate(application.updated_at)})</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-500">Автор:</span>{' '}
-                  <span className="font-medium text-gray-900">
-                    {application.created_by_user ? application.created_by_user.full_name : 'Неизвестен'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Обновлена:</span>{' '}
-                  <span className="font-medium text-gray-900">{formatDate(application.updated_at)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Услуга:</span>{' '}
-                  <span className="font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</span>
-                </div>
-                <div className="sm:col-span-2">
-                  <span className="text-gray-500">Менеджер:</span>{' '}
-                  <button
-                    onClick={() => setShowAssignModal(true)}
-                    className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition"
-                  >
-                    {application.assigned_user ? (
-                      <>{application.assigned_user.full_name} <span className="text-gray-500 text-xs">({application.assigned_user.role})</span></>
-                    ) : (
-                      'Не назначен'
-                    )}
-                  </button>
+
+                {/* Вторая колонка */}
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-gray-500">Услуга:</span>{' '}
+                    <span className="font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Менеджер:</span>{' '}
+                    <button
+                      onClick={() => setShowAssignModal(true)}
+                      className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition"
+                    >
+                      {application.assigned_user ? application.assigned_user.full_name : 'Не назначен'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
