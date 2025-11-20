@@ -101,7 +101,7 @@ export async function DELETE(
       .select('*')
       .eq('id', commentId)
       .eq('application_id', applicationId)
-      .single() as { data: { user_id: string } | null; error: unknown }
+      .single() as { data: { user_id: string; user_name: string; comment: string } | null; error: unknown }
 
     if (fetchError || !existingComment) {
       return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
@@ -125,6 +125,22 @@ export async function DELETE(
         { status: 500 }
       )
     }
+
+    // Логируем удаление комментария
+    await supabase
+      .from('zakaz_audit_log')
+      .insert({
+        user_id: user.id,
+        user_name: user.full_name,
+        user_email: user.email,
+        action_type: 'delete_comment',
+        entity_type: 'application',
+        entity_id: applicationId,
+        description: `Удален комментарий от ${existingComment.user_name}: "${existingComment.comment.substring(0, 50)}${existingComment.comment.length > 50 ? '...' : ''}"`,
+        old_values: { comment: existingComment.comment, user_name: existingComment.user_name },
+        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+        user_agent: request.headers.get('user-agent') || 'unknown',
+      })
 
     return NextResponse.json(
       { message: 'Comment deleted successfully' },
