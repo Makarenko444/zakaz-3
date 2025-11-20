@@ -38,6 +38,7 @@ type ApplicationFormData = z.infer<typeof applicationSchema>
 
 interface Application {
   id: string
+  address_id: string | null
   street_and_house: string | null
   address_details: string | null
   customer_type: CustomerType
@@ -59,6 +60,7 @@ export default function EditApplicationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [addressId, setAddressId] = useState<string | null>(null)
 
   const {
     register,
@@ -88,6 +90,9 @@ export default function EditApplicationPage() {
       }
       const data = await response.json()
       const app: Application = data.application
+
+      // Сохраняем address_id для отправки при обновлении
+      setAddressId(app.address_id)
 
       // Заполняем форму данными заявки
       reset({
@@ -138,6 +143,7 @@ export default function EditApplicationPage() {
         },
         body: JSON.stringify({
           ...data,
+          address_id: addressId,
           updated_by: currentUserId,
         }),
       })
