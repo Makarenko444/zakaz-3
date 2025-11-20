@@ -112,7 +112,8 @@ export async function PATCH(
     const selector = (filtered as { select: (cols: string) => unknown }).select(`
       *,
       zakaz_addresses(street, house, comment),
-      assigned_user:zakaz_users!assigned_to(id, full_name, email, role)
+      assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
+      created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role)
     `) as unknown
     const query = (selector as { single: () => Promise<unknown> }).single()
     const result = await query
