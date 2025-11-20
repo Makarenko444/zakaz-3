@@ -127,19 +127,18 @@ export async function DELETE(
     }
 
     // Логируем удаление комментария
-    await supabase
-      .from('zakaz_audit_log')
-      .insert({
-        user_id: user.id,
-        user_name: user.full_name,
-        user_email: user.email,
-        action_type: 'delete_comment',
-        entity_type: 'application',
-        entity_id: applicationId,
-        description: 'Удален комментарий',
-        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
-        user_agent: request.headers.get('user-agent') || 'unknown',
-      })
+    const auditTable = supabase.from('zakaz_audit_log') as unknown
+    await (auditTable as { insert: (data: Record<string, unknown>) => Promise<unknown> }).insert({
+      user_id: user.id,
+      user_name: user.full_name,
+      user_email: user.email,
+      action_type: 'delete_comment',
+      entity_type: 'application',
+      entity_id: applicationId,
+      description: 'Удален комментарий',
+      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+      user_agent: request.headers.get('user-agent') || 'unknown',
+    })
 
     return NextResponse.json(
       { message: 'Comment deleted successfully' },
