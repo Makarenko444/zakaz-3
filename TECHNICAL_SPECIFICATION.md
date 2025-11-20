@@ -202,13 +202,14 @@
 1. **new** - Новая заявка (серый)
 2. **thinking** - Заказчик думает (синий)
 3. **estimation** - Расчёт стоимости (индиго)
-4. **waiting_payment** - Ожидание оплаты (янтарный)
-5. **contract** - Договор (циан)
-6. **queue_install** - Очередь на монтаж (фиолетовый)
-7. **install** - Монтаж (виолет)
-8. **installed** - Выполнено (зелёный)
-9. **rejected** - Отказ (красный)
-10. **no_tech** - Нет технической возможности (оранжевый)
+4. **contract** - Договор и оплата (циан)
+5. **design** - Проектирование (бирюзовый)
+6. **approval** - Согласование (изумрудный)
+7. **queue_install** - Очередь на монтаж (фиолетовый)
+8. **install** - Монтаж (виолет)
+9. **installed** - Выполнено (зелёный)
+10. **rejected** - Отказ (красный)
+11. **no_tech** - Нет технической возможности (оранжевый)
 
 #### 1.3 CRUD операции
 - ✅ **Create** - создание новой заявки
@@ -358,9 +359,8 @@ CREATE TYPE zakaz_urgency AS ENUM ('low', 'normal', 'high', 'critical');
 
 -- Статусы заявок
 CREATE TYPE zakaz_application_status AS ENUM (
-  'new', 'thinking', 'estimation', 'waiting_payment', 
-  'contract', 'queue_install', 'install', 'installed', 
-  'rejected', 'no_tech'
+  'new', 'thinking', 'estimation', 'contract', 'design', 'approval',
+  'queue_install', 'install', 'installed', 'rejected', 'no_tech'
 );
 
 -- Роли пользователей
@@ -597,8 +597,9 @@ Authorization: Bearer <supabase_jwt_token>
 - **new** → Серый (`bg-gray-100`, `text-gray-800`)
 - **thinking** → Синий (`bg-blue-100`, `text-blue-800`)
 - **estimation** → Индиго (`bg-indigo-100`, `text-indigo-800`)
-- **waiting_payment** → Янтарный (`bg-amber-100`, `text-amber-800`)
-- **contract** → Циан (`bg-cyan-100`, `text-cyan-800`)
+- **contract** → Циан (`bg-cyan-100`, `text-cyan-800`) - "Договор и оплата"
+- **design** → Бирюзовый (`bg-teal-100`, `text-teal-800`) - "Проектирование"
+- **approval** → Изумрудный (`bg-emerald-100`, `text-emerald-800`) - "Согласование"
 - **queue_install** → Фиолетовый (`bg-purple-100`, `text-purple-800`)
 - **install** → Виолет (`bg-violet-100`, `text-violet-800`)
 - **installed** → Зелёный (`bg-green-100`, `text-green-800`)
