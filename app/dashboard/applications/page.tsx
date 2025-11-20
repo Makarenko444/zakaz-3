@@ -28,8 +28,9 @@ const statusColors: Record<ApplicationStatus, string> = {
   new: 'bg-gray-100 text-gray-800',
   thinking: 'bg-blue-100 text-blue-800',
   estimation: 'bg-indigo-100 text-indigo-800',
-  waiting_payment: 'bg-amber-100 text-amber-800',
   contract: 'bg-cyan-100 text-cyan-800',
+  design: 'bg-teal-100 text-teal-800',
+  approval: 'bg-emerald-100 text-emerald-800',
   queue_install: 'bg-purple-100 text-purple-800',
   install: 'bg-violet-100 text-violet-800',
   installed: 'bg-green-100 text-green-800',
@@ -88,7 +89,6 @@ function ApplicationsContent() {
 
   // Список пользователей для фильтра
   const [users, setUsers] = useState<{ id: string; full_name: string; role: string }[]>([])
-  const [usersLoaded, setUsersLoaded] = useState(false)
 
   const loadApplications = useCallback(async () => {
     setIsLoading(true)
@@ -184,8 +184,9 @@ function ApplicationsContent() {
         new: 'Новая',
         thinking: 'Думает',
         estimation: 'Расчёт',
-        waiting_payment: 'Ожидание оплаты',
-        contract: 'Договор',
+        contract: 'Договор и оплата',
+        design: 'Проектирование',
+        approval: 'Согласование',
         queue_install: 'Очередь на монтаж',
         install: 'Монтаж',
         installed: 'Выполнено',
@@ -209,10 +210,8 @@ function ApplicationsContent() {
         ['admin', 'manager'].includes(user.role)
       )
       setUsers(managers)
-      setUsersLoaded(true)
     } catch (error) {
       console.error('Error loading users:', error)
-      setUsersLoaded(true)
     }
   }
 
