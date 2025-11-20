@@ -243,6 +243,20 @@ export default function Comments({
     return currentUserId && (comment.user_id === currentUserId || currentUserRole === 'admin')
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault()
+      handleSubmit(e as unknown as React.FormEvent)
+    }
+  }
+
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, commentId: string) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault()
+      handleUpdateComment(commentId)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Список комментариев */}
@@ -322,6 +336,7 @@ export default function Comments({
                   <textarea
                     value={editingText}
                     onChange={(e) => setEditingText(e.target.value)}
+                    onKeyDown={(e) => handleEditKeyDown(e, comment.id)}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                     disabled={isUpdating}
@@ -386,10 +401,12 @@ export default function Comments({
         <div className="mb-3">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Добавить комментарий
+            <span className="text-xs text-gray-500 font-normal ml-2">(Ctrl+Enter для отправки)</span>
           </label>
           <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
+            onKeyDown={handleKeyDown}
             rows={3}
             placeholder="Напишите комментарий..."
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"

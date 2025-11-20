@@ -108,6 +108,21 @@ export async function DELETE(
     // Удаление файла с диска
     await deleteFile(applicationId, file.stored_filename)
 
+    // Логируем удаление файла
+    await supabase
+      .from('zakaz_audit_log')
+      .insert({
+        user_id: user.id,
+        user_name: user.full_name,
+        user_email: user.email,
+        action_type: 'delete_file',
+        entity_type: 'application',
+        entity_id: applicationId,
+        description: 'Удален файл',
+        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+        user_agent: request.headers.get('user-agent') || 'unknown',
+      })
+
     return NextResponse.json({ message: 'File deleted successfully' }, { status: 200 })
   } catch (error) {
     console.error('Error deleting file:', error)
