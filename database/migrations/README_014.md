@@ -49,36 +49,57 @@
 
 ## Как применить миграцию
 
+⚠️ **ВАЖНО:** Миграция состоит из двух шагов из-за ограничений PostgreSQL с ENUM типами.
+
 ### Вариант 1: Использование скрипта (рекомендуется)
 
 ```bash
 # Установите переменную окружения с URL базы данных
 export POSTGRES_URL="postgresql://user:password@host:port/database"
 
-# Запустите скрипт
+# Запустите скрипт (выполняет оба шага автоматически)
 ./database/apply-migration-014.sh
 ```
 
-### Вариант 2: Напрямую через psql
+### Вариант 2: Через Supabase Dashboard (вручную в два шага)
+
+**Шаг 1:**
+1. Откройте Supabase Dashboard → SQL Editor
+2. Скопируйте содержимое файла `014_update_user_roles_step1.sql`
+3. Выполните SQL (нажмите Run)
+4. Дождитесь завершения
+
+**Шаг 2:**
+1. В том же SQL Editor
+2. Скопируйте содержимое файла `014_update_user_roles_step2.sql`
+3. Выполните SQL (нажмите Run)
+
+### Вариант 3: Напрямую через psql
 
 ```bash
-psql "$POSTGRES_URL" -f database/migrations/014_update_user_roles.sql
+# Шаг 1: Добавление новых значений
+psql "$POSTGRES_URL" -f database/migrations/014_update_user_roles_step1.sql
+
+# Подождите пару секунд для фиксации транзакции
+
+# Шаг 2: Обновление данных
+psql "$POSTGRES_URL" -f database/migrations/014_update_user_roles_step2.sql
 ```
-
-### Вариант 3: Через Supabase Dashboard
-
-1. Откройте Supabase Dashboard
-2. Перейдите в SQL Editor
-3. Скопируйте содержимое файла `014_update_user_roles.sql`
-4. Выполните SQL
 
 ## Что делает миграция
 
-1. **Удаляет старый CHECK constraint** на поле `role`
-2. **Обновляет существующие записи:**
+### Шаг 1 (014_update_user_roles_step1.sql)
+1. **Добавляет новые значения** в enum `zakaz_user_role`:
+   - `manager`
+   - `installer`
+   - `supply`
+
+### Шаг 2 (014_update_user_roles_step2.sql)
+1. **Обновляет существующие записи:**
    - `operator` → `manager`
    - `lead` → `manager`
-3. **Добавляет новый CHECK constraint** с полным списком ролей
+2. **Пересоздает enum** с только актуальными значениями
+3. **Удаляет старые значения** (`operator`, `lead`)
 4. **Обновляет комментарий** к полю `role`
 
 ## Проверка после миграции
