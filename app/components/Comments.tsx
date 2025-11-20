@@ -6,6 +6,7 @@ import FileUpload from './FileUpload'
 
 interface Comment {
   id: string
+  user_id: string | null
   user_name: string
   user_email: string | null
   comment: string
@@ -18,6 +19,7 @@ interface CommentsProps {
   currentUserId?: string
   currentUserName?: string
   currentUserEmail?: string
+  currentUserRole?: string
   onFileUploaded?: () => void  // Callback для обновления главного списка файлов
 }
 
@@ -26,6 +28,7 @@ export default function Comments({
   currentUserId,
   currentUserName,
   currentUserEmail,
+  currentUserRole,
   onFileUploaded
 }: CommentsProps) {
   const [comments, setComments] = useState<Comment[]>([])
@@ -36,6 +39,9 @@ export default function Comments({
   const [fileRefreshTriggers, setFileRefreshTriggers] = useState<Record<string, number>>({})
   const [showFileUpload, setShowFileUpload] = useState<Record<string, boolean>>({})
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState('')
+  const [isUpdating, setIsUpdating] = useState(false)
 
   const loadComments = useCallback(async () => {
     setIsLoading(true)
@@ -167,6 +173,76 @@ export default function Comments({
     }))
   }
 
+  const handleEdit = (comment: Comment) => {
+    setEditingCommentId(comment.id)
+    setEditingText(comment.comment)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingCommentId(null)
+    setEditingText('')
+  }
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editingText.trim()) return
+
+    setIsUpdating(true)
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          comment: editingText,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update comment')
+      }
+
+      const data = await response.json()
+      // Обновляем комментарий в списке
+      setComments(comments.map(c => c.id === commentId ? data.comment : c))
+      setEditingCommentId(null)
+      setEditingText('')
+    } catch (error: unknown) {
+      console.error('Error updating comment:', error)
+      alert(error instanceof Error ? error.message : 'Не удалось обновить комментарий')
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('Вы уверены, что хотите удалить этот комментарий?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/comments/${commentId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete comment')
+      }
+
+      // Удаляем комментарий из списка
+      setComments(comments.filter(c => c.id !== commentId))
+    } catch (error: unknown) {
+      console.error('Error deleting comment:', error)
+      alert(error instanceof Error ? error.message : 'Не удалось удалить комментарий')
+    }
+  }
+
+  const canEditComment = (comment: Comment) => {
+    return currentUserId && (comment.user_id === currentUserId || currentUserRole === 'admin')
+  }
+
   return (
     <div className="space-y-4">
       {/* Список комментариев */}
@@ -192,30 +268,86 @@ export default function Comments({
                         <span className="text-xs text-gray-600">{comment.user_email}</span>
                       )}
                       <span className="text-xs text-gray-500">• {formatDate(comment.created_at)}</span>
+                      {comment.updated_at !== comment.created_at && (
+                        <span className="text-xs text-gray-500">(изменено)</span>
+                      )}
                     </div>
                   </div>
-                  {/* Скрепка для прикрепления файлов */}
-                  <button
-                    onClick={() => toggleFileUpload(comment.id)}
-                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 rounded transition"
-                    title="Прикрепить файлы"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                      />
-                    </svg>
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {/* Кнопки редактирования и удаления (только для своих комментариев или админа) */}
+                    {canEditComment(comment) && editingCommentId !== comment.id && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(comment)}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded transition"
+                          title="Редактировать"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition"
+                          title="Удалить"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                    {/* Скрепка для прикрепления файлов */}
+                    <button
+                      onClick={() => toggleFileUpload(comment.id)}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 rounded transition"
+                      title="Прикрепить файлы"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Текст комментария */}
-              <div className="px-4 py-3">
-                <p className="text-gray-800 whitespace-pre-wrap">{comment.comment}</p>
-              </div>
+              {/* Текст комментария или форма редактирования */}
+              {editingCommentId === comment.id ? (
+                <div className="px-4 py-3 bg-blue-50">
+                  <textarea
+                    value={editingText}
+                    onChange={(e) => setEditingText(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    disabled={isUpdating}
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => handleUpdateComment(comment.id)}
+                      disabled={isUpdating || !editingText.trim()}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isUpdating ? 'Сохранение...' : 'Сохранить'}
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={isUpdating}
+                      className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-4 py-3">
+                  <p className="text-gray-800 whitespace-pre-wrap">{comment.comment}</p>
+                </div>
+              )}
 
               {/* Список файлов комментария */}
               {/* Показываем только если есть файлы */}
@@ -225,6 +357,8 @@ export default function Comments({
                   commentId={comment.id}
                   refreshTrigger={fileRefreshTriggers[comment.id] || 0}
                   showThumbnails={true}
+                  currentUserId={currentUserId}
+                  currentUserRole={currentUserRole}
                 />
               </div>
 
