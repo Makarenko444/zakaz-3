@@ -32,6 +32,12 @@ interface ApplicationWithAddress extends Application {
     email: string
     role: string
   } | null
+  updated_by_user?: {
+    id: string
+    full_name: string
+    email: string
+    role: string
+  } | null
 }
 
 // Тип для статуса из БД
@@ -100,7 +106,6 @@ export default function ApplicationDetailPage() {
   const [showAuditLogModal, setShowAuditLogModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [showAddressWizard, setShowAddressWizard] = useState(false)
-  const [updatedByUser, setUpdatedByUser] = useState<User | null>(null)
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
@@ -121,11 +126,6 @@ export default function ApplicationDetailPage() {
 
       const data = await response.json()
       setApplication(data.application)
-
-      // Загружаем информацию о пользователе, обновившем заявку
-      if (data.application.updated_by) {
-        loadUpdatedByUser(data.application.updated_by)
-      }
     } catch (error) {
       console.error('Error loading application:', error)
       setError('Не удалось загрузить заявку')
@@ -133,20 +133,6 @@ export default function ApplicationDetailPage() {
       setIsLoading(false)
     }
   }, [id])
-
-  async function loadUpdatedByUser(userId: string) {
-    try {
-      const response = await fetch('/api/users')
-      if (!response.ok) return
-      const data = await response.json()
-      const user = data.users.find((u: User) => u.id === userId)
-      if (user) {
-        setUpdatedByUser(user)
-      }
-    } catch (error) {
-      console.error('Error loading updated_by user:', error)
-    }
-  }
 
   useEffect(() => {
     loadStatuses()
@@ -500,7 +486,7 @@ export default function ApplicationDetailPage() {
                   <div>
                     <span className="text-gray-500">Обновлена:</span>{' '}
                     <span className="font-medium text-gray-900">
-                      {updatedByUser ? updatedByUser.full_name : 'Неизвестен'}
+                      {application.updated_by_user ? application.updated_by_user.full_name : 'Неизвестен'}
                     </span>
                     <span className="text-gray-500"> ({formatDate(application.updated_at)})</span>
                   </div>
