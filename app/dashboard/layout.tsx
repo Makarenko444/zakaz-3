@@ -17,6 +17,7 @@ export default function DashboardLayout({
   const [applicationsCount, setApplicationsCount] = useState<number>(0)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   useEffect(() => {
     loadUser()
@@ -79,13 +80,22 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen">
       {/* Левое меню */}
-      <Sidebar user={user} applicationsCount={applicationsCount} />
+      <Sidebar
+        user={user}
+        applicationsCount={applicationsCount}
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+      />
 
       {/* Верхняя панель */}
-      <Header onLogout={handleLogout} isLoggingOut={isLoggingOut} />
+      <Header
+        onLogout={handleLogout}
+        isLoggingOut={isLoggingOut}
+        isCollapsed={isCollapsed}
+      />
 
       {/* Основной контент */}
-      <main className="ml-64 pt-14 transition-all">
+      <main className={`pt-14 transition-all ${isCollapsed ? 'ml-16' : 'ml-64'}`}>
         <div className="p-6">
           {children}
         </div>

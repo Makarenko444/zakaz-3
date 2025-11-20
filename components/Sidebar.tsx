@@ -2,17 +2,17 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import { User } from '@/lib/types'
-import { useState } from 'react'
 
 interface SidebarProps {
   user: User | null
   applicationsCount: number
+  isCollapsed: boolean
+  setIsCollapsed: (collapsed: boolean) => void
 }
 
-export default function Sidebar({ user, applicationsCount }: SidebarProps) {
+export default function Sidebar({ user, applicationsCount, isCollapsed, setIsCollapsed }: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const [isCollapsed, setIsCollapsed] = useState(false)
 
   const isActive = (path: string) => {
     if (path === '/dashboard' && pathname === '/dashboard') return true
