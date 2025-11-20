@@ -24,7 +24,28 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ comments: data || [] })
+    // Создаем мапу комментариев для быстрого поиска
+    const commentsMap = new Map(data?.map(c => [c.id, c]) || [])
+
+    // Добавляем информацию об исходном комментарии для ответов
+    const commentsWithReplies = data?.map(comment => {
+      if (comment.reply_to_comment_id) {
+        const repliedComment = commentsMap.get(comment.reply_to_comment_id)
+        if (repliedComment) {
+          return {
+            ...comment,
+            replied_comment: {
+              id: repliedComment.id,
+              user_name: repliedComment.user_name,
+              comment: repliedComment.comment,
+            }
+          }
+        }
+      }
+      return comment
+    }) || []
+
+    return NextResponse.json({ comments: commentsWithReplies })
   } catch (error) {
     console.error('Error in comments API:', error)
     return NextResponse.json(
@@ -65,6 +86,7 @@ export async function POST(
       user_name: body.user_name,
       user_email: body.user_email || null,
       comment: body.comment.trim(),
+      reply_to_comment_id: body.reply_to_comment_id || null,
     }
 
     // Обходим проблемы с автогенерируемыми типами Supabase через unknown
