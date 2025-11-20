@@ -16,7 +16,8 @@ export async function GET(
         *,
         zakaz_addresses(street, house, comment),
         assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
-        created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role)
+        created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
+        updated_by_user:zakaz_users!zakaz_applications_updated_by_fkey(id, full_name, email, role)
       `)
       .eq('id', id)
       .single()
@@ -103,6 +104,7 @@ export async function PATCH(
       urgency: body.urgency,
       client_comment: body.client_comment || null,
       assigned_to: body.assigned_to || null,
+      updated_by: body.updated_by || null,
     }
 
     // Обходим проблемы с автогенерируемыми типами Supabase через unknown
@@ -113,7 +115,8 @@ export async function PATCH(
       *,
       zakaz_addresses(street, house, comment),
       assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
-      created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role)
+      created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
+      updated_by_user:zakaz_users!zakaz_applications_updated_by_fkey(id, full_name, email, role)
     `) as unknown
     const query = (selector as { single: () => Promise<unknown> }).single()
     const result = await query

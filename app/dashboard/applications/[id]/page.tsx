@@ -32,6 +32,12 @@ interface ApplicationWithAddress extends Application {
     email: string
     role: string
   } | null
+  updated_by_user?: {
+    id: string
+    full_name: string
+    email: string
+    role: string
+  } | null
 }
 
 // Тип для статуса из БД
@@ -479,7 +485,10 @@ export default function ApplicationDetailPage() {
                   </div>
                   <div>
                     <span className="text-gray-500">Обновлена:</span>{' '}
-                    <span className="font-medium text-gray-900">{formatDate(application.updated_at)}</span>
+                    <span className="font-medium text-gray-900">
+                      {application.updated_by_user ? application.updated_by_user.full_name : 'Неизвестен'}
+                    </span>
+                    <span className="text-gray-500"> ({formatDate(application.updated_at)})</span>
                   </div>
                 </div>
 

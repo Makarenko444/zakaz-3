@@ -44,6 +44,7 @@ export interface Application {
   client_comment: string | null
   created_by: string | null
   created_at: string
+  updated_by: string | null
   updated_at: string
   service_type: ServiceType
   application_number: number
