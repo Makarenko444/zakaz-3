@@ -5,9 +5,10 @@ import { User, UserRole } from '@/lib/types'
 
 const roleNames: Record<UserRole, string> = {
   admin: 'Администратор',
-  operator: 'Оператор',
+  manager: 'Менеджер',
   engineer: 'Инженер',
-  lead: 'Бригадир',
+  installer: 'Монтажник',
+  supply: 'Снабжение',
 }
 
 interface UserFormData {
@@ -28,7 +29,7 @@ export default function UsersAdmin() {
     email: '',
     full_name: '',
     phone: '',
-    role: 'operator',
+    role: 'manager',
     password: '',
     active: true,
   })
@@ -60,7 +61,7 @@ export default function UsersAdmin() {
       email: '',
       full_name: '',
       phone: '',
-      role: 'operator',
+      role: 'manager',
       password: '',
       active: true,
     })
