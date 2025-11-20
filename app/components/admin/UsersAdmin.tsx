@@ -304,10 +304,11 @@ export default function UsersAdmin() {
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
-                  <option value="operator">Оператор</option>
-                  <option value="engineer">Инженер</option>
-                  <option value="lead">Бригадир</option>
                   <option value="admin">Администратор</option>
+                  <option value="manager">Менеджер</option>
+                  <option value="engineer">Инженер</option>
+                  <option value="installer">Монтажник</option>
+                  <option value="supply">Снабжение</option>
                 </select>
               </div>
 
