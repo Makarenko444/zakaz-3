@@ -6,6 +6,7 @@ interface AuditLogEntry {
   id: string
   action_type: string
   description: string
+  user_id: string | null
   user_name: string | null
   user_email: string | null
   created_at: string
@@ -16,6 +17,7 @@ interface AuditLogEntry {
 interface AuditLogModalProps {
   applicationId: string
   onClose: () => void
+  onUserClick?: (userId: string, userName: string) => void
 }
 
 const actionTypeColors: Record<string, string> = {
@@ -38,7 +40,7 @@ const actionTypeLabels: Record<string, string> = {
   other: 'Действие',
 }
 
-export default function AuditLogModal({ applicationId, onClose }: AuditLogModalProps) {
+export default function AuditLogModal({ applicationId, onClose, onUserClick }: AuditLogModalProps) {
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -168,10 +170,19 @@ export default function AuditLogModal({ applicationId, onClose }: AuditLogModalP
                       <p className="text-sm text-gray-900 mb-2">{translateDescription(log.description)}</p>
 
                       {log.user_name && (
-                        <p className="text-xs text-gray-600">
-                          {log.user_name}
-                          {log.user_email && ` (${log.user_email})`}
-                        </p>
+                        <div className="text-xs text-gray-600">
+                          {log.user_id && onUserClick ? (
+                            <button
+                              onClick={() => onUserClick(log.user_id!, log.user_name!)}
+                              className="text-indigo-600 hover:text-indigo-800 hover:underline transition font-medium"
+                            >
+                              {log.user_name}
+                            </button>
+                          ) : (
+                            <span>{log.user_name}</span>
+                          )}
+                          {log.user_email && <span className="text-gray-500"> ({log.user_email})</span>}
+                        </div>
                       )}
                     </div>
                   </div>

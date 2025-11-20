@@ -27,6 +27,7 @@ interface CommentsProps {
   currentUserEmail?: string
   currentUserRole?: string
   onFileUploaded?: () => void  // Callback для обновления главного списка файлов
+  onUserClick?: (userId: string, userName: string) => void  // Callback для клика на пользователя
 }
 
 export default function Comments({
@@ -35,7 +36,8 @@ export default function Comments({
   currentUserName,
   currentUserEmail,
   currentUserRole,
-  onFileUploaded
+  onFileUploaded,
+  onUserClick
 }: CommentsProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
@@ -323,7 +325,16 @@ export default function Comments({
               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="font-semibold text-gray-900">{comment.user_name}</p>
+                    {comment.user_id && onUserClick ? (
+                      <button
+                        onClick={() => onUserClick(comment.user_id!, comment.user_name)}
+                        className="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline transition"
+                      >
+                        {comment.user_name}
+                      </button>
+                    ) : (
+                      <p className="font-semibold text-gray-900">{comment.user_name}</p>
+                    )}
                     <div className="flex items-center gap-2 mt-1">
                       {comment.user_email && (
                         <span className="text-xs text-gray-600">{comment.user_email}</span>

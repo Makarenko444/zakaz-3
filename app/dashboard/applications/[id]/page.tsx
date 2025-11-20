@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, User } from '@/lib/types'
 import StatusChangeModal from '@/app/components/StatusChangeModal'
+import StatusProgressBar from '@/app/components/StatusProgressBar'
+import UserInfoModal from '@/app/components/UserInfoModal'
 import AuditLog from '@/app/components/AuditLog'
 import AuditLogModal from '@/app/components/AuditLogModal'
 import Comments from '@/app/components/Comments'
@@ -108,6 +110,9 @@ export default function ApplicationDetailPage() {
   const [showAuditLogModal, setShowAuditLogModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [showAddressWizard, setShowAddressWizard] = useState(false)
+  const [showUserInfoModal, setShowUserInfoModal] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [selectedUserName, setSelectedUserName] = useState<string>('')
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
@@ -202,6 +207,31 @@ export default function ApplicationDetailPage() {
       }
     } catch (error) {
       console.error('Error loading current user:', error)
+    }
+  }
+
+  async function handleStatusChangeFromProgressBar(newStatus: ApplicationStatus) {
+    try {
+      const response = await fetch(`/api/applications/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          changed_by: currentUserId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to change status')
+      }
+
+      // Перезагружаем данные заявки
+      await loadApplication()
+    } catch (error) {
+      console.error('Error changing status:', error)
+      alert('Не удалось изменить статус')
     }
   }
 
@@ -473,6 +503,13 @@ export default function ApplicationDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-6">
           {/* Левая колонка - Компактная информация */}
           <div className="lg:col-span-2 space-y-4">
+            {/* Линейка прогресса статусов */}
+            <StatusProgressBar
+              currentStatus={application.status}
+              onStatusChange={handleStatusChangeFromProgressBar}
+              disabled={!currentUserId}
+            />
+
             {/* Компактная карточка с основной информацией */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               {/* Основные данные в двухколоночном виде */}
@@ -481,16 +518,38 @@ export default function ApplicationDetailPage() {
                 <div className="space-y-2">
                   <div>
                     <span className="text-gray-500">Создана:</span>{' '}
-                    <span className="font-medium text-gray-900">
-                      {application.created_by_user ? application.created_by_user.full_name : 'Неизвестен'}
-                    </span>
+                    {application.created_by_user ? (
+                      <button
+                        onClick={() => {
+                          setSelectedUserId(application.created_by_user!.id)
+                          setSelectedUserName(application.created_by_user!.full_name)
+                          setShowUserInfoModal(true)
+                        }}
+                        className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition"
+                      >
+                        {application.created_by_user.full_name}
+                      </button>
+                    ) : (
+                      <span className="font-medium text-gray-900">Неизвестен</span>
+                    )}
                     <span className="text-gray-500"> ({formatDate(application.created_at)})</span>
                   </div>
                   <div>
                     <span className="text-gray-500">Обновлена:</span>{' '}
-                    <span className="font-medium text-gray-900">
-                      {application.updated_by_user ? application.updated_by_user.full_name : 'Неизвестен'}
-                    </span>
+                    {application.updated_by_user ? (
+                      <button
+                        onClick={() => {
+                          setSelectedUserId(application.updated_by_user!.id)
+                          setSelectedUserName(application.updated_by_user!.full_name)
+                          setShowUserInfoModal(true)
+                        }}
+                        className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition"
+                      >
+                        {application.updated_by_user.full_name}
+                      </button>
+                    ) : (
+                      <span className="font-medium text-gray-900">Неизвестен</span>
+                    )}
                     <span className="text-gray-500"> ({formatDate(application.updated_at)})</span>
                   </div>
                 </div>
@@ -501,14 +560,38 @@ export default function ApplicationDetailPage() {
                     <span className="text-gray-500">Услуга:</span>{' '}
                     <span className="font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</span>
                   </div>
-                  <div>
+                  <div className="flex items-center gap-2">
                     <span className="text-gray-500">Менеджер:</span>{' '}
-                    <button
-                      onClick={() => setShowAssignModal(true)}
-                      className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition"
-                    >
-                      {application.assigned_user ? application.assigned_user.full_name : 'Не назначен'}
-                    </button>
+                    {application.assigned_user ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setSelectedUserId(application.assigned_user!.id)
+                            setSelectedUserName(application.assigned_user!.full_name)
+                            setShowUserInfoModal(true)
+                          }}
+                          className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition"
+                        >
+                          {application.assigned_user.full_name}
+                        </button>
+                        <button
+                          onClick={() => setShowAssignModal(true)}
+                          className="text-gray-400 hover:text-indigo-600 transition"
+                          title="Изменить менеджера"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setShowAssignModal(true)}
+                        className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition"
+                      >
+                        Не назначен
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -614,6 +697,11 @@ export default function ApplicationDetailPage() {
                 currentUserEmail={currentUserEmail || undefined}
                 currentUserRole={currentUserRole || undefined}
                 onFileUploaded={() => setFileRefreshTrigger(prev => prev + 1)}
+                onUserClick={(userId, userName) => {
+                  setSelectedUserId(userId)
+                  setSelectedUserName(userName)
+                  setShowUserInfoModal(true)
+                }}
               />
             </div>
           </div>
@@ -651,6 +739,11 @@ export default function ApplicationDetailPage() {
                 applicationId={id}
                 limit={5}
                 onShowAll={() => setShowAuditLogModal(true)}
+                onUserClick={(userId, userName) => {
+                  setSelectedUserId(userId)
+                  setSelectedUserName(userName)
+                  setShowUserInfoModal(true)
+                }}
               />
             </div>
           </div>
@@ -675,6 +768,12 @@ export default function ApplicationDetailPage() {
         <AuditLogModal
           applicationId={id}
           onClose={() => setShowAuditLogModal(false)}
+          onUserClick={(userId, userName) => {
+            setSelectedUserId(userId)
+            setSelectedUserName(userName)
+            setShowUserInfoModal(true)
+            setShowAuditLogModal(false)
+          }}
         />
       )}
 
@@ -749,6 +848,19 @@ export default function ApplicationDetailPage() {
           onClose={() => setShowAddressWizard(false)}
           onLink={handleLinkAddress}
           onUnlink={handleUnlinkAddress}
+        />
+      )}
+
+      {/* Модальное окно информации о пользователе */}
+      {showUserInfoModal && selectedUserId && (
+        <UserInfoModal
+          userId={selectedUserId}
+          userName={selectedUserName}
+          onClose={() => {
+            setShowUserInfoModal(false)
+            setSelectedUserId(null)
+            setSelectedUserName('')
+          }}
         />
       )}
     </div>
