@@ -704,7 +704,7 @@ export default function ApplicationDetailPage() {
                 </button>
 
                 {/* Список менеджеров */}
-                {users.filter(user => user.role === 'manager' || user.role === 'engineer').map((user) => (
+                {users.filter(user => user.role === 'manager' || user.role === 'admin').map((user) => (
                   <button
                     key={user.id}
                     onClick={() => {

@@ -204,9 +204,9 @@ function ApplicationsContent() {
       }
       const data = await response.json()
       // Фильтруем только пользователей, которые могут быть назначены на заявки
-      // (dispatcher, admin, engineer)
+      // (manager, admin - это менеджеры)
       const managers = data.users.filter((user: { role: string }) =>
-        ['admin', 'dispatcher', 'engineer'].includes(user.role)
+        ['admin', 'manager'].includes(user.role)
       )
       setUsers(managers)
       setUsersLoaded(true)
