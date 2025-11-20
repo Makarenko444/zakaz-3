@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'operator' | 'engineer' | 'lead'
+export type UserRole = 'admin' | 'manager' | 'engineer' | 'installer' | 'supply'
 
 export type ApplicationStatus =
   | 'new'

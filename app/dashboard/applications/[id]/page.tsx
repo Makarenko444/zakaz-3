@@ -712,8 +712,8 @@ export default function ApplicationDetailPage() {
                   <span className="font-medium">Не назначен</span>
                 </button>
 
-                {/* Список менеджеров (только operator) */}
-                {users.filter(user => user.role === 'operator').map((user) => (
+                {/* Список менеджеров */}
+                {users.filter(user => user.role === 'manager' || user.role === 'engineer').map((user) => (
                   <button
                     key={user.id}
                     onClick={() => {

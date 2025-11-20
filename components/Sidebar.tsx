@@ -143,9 +143,10 @@ export default function Sidebar({ user, applicationsCount, isCollapsed, setIsCol
               <p className="font-medium text-gray-900 truncate">{user.full_name}</p>
               <p className="text-gray-500 truncate">
                 {user.role === 'admin' && 'Администратор'}
-                {user.role === 'operator' && 'Оператор'}
+                {user.role === 'manager' && 'Менеджер'}
                 {user.role === 'engineer' && 'Инженер'}
-                {user.role === 'lead' && 'Руководитель'}
+                {user.role === 'installer' && 'Монтажник'}
+                {user.role === 'supply' && 'Снабжение'}
               </p>
             </div>
           </div>
