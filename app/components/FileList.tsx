@@ -12,6 +12,8 @@ interface FileListProps {
   className?: string
   limit?: number // Ограничение количества отображаемых файлов
   showThumbnails?: boolean // Показывать миниатюры для картинок
+  currentUserId?: string // ID текущего пользователя для проверки прав
+  currentUserRole?: string // Роль текущего пользователя
 }
 
 export default function FileList({
@@ -22,6 +24,8 @@ export default function FileList({
   className = '',
   limit,
   showThumbnails = false,
+  currentUserId,
+  currentUserRole,
 }: FileListProps) {
   const [files, setFiles] = useState<FileAttachment[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -88,17 +92,22 @@ export default function FileList({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to delete file')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete file')
       }
 
       // Обновляем список
       setFiles(files.filter(f => f.id !== fileId))
     } catch (err) {
       console.error('Error deleting file:', err)
-      alert('Не удалось удалить файл')
+      alert(err instanceof Error ? err.message : 'Не удалось удалить файл')
     } finally {
       setDeletingFileId(null)
     }
+  }
+
+  const canDeleteFile = (file: FileAttachment) => {
+    return currentUserId && (file.uploaded_by === currentUserId || currentUserRole === 'admin')
   }
 
   const handleDownload = (fileId: string) => {
@@ -227,25 +236,28 @@ export default function FileList({
                 />
               </svg>
             </button>
-            <button
-              onClick={() => handleDelete(file.id)}
-              disabled={deletingFileId === file.id}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
-              title="Удалить"
-            >
-              {deletingFileId === file.id ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              )}
-            </button>
+            {/* Показываем кнопку удаления только если есть права */}
+            {canDeleteFile(file) && (
+              <button
+                onClick={() => handleDelete(file.id)}
+                disabled={deletingFileId === file.id}
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                title="Удалить"
+              >
+                {deletingFileId === file.id ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                )}
+              </button>
+            )}
           </div>
         </div>
       ))}

@@ -103,6 +103,7 @@ export default function ApplicationDetailPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserName, setCurrentUserName] = useState<string>('')
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
+  const [currentUserRole, setCurrentUserRole] = useState<string>('')
   const [showAuditLogModal, setShowAuditLogModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [showAddressWizard, setShowAddressWizard] = useState(false)
@@ -196,6 +197,7 @@ export default function ApplicationDetailPage() {
         setCurrentUserId(user.id)
         setCurrentUserName(user.full_name)
         setCurrentUserEmail(user.email)
+        setCurrentUserRole(user.role)
       }
     } catch (error) {
       console.error('Error loading current user:', error)
@@ -609,6 +611,7 @@ export default function ApplicationDetailPage() {
                 currentUserId={currentUserId || undefined}
                 currentUserName={currentUserName || 'Аноним'}
                 currentUserEmail={currentUserEmail || undefined}
+                currentUserRole={currentUserRole || undefined}
                 onFileUploaded={() => setFileRefreshTrigger(prev => prev + 1)}
               />
             </div>
@@ -626,6 +629,8 @@ export default function ApplicationDetailPage() {
                 refreshTrigger={fileRefreshTrigger}
                 showThumbnails={true}
                 className="mb-3"
+                currentUserId={currentUserId || undefined}
+                currentUserRole={currentUserRole || undefined}
               />
 
               {/* Загрузка файлов */}
