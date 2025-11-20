@@ -84,6 +84,11 @@ function ApplicationsContent() {
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('')
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
   const [addressInfo, setAddressInfo] = useState<{ street: string; house: string } | null>(null)
+  const [selectedAssignedTo, setSelectedAssignedTo] = useState<string>('')
+
+  // Список пользователей для фильтра
+  const [users, setUsers] = useState<{ id: string; full_name: string; role: string }[]>([])
+  const [usersLoaded, setUsersLoaded] = useState(false)
 
   const loadApplications = useCallback(async () => {
     setIsLoading(true)
@@ -113,6 +118,10 @@ function ApplicationsContent() {
         params.append('address_id', selectedAddressId)
       }
 
+      if (selectedAssignedTo) {
+        params.append('assigned_to', selectedAssignedTo)
+      }
+
       const response = await fetch(`/api/applications?${params.toString()}`)
 
       if (!response.ok) {
@@ -127,7 +136,7 @@ function ApplicationsContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedAddressId])
+  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedAddressId, selectedAssignedTo])
 
   // Инициализация фильтра по адресу из URL при монтировании
   useEffect(() => {
@@ -143,9 +152,10 @@ function ApplicationsContent() {
     }
   }, [searchParams])
 
-  // Загрузка статусов из БД при монтировании
+  // Загрузка статусов и пользователей из БД при монтировании
   useEffect(() => {
     loadStatuses()
+    loadUsers()
   }, [])
 
   useEffect(() => {
@@ -183,6 +193,26 @@ function ApplicationsContent() {
         no_tech: 'Нет тех. возможности',
       })
       setStatusesLoaded(true)
+    }
+  }
+
+  async function loadUsers() {
+    try {
+      const response = await fetch('/api/users')
+      if (!response.ok) {
+        throw new Error('Failed to load users')
+      }
+      const data = await response.json()
+      // Фильтруем только пользователей, которые могут быть назначены на заявки
+      // (dispatcher, admin, engineer)
+      const managers = data.users.filter((user: { role: string }) =>
+        ['admin', 'dispatcher', 'engineer'].includes(user.role)
+      )
+      setUsers(managers)
+      setUsersLoaded(true)
+    } catch (error) {
+      console.error('Error loading users:', error)
+      setUsersLoaded(true)
     }
   }
 
@@ -281,7 +311,7 @@ function ApplicationsContent() {
             >
               Найти
             </button>
-            {(searchQuery || selectedStatuses.length > 0 || selectedUrgency || selectedServiceType) && (
+            {(searchQuery || selectedStatuses.length > 0 || selectedUrgency || selectedServiceType || selectedAssignedTo) && (
               <button
                 type="button"
                 onClick={() => {
@@ -289,6 +319,7 @@ function ApplicationsContent() {
                   setSelectedStatuses([])
                   setSelectedUrgency('')
                   setSelectedServiceType('')
+                  setSelectedAssignedTo('')
                   setPage(1)
                 }}
                 className="px-4 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
@@ -321,7 +352,7 @@ function ApplicationsContent() {
 
         {/* Дополнительные фильтры */}
         <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Срочность:</label>
               <select
@@ -355,6 +386,26 @@ function ApplicationsContent() {
                 {(Object.keys(serviceTypeLabels) as ServiceType[]).map((type) => (
                   <option key={type} value={type}>
                     {serviceTypeLabels[type]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Назначено:</label>
+              <select
+                value={selectedAssignedTo}
+                onChange={(e) => {
+                  setSelectedAssignedTo(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="">Все</option>
+                <option value="unassigned">Без менеджера</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name}
                   </option>
                 ))}
               </select>

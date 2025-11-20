@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const serviceType = searchParams.get('service_type')
     const customerType = searchParams.get('customer_type')
     const addressId = searchParams.get('address_id')
+    const assignedTo = searchParams.get('assigned_to')
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -44,6 +45,17 @@ export async function GET(request: NextRequest) {
 
     if (addressId) {
       query = query.eq('address_id', addressId)
+    }
+
+    // Фильтр по назначенному менеджеру
+    if (assignedTo) {
+      if (assignedTo === 'unassigned') {
+        // Заявки без назначенного менеджера
+        query = query.is('assigned_to', null)
+      } else {
+        // Заявки с конкретным менеджером
+        query = query.eq('assigned_to', assignedTo)
+      }
     }
 
     // Поиск по ФИО, телефону и адресу
@@ -86,6 +98,7 @@ export async function GET(request: NextRequest) {
       serviceType,
       customerType,
       addressId,
+      assignedTo,
       search
     })
 
