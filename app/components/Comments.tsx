@@ -104,16 +104,18 @@ export default function Comments({
 
       const data = await response.json()
       const newCommentData = data.comment
-      setComments([newCommentData, ...comments])
-      setNewComment('')
-      setReplyingToCommentId(null)
-      setReplyToComment(null)
 
       // Загрузить файлы к новому комментарию, если они были выбраны
       if (selectedFiles.length > 0) {
         await uploadFilesToComment(newCommentData.id, selectedFiles)
         setSelectedFiles([])
       }
+
+      // Перезагружаем комментарии чтобы получить обогащенные данные с replied_comment
+      await loadComments()
+      setNewComment('')
+      setReplyingToCommentId(null)
+      setReplyToComment(null)
     } catch (error: unknown) {
       console.error('Error adding comment:', error)
       setError(error instanceof Error ? error.message : 'Не удалось добавить комментарий')
