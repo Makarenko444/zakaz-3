@@ -118,12 +118,7 @@ export async function DELETE(
         action_type: 'delete_file',
         entity_type: 'application',
         entity_id: applicationId,
-        description: `Удален файл: ${file.original_filename}`,
-        old_values: {
-          filename: file.original_filename,
-          file_size: file.file_size,
-          mime_type: file.mime_type,
-        },
+        description: 'Удален файл',
         ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
         user_agent: request.headers.get('user-agent') || 'unknown',
       })

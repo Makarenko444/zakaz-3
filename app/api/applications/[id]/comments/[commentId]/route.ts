@@ -136,8 +136,7 @@ export async function DELETE(
         action_type: 'delete_comment',
         entity_type: 'application',
         entity_id: applicationId,
-        description: `Удален комментарий от ${existingComment.user_name}: "${existingComment.comment.substring(0, 50)}${existingComment.comment.length > 50 ? '...' : ''}"`,
-        old_values: { comment: existingComment.comment, user_name: existingComment.user_name },
+        description: 'Удален комментарий',
         ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
         user_agent: request.headers.get('user-agent') || 'unknown',
       })
