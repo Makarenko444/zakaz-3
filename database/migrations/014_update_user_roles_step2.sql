@@ -33,24 +33,8 @@ CREATE TYPE zakaz_user_role_new AS ENUM (
     'supply'
 );
 
--- Сохраняем текущее DEFAULT значение (если есть)
-DO $$
-DECLARE
-    current_default text;
-BEGIN
-    SELECT pg_get_expr(adbin, adrelid)
-    INTO current_default
-    FROM pg_attrdef
-    WHERE adrelid = 'zakaz_users'::regclass
-    AND adnum = (SELECT attnum FROM pg_attribute
-                 WHERE attrelid = 'zakaz_users'::regclass
-                 AND attname = 'role');
-
-    -- Удаляем DEFAULT перед изменением типа
-    IF current_default IS NOT NULL THEN
-        ALTER TABLE zakaz_users ALTER COLUMN role DROP DEFAULT;
-    END IF;
-END $$;
+-- Удаляем DEFAULT перед изменением типа (если есть - не будет ошибки, если нет)
+ALTER TABLE zakaz_users ALTER COLUMN role DROP DEFAULT;
 
 -- Изменяем тип колонки
 ALTER TABLE zakaz_users
@@ -63,14 +47,8 @@ DROP TYPE zakaz_user_role;
 -- Переименовываем новый enum
 ALTER TYPE zakaz_user_role_new RENAME TO zakaz_user_role;
 
--- Восстанавливаем DEFAULT (если был, обычно это 'operator', теперь 'manager')
--- Проверяем, нужно ли установить DEFAULT
-DO $$
-BEGIN
-    -- Если у вас был DEFAULT 'operator', теперь делаем 'manager'
-    -- Если DEFAULT не было - можно закомментировать эту строку
-    ALTER TABLE zakaz_users ALTER COLUMN role SET DEFAULT 'manager'::zakaz_user_role;
-END $$;
+-- Устанавливаем новый DEFAULT
+ALTER TABLE zakaz_users ALTER COLUMN role SET DEFAULT 'manager'::zakaz_user_role;
 
 -- Обновляем комментарий
 COMMENT ON COLUMN zakaz_users.role IS 'Роль пользователя: admin, manager, engineer, installer, supply';
