@@ -12,6 +12,12 @@ interface Comment {
   comment: string
   created_at: string
   updated_at: string
+  reply_to_comment_id: string | null
+  replied_comment?: {
+    id: string
+    user_name: string
+    comment: string
+  } | null
 }
 
 interface CommentsProps {
@@ -42,6 +48,8 @@ export default function Comments({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null)
+  const [replyToComment, setReplyToComment] = useState<Comment | null>(null)
 
   const loadComments = useCallback(async () => {
     setIsLoading(true)
@@ -85,6 +93,7 @@ export default function Comments({
           user_id: currentUserId,
           user_name: currentUserName || 'Аноним',
           user_email: currentUserEmail,
+          reply_to_comment_id: replyingToCommentId,
         }),
       })
 
@@ -97,6 +106,8 @@ export default function Comments({
       const newCommentData = data.comment
       setComments([newCommentData, ...comments])
       setNewComment('')
+      setReplyingToCommentId(null)
+      setReplyToComment(null)
 
       // Загрузить файлы к новому комментарию, если они были выбраны
       if (selectedFiles.length > 0) {
@@ -257,6 +268,40 @@ export default function Comments({
     }
   }
 
+  const handleReply = (comment: Comment) => {
+    setReplyingToCommentId(comment.id)
+    setReplyToComment(comment)
+    // Прокручиваем к форме комментария
+    const form = document.querySelector('form')
+    if (form) {
+      form.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    // Фокусируем textarea
+    setTimeout(() => {
+      const textarea = document.querySelector('form textarea') as HTMLTextAreaElement
+      if (textarea) {
+        textarea.focus()
+      }
+    }, 300)
+  }
+
+  const handleCancelReply = () => {
+    setReplyingToCommentId(null)
+    setReplyToComment(null)
+  }
+
+  const scrollToComment = (commentId: string) => {
+    const element = document.getElementById(`comment-${commentId}`)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Подсветка
+      element.classList.add('ring-2', 'ring-blue-400')
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-blue-400')
+      }, 2000)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Список комментариев */}
@@ -271,7 +316,7 @@ export default function Comments({
       ) : (
         <div className="space-y-3">
           {comments.map((comment) => (
-            <div key={comment.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div key={comment.id} id={`comment-${comment.id}`} className="bg-white border border-gray-200 rounded-lg overflow-hidden transition-all">
               {/* Заголовок комментария - отдельный блок */}
               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
                 <div className="flex items-start justify-between">
@@ -328,6 +373,16 @@ export default function Comments({
                         </svg>
                       </button>
                     )}
+                    {/* Кнопка "Ответить" */}
+                    <button
+                      onClick={() => handleReply(comment)}
+                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-100 rounded transition"
+                      title="Ответить"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -362,6 +417,21 @@ export default function Comments({
                 </div>
               ) : (
                 <div className="px-4 py-3">
+                  {/* Цитата исходного комментария, если это ответ */}
+                  {comment.replied_comment && (
+                    <div
+                      onClick={() => scrollToComment(comment.replied_comment!.id)}
+                      className="mb-3 p-3 bg-gray-100 border-l-4 border-blue-400 rounded cursor-pointer hover:bg-gray-200 transition"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                        <span className="text-xs font-semibold text-blue-600">{comment.replied_comment.user_name}</span>
+                      </div>
+                      <p className="text-sm text-gray-700 line-clamp-2">{comment.replied_comment.comment}</p>
+                    </div>
+                  )}
                   <p className="text-gray-800 whitespace-pre-wrap">{comment.comment}</p>
                 </div>
               )}
@@ -402,9 +472,33 @@ export default function Comments({
       <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="mb-3">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Добавить комментарий
+            {replyToComment ? 'Ответить на комментарий' : 'Добавить комментарий'}
             <span className="text-xs text-gray-500 font-normal ml-2">(Ctrl+Enter для отправки)</span>
           </label>
+
+          {/* Цитата при ответе */}
+          {replyToComment && (
+            <div className="mb-3 p-3 bg-blue-50 border-l-4 border-blue-400 rounded relative">
+              <button
+                type="button"
+                onClick={handleCancelReply}
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                title="Отменить ответ"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <div className="flex items-center gap-2 mb-1">
+                <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                </svg>
+                <span className="text-xs font-semibold text-blue-600">{replyToComment.user_name}</span>
+              </div>
+              <p className="text-sm text-gray-700 line-clamp-2">{replyToComment.comment}</p>
+            </div>
+          )}
+
           <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
