@@ -10,11 +10,15 @@ export async function GET(
     const supabase = createDirectClient()
     const { id } = await params
 
-    const { data, error } = await supabase
+    // Обходим проблемы с автогенерируемыми типами Supabase через unknown
+    const query = supabase
       .from('zakaz_application_comments')
       .select('*')
       .eq('application_id', id)
       .order('created_at', { ascending: false })
+
+    const result = await query
+    const { data, error } = result as { data: unknown; error: unknown }
 
     if (error) {
       console.error('Error fetching comments:', error)
@@ -25,10 +29,21 @@ export async function GET(
     }
 
     // Создаем мапу комментариев для быстрого поиска
-    const commentsMap = new Map(data?.map(c => [c.id, c]) || [])
+    const commentsArray = (data || []) as Array<{
+      id: string
+      user_id: string | null
+      user_name: string
+      user_email: string | null
+      comment: string
+      created_at: string
+      updated_at: string
+      application_id: string
+      reply_to_comment_id: string | null
+    }>
+    const commentsMap = new Map(commentsArray.map(c => [c.id, c]))
 
     // Добавляем информацию об исходном комментарии для ответов
-    const commentsWithReplies = data?.map(comment => {
+    const commentsWithReplies = commentsArray.map(comment => {
       if (comment.reply_to_comment_id) {
         const repliedComment = commentsMap.get(comment.reply_to_comment_id)
         if (repliedComment) {
@@ -43,7 +58,7 @@ export async function GET(
         }
       }
       return comment
-    }) || []
+    })
 
     return NextResponse.json({ comments: commentsWithReplies })
   } catch (error) {
