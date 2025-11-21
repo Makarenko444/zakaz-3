@@ -20,10 +20,12 @@ interface ImportResult {
   stats: {
     total: number
     processed: number
+    duplicates: number
     skipped: number
     errors: number
   }
   details?: {
+    duplicates?: Array<{ code: string; reason: string }>
     skipped?: Array<{ row: number; reason: string }>
     errors?: Array<{ row: number; error: string }>
   }
@@ -225,6 +227,7 @@ export default function NodesPage() {
                 <div className="mt-2 text-sm text-green-700">
                   <p>Всего строк: {importResult.stats.total}</p>
                   <p>Обработано (добавлено/обновлено): {importResult.stats.processed}</p>
+                  {importResult.stats.duplicates > 0 && <p className="text-yellow-600">Дубликатов объединено: {importResult.stats.duplicates}</p>}
                   {importResult.stats.skipped > 0 && <p>Пропущено: {importResult.stats.skipped}</p>}
                   {importResult.stats.errors > 0 && <p className="text-red-600">Ошибок: {importResult.stats.errors}</p>}
                 </div>

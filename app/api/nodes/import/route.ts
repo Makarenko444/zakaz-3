@@ -161,14 +161,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Удаляем дубликаты по коду (оставляем последнюю запись для каждого кода)
+    const uniqueNodesMap = new Map()
+    const duplicates = []
+
+    for (const node of nodesToInsert) {
+      if (uniqueNodesMap.has(node.code)) {
+        duplicates.push({
+          code: node.code,
+          reason: 'Duplicate code in Excel file (using last occurrence)',
+        })
+      }
+      uniqueNodesMap.set(node.code, node)
+    }
+
+    const uniqueNodesToInsert = Array.from(uniqueNodesMap.values())
+
     // Вставляем узлы партиями по 100 штук для оптимизации
     // Используем upsert для обновления существующих записей и вставки новых
     const batchSize = 100
     let processedCount = 0
     const insertErrors = []
 
-    for (let i = 0; i < nodesToInsert.length; i += batchSize) {
-      const batch = nodesToInsert.slice(i, i + batchSize)
+    for (let i = 0; i < uniqueNodesToInsert.length; i += batchSize) {
+      const batch = uniqueNodesToInsert.slice(i, i + batchSize)
 
       const table = supabase.from('zakaz_nodes') as unknown
       const result = await (table as {
@@ -206,6 +222,7 @@ export async function POST(request: NextRequest) {
         filename: file.name,
         totalRows: rawData.length,
         processed: processedCount,
+        duplicates: duplicates.length,
         skipped: skipped.length,
         errors: errors.length + insertErrors.length,
       },
@@ -215,14 +232,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Import completed: ${processedCount} nodes processed (inserted or updated)`,
+      message: `Import completed: ${processedCount} nodes processed (inserted or updated)${duplicates.length > 0 ? `, ${duplicates.length} duplicates merged` : ''}`,
       stats: {
         total: rawData.length,
         processed: processedCount,
+        duplicates: duplicates.length,
         skipped: skipped.length,
         errors: errors.length + insertErrors.length,
       },
       details: {
+        duplicates: duplicates.length > 0 ? duplicates : undefined,
         skipped: skipped.length > 0 ? skipped : undefined,
         errors: [...errors, ...insertErrors].length > 0 ? [...errors, ...insertErrors] : undefined,
       },
