@@ -79,10 +79,12 @@ export async function POST(
 
     console.log('Updating application:', id, 'with data:', updateData)
 
-    const { error: updateError } = await supabase
+    const updateResult = await supabase
       .from('zakaz_applications')
-      .update(updateData)
+      .update(updateData as any)
       .eq('id', id)
+
+    const { error: updateError } = updateResult
 
     if (updateError) {
       console.error('Error updating application status:', updateError)
@@ -110,9 +112,11 @@ export async function POST(
 
     console.log('Inserting status history:', historyData)
 
-    const { error: historyError } = await supabase
+    const historyResult = await supabase
       .from('zakaz_application_status_history')
-      .insert(historyData)
+      .insert(historyData as any)
+
+    const { error: historyError } = historyResult
 
     if (historyError) {
       console.error('Error inserting status history:', historyError)
