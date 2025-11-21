@@ -42,7 +42,8 @@ export async function GET(request: Request) {
     // Используем pg_trgm для нечеткого поиска
     // similarity() возвращает степень похожести от 0 до 1
     // Ищем по улице и дому одновременно
-    const { data: addresses, error } = await supabase.rpc('search_addresses_fuzzy', {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: addresses, error } = await (supabase as any).rpc('search_addresses_fuzzy', {
       search_query: query.trim()
     })
 
