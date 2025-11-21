@@ -306,7 +306,7 @@ function ApplicationsContent() {
               placeholder="Поиск по ФИО, телефону или адресу..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="flex-1 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             <button
               type="submit"
@@ -364,7 +364,7 @@ function ApplicationsContent() {
                   setSelectedUrgency(e.target.value as Urgency | '')
                   setPage(1)
                 }}
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">Все</option>
                 {(Object.keys(urgencyLabels) as Urgency[]).map((urgency) => (
@@ -383,7 +383,7 @@ function ApplicationsContent() {
                   setSelectedServiceType(e.target.value as ServiceType | '')
                   setPage(1)
                 }}
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">Все</option>
                 {(Object.keys(serviceTypeLabels) as ServiceType[]).map((type) => (
@@ -402,7 +402,7 @@ function ApplicationsContent() {
                   setSelectedAssignedTo(e.target.value)
                   setPage(1)
                 }}
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">Все</option>
                 <option value="unassigned">Без менеджера</option>

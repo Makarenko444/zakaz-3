@@ -149,7 +149,7 @@ export default function NewApplicationPage() {
               type="text"
               {...register('street_and_house')}
               placeholder="Например: ул. Ленина, д. 10"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             {errors.street_and_house && (
               <p className="mt-1 text-sm text-red-600">{errors.street_and_house.message}</p>
@@ -164,7 +164,7 @@ export default function NewApplicationPage() {
               type="text"
               {...register('address_details')}
               placeholder="Например: подъезд 2, этаж 5, кв. 42"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             {errors.address_details && (
               <p className="mt-1 text-sm text-red-600">{errors.address_details.message}</p>
@@ -214,7 +214,7 @@ export default function NewApplicationPage() {
               type="text"
               {...register('customer_fullname')}
               placeholder={customerType === 'business' ? 'ООО "Компания"' : 'Иванов Иван Иванович'}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             {errors.customer_fullname && (
               <p className="mt-1 text-sm text-red-600">{errors.customer_fullname.message}</p>
@@ -230,7 +230,7 @@ export default function NewApplicationPage() {
               type="tel"
               {...register('customer_phone')}
               placeholder="+79991234567"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             {errors.customer_phone && (
               <p className="mt-1 text-sm text-red-600">{errors.customer_phone.message}</p>
@@ -248,7 +248,7 @@ export default function NewApplicationPage() {
                   type="text"
                   {...register('contact_person')}
                   placeholder="Петров Петр Петрович"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 {errors.contact_person && (
                   <p className="mt-1 text-sm text-red-600">{errors.contact_person.message}</p>
@@ -263,7 +263,7 @@ export default function NewApplicationPage() {
                   type="tel"
                   {...register('contact_phone')}
                   placeholder="+79997654321"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 {errors.contact_phone && (
                   <p className="mt-1 text-sm text-red-600">{errors.contact_phone.message}</p>
@@ -279,7 +279,7 @@ export default function NewApplicationPage() {
             </label>
             <select
               {...register('service_type')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               <option value="apartment">Подключение квартиры</option>
               <option value="office">Подключение офиса</option>
@@ -297,7 +297,7 @@ export default function NewApplicationPage() {
             </label>
             <select
               {...register('urgency')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               <option value="low">Низкая</option>
               <option value="normal">Обычная</option>
@@ -318,7 +318,7 @@ export default function NewApplicationPage() {
               {...register('client_comment')}
               rows={4}
               placeholder="Дополнительная информация от клиента..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
             />
             {errors.client_comment && (
               <p className="mt-1 text-sm text-red-600">{errors.client_comment.message}</p>
