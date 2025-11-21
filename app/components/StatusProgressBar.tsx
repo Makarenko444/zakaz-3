@@ -175,9 +175,9 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
 
   return (
     <>
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        {/* Канбан-стиль статусов как в Битрикс24 */}
-        <div className="flex divide-x divide-gray-200">
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        {/* Битрикс24 стиль - горизонтальные pill-кнопки */}
+        <div className="flex flex-wrap gap-2">
           {statuses.map((status, index) => {
             const isCurrent = status.code === currentStatus
             const isPassed = index < currentIndex
@@ -189,49 +189,31 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
                 onClick={() => handleStatusClick(status.code)}
                 disabled={disabled || isCurrent}
                 className={`
-                  flex-1 px-3 py-4 transition-all duration-200
+                  relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
                   ${isCurrent
-                    ? `${colors.bgActive} ${colors.borderActive} border-2 border-opacity-100`
+                    ? `${colors.bgActive} ${colors.textActive} shadow-sm`
                     : isPassed
-                      ? `${colors.bg} hover:${colors.bgActive} border-2 border-transparent`
-                      : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                      ? `${colors.bg} ${colors.text} hover:${colors.bgActive}`
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }
                   ${disabled || isCurrent ? 'cursor-default' : 'cursor-pointer'}
                 `}
                 title={status.description_ru || status.name_ru}
               >
-                <div className="flex flex-col items-center gap-2">
-                  {/* Индикатор/галочка */}
-                  <div className={`
-                    w-8 h-8 rounded-full flex items-center justify-center
-                    ${isCurrent
-                      ? `${colors.bgActive} border-2 ${colors.borderActive}`
-                      : isPassed
-                        ? 'bg-green-500'
-                        : 'bg-gray-300'
-                    }
-                  `}>
-                    {isPassed ? (
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <span className={`text-xs font-bold ${isCurrent ? colors.textActive : 'text-white'}`}>
-                        {index + 1}
-                      </span>
-                    )}
-                  </div>
+                {/* Нижняя рамка для текущего статуса */}
+                {isCurrent && (
+                  <div className={`absolute bottom-0 left-0 right-0 h-1 ${colors.bgActive} rounded-b-full`}></div>
+                )}
 
-                  {/* Название статуса */}
-                  <div className="text-center">
-                    <p className={`
-                      text-xs font-semibold leading-tight
-                      ${isCurrent ? colors.textActive : isPassed ? colors.text : 'text-gray-600'}
-                    `}>
-                      {status.name_ru}
-                    </p>
-                  </div>
-                </div>
+                {/* Текст статуса */}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  {isPassed && (
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  {status.name_ru}
+                </span>
               </button>
             )
           })}
