@@ -73,16 +73,18 @@ export async function POST(
       updated_at: new Date().toISOString(),
     }
 
-    const table = supabase.from('zakaz_applications') as unknown
-    const builder = (table as { update: (data: Record<string, unknown>) => unknown }).update(updateData) as unknown
-    const query = (builder as { eq: (col: string, val: string) => Promise<unknown> }).eq('id', id)
-    const updateResult = await query
-    const { error: updateError } = updateResult as { error: unknown }
+    console.log('Updating application:', id, 'with data:', updateData)
+
+    const { error: updateError } = await supabase
+      .from('zakaz_applications')
+      .update(updateData)
+      .eq('id', id)
 
     if (updateError) {
       console.error('Error updating application status:', updateError)
+      console.error('Error details:', JSON.stringify(updateError, null, 2))
       return NextResponse.json(
-        { error: 'Failed to update status' },
+        { error: `Failed to update status: ${updateError.message || JSON.stringify(updateError)}` },
         { status: 500 }
       )
     }
@@ -96,13 +98,15 @@ export async function POST(
       changed_by: body.changed_by || null,
     }
 
-    const historyTable = supabase.from('zakaz_application_status_history') as unknown
-    const historyBuilder = (historyTable as { insert: (data: Record<string, unknown>) => Promise<unknown> }).insert(historyData)
-    const historyResult = await historyBuilder
-    const { error: historyError } = historyResult as { error: unknown }
+    console.log('Inserting status history:', historyData)
+
+    const { error: historyError } = await supabase
+      .from('zakaz_application_status_history')
+      .insert(historyData)
 
     if (historyError) {
       console.error('Error inserting status history:', historyError)
+      console.error('History error details:', JSON.stringify(historyError, null, 2))
       // Не возвращаем ошибку, так как основное действие (обновление статуса) прошло успешно
     }
 
