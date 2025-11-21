@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Node, NodeStatus, NodeType } from '@/lib/types'
+import type { Node, NodeStatus, NodeType, User } from '@/lib/types'
+import { getCurrentUser } from '@/lib/auth-client'
 
 interface NodesResponse {
   data: Node[]
@@ -65,10 +66,24 @@ export default function NodesPage() {
   const [selectedStatus, setSelectedStatus] = useState<NodeStatus | ''>('')
   const [selectedNodeType, setSelectedNodeType] = useState<NodeType | ''>('')
 
+  // Модальное окно и редактирование
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editFormData, setEditFormData] = useState<Partial<Node>>({})
+
   useEffect(() => {
     void loadNodes()
+    void loadCurrentUser()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  async function loadCurrentUser() {
+    const user = await getCurrentUser()
+    setCurrentUser(user)
+  }
 
   async function loadNodes() {
     setIsLoading(true)
@@ -146,6 +161,60 @@ export default function NodesPage() {
     setSearchQuery('')
     setSelectedStatus('')
     setSelectedNodeType('')
+  }
+
+  function handleNodeClick(node: Node) {
+    setSelectedNode(node)
+    setEditFormData(node)
+    setIsEditMode(false)
+    setIsModalOpen(true)
+  }
+
+  function handleCloseModal() {
+    setIsModalOpen(false)
+    setSelectedNode(null)
+    setIsEditMode(false)
+    setEditFormData({})
+  }
+
+  function handleEditToggle() {
+    setIsEditMode(!isEditMode)
+    if (!isEditMode && selectedNode) {
+      setEditFormData(selectedNode)
+    }
+  }
+
+  async function handleSaveNode() {
+    if (!selectedNode || !editFormData) return
+
+    setIsSaving(true)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/nodes/${selectedNode.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to update node')
+      }
+
+      const updatedNode = await response.json()
+
+      // Обновляем список узлов
+      setNodes(nodes.map(n => n.id === updatedNode.id ? updatedNode : n))
+
+      // Закрываем модальное окно
+      handleCloseModal()
+    } catch (err) {
+      console.error('Error saving node:', err)
+      setError(`Ошибка сохранения: ${err}`)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   if (isLoading && nodes.length === 0) {
@@ -383,7 +452,11 @@ export default function NodesPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {nodes.map((node, index) => (
-                    <tr key={node.id} className="hover:bg-gray-50">
+                    <tr
+                      key={node.id}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleNodeClick(node)}
+                    >
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                         {(pagination.page - 1) * pagination.limit + index + 1}
                       </td>
@@ -483,6 +556,190 @@ export default function NodesPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Модальное окно просмотра/редактирования узла */}
+        {isModalOpen && selectedNode && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={handleCloseModal}></div>
+
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="flex items-start justify-between mb-4">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      {isEditMode ? 'Редактирование узла' : 'Информация об узле'}
+                    </h3>
+                    <button
+                      onClick={handleCloseModal}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Код</label>
+                        {isEditMode ? (
+                          <input
+                            type="text"
+                            value={editFormData.code || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, code: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-900">{selectedNode.code}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Тип узла</label>
+                        <p className="text-sm text-gray-900">{nodeTypeLabels[selectedNode.node_type]}</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Адрес</label>
+                      {isEditMode ? (
+                        <textarea
+                          value={editFormData.address || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedNode.address}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Местоположение</label>
+                      {isEditMode ? (
+                        <textarea
+                          value={editFormData.location_details || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, location_details: e.target.value })}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedNode.location_details || '—'}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Коммутационная информация</label>
+                      {isEditMode ? (
+                        <textarea
+                          value={editFormData.comm_info || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, comm_info: e.target.value })}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedNode.comm_info || '—'}</p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
+                        {isEditMode ? (
+                          <select
+                            value={editFormData.status || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as NodeStatus })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          >
+                            <option value="existing">Существующий</option>
+                            <option value="planned">Проектируемый</option>
+                          </select>
+                        ) : (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${statusColors[selectedNode.status]}`}>
+                            {statusLabels[selectedNode.status]}
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Дата создания</label>
+                        {isEditMode ? (
+                          <input
+                            type="date"
+                            value={editFormData.node_created_date || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, node_created_date: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-900">
+                            {selectedNode.node_created_date ? new Date(selectedNode.node_created_date).toLocaleDateString('ru-RU') : '—'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ссылка на договор</label>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.contract_link || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, contract_link: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedNode.contract_link || '—'}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                  {isEditMode ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleSaveNode}
+                        disabled={isSaving}
+                        className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                      >
+                        {isSaving ? 'Сохранение...' : 'Сохранить'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleEditToggle}
+                        disabled={isSaving}
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+                      >
+                        Отмена
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {currentUser?.role === 'admin' && (
+                        <button
+                          type="button"
+                          onClick={handleEditToggle}
+                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
+                        >
+                          Редактировать
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleCloseModal}
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+                      >
+                        Закрыть
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </main>
