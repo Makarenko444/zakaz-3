@@ -87,7 +87,7 @@ export default function LoginPage() {
                 {...register('email')}
                 type="email"
                 id="email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 placeholder="your@email.com"
                 disabled={isLoading}
               />
@@ -107,7 +107,7 @@ export default function LoginPage() {
                 {...register('password')}
                 type="password"
                 id="password"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 placeholder="••••••••"
                 disabled={isLoading}
               />
