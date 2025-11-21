@@ -21,7 +21,7 @@ export type ServiceType = 'apartment' | 'office' | 'scs'
 
 export type NodeStatus = 'existing' | 'planned'
 
-export type NodeType = 'pp' | 'ao' | 'do_ls' | 'other'
+export type NodeType = 'prp' | 'ao' | 'sk' | 'other'
 
 export interface User {
   id: string

@@ -35,10 +35,10 @@ const statusLabels: Record<NodeStatus, string> = {
 }
 
 const nodeTypeLabels: Record<NodeType, string> = {
-  pp: 'ПП',
-  ao: 'АО',
-  do_ls: 'ДО-ЛС',
-  other: 'Другое',
+  prp: 'ПРП (узел связи)',
+  ao: 'АО (абонентское окончание)',
+  sk: 'СК (СКУД)',
+  other: 'Другое (РТК и др.)',
 }
 
 const statusColors: Record<NodeStatus, string> = {
