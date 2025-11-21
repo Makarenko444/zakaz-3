@@ -73,6 +73,7 @@ function ApplicationsContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
@@ -90,12 +91,27 @@ function ApplicationsContent() {
   // Список пользователей для фильтра
   const [users, setUsers] = useState<{ id: string; full_name: string; role: string }[]>([])
 
+  // Загрузка pageSize из localStorage при монтировании
+  useEffect(() => {
+    const savedPageSize = localStorage.getItem('applicationsPageSize')
+    if (savedPageSize) {
+      setPageSize(parseInt(savedPageSize))
+    }
+  }, [])
+
+  // Сохранение pageSize в localStorage при изменении
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize)
+    setPage(1) // Сброс на первую страницу
+    localStorage.setItem('applicationsPageSize', newSize.toString())
+  }
+
   const loadApplications = useCallback(async () => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20',
+        limit: pageSize.toString(),
       })
 
       if (selectedStatuses.length > 0) {
@@ -136,7 +152,7 @@ function ApplicationsContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedAddressId, selectedAssignedTo])
+  }, [page, pageSize, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedAddressId, selectedAssignedTo])
 
   // Инициализация фильтра по адресу из URL при монтировании
   useEffect(() => {
@@ -473,26 +489,46 @@ function ApplicationsContent() {
           </div>
         )}
 
-        {/* Пагинация */}
-        {!isLoading && total > 20 && (
-          <div className="mt-4 flex justify-center gap-2">
-            <button
-              onClick={() => setPage(page - 1)}
-              disabled={page === 1}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Назад
-            </button>
-            <span className="px-3 py-1.5 text-sm text-gray-700">
-              Страница {page} из {Math.ceil(total / 20)}
-            </span>
-            <button
-              onClick={() => setPage(page + 1)}
-              disabled={page >= Math.ceil(total / 20)}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Вперёд
-            </button>
+        {/* Пагинация и настройки */}
+        {!isLoading && total > 0 && (
+          <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+            {/* Выбор количества на странице */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Показывать:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                className="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-sm text-gray-500">из {total}</span>
+            </div>
+
+            {/* Пагинация */}
+            {total > pageSize && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Назад
+                </button>
+                <span className="px-3 py-1.5 text-sm text-gray-700">
+                  Страница {page} из {Math.ceil(total / pageSize)}
+                </span>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= Math.ceil(total / pageSize)}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Вперёд
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
