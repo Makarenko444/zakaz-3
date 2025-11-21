@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
+import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
+import { validateSession } from '@/lib/session'
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createDirectClient()
     const body = await request.json()
-    const userData = await getUserData(request)
+    const session = await validateSession(request)
 
     // Валидация обязательных полей
     if (!body.code || !body.address) {
@@ -92,8 +93,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Создаем узел
-    const { data, error } = await supabase
-      .from('zakaz_nodes')
+    const table = supabase.from('zakaz_nodes') as unknown
+    const result = await (table as { insert: (data: unknown) => { select: () => { single: () => Promise<unknown> } } })
       .insert({
         code: body.code,
         address: body.address,
@@ -102,26 +103,31 @@ export async function POST(request: NextRequest) {
         status: body.status || 'existing',
         contract_link: body.contract_link || null,
         node_created_date: body.node_created_date || null,
-        created_by: userData?.userId || null,
+        created_by: session?.user?.id || null,
       })
       .select()
       .single()
+    const { data, error } = result as { data: { id: string; code: string } | null; error: { message: string } | null }
 
-    if (error) {
+    if (error || !data) {
       console.error('Error creating node:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error?.message || 'Failed to create node' }, { status: 500 })
     }
 
     // Логируем создание
-    await logAudit({
-      userId: userData?.userId || null,
-      action: 'node.create',
-      resourceType: 'node',
-      resourceId: data.id,
-      details: { code: data.code },
-      ipAddress: getClientIP(request),
-      userAgent: getUserAgent(request),
-    })
+    if (session?.user) {
+      await logAudit({
+        userId: session.user.id,
+        userEmail: session.user.email,
+        userName: session.user.full_name,
+        actionType: 'create',
+        entityType: 'other',
+        entityId: data.id,
+        description: `Created node ${data.code}`,
+        ipAddress: getClientIP(request),
+        userAgent: getUserAgent(request),
+      })
+    }
 
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
