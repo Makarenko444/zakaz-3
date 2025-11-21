@@ -80,6 +80,20 @@ export default function NodesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Закрытие модального окна по Esc (только в режиме просмотра)
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape' && isModalOpen && !isEditMode) {
+        handleCloseModal()
+      }
+    }
+
+    if (isModalOpen) {
+      document.addEventListener('keydown', handleEscape)
+      return () => document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isModalOpen, isEditMode])
+
   async function loadCurrentUser() {
     const user = await getCurrentUser()
     setCurrentUser(user)
@@ -559,7 +573,10 @@ export default function NodesPage() {
 
         {/* Модальное окно просмотра/редактирования узла */}
         {isModalOpen && selectedNode && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-500 bg-opacity-75">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-500 bg-opacity-75"
+            onClick={() => !isEditMode && handleCloseModal()}
+          >
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
