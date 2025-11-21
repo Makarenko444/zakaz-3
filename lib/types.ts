@@ -23,6 +23,8 @@ export type NodeStatus = 'existing' | 'planned'
 
 export type NodeType = 'prp' | 'ao' | 'sk' | 'other'
 
+export type AddressMatchStatus = 'unmatched' | 'auto_matched' | 'manual_matched'
+
 export interface User {
   id: string
   email: string
@@ -39,6 +41,7 @@ export interface Application {
   address_id: string | null
   street_and_house: string | null
   address_details: string | null
+  address_match_status: AddressMatchStatus
   customer_type: CustomerType
   customer_fullname: string
   customer_phone: string

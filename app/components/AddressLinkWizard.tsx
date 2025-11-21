@@ -7,6 +7,8 @@ interface Address {
   street: string
   house: string
   comment: string | null
+  similarity?: number
+  full_address?: string
 }
 
 interface AddressLinkWizardProps {
@@ -29,44 +31,52 @@ export default function AddressLinkWizard({
   onUnlink,
 }: AddressLinkWizardProps) {
   const [addresses, setAddresses] = useState<Address[]>([])
-  const [filteredAddresses, setFilteredAddresses] = useState<Address[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [isSearching, setIsSearching] = useState(false)
   const [isLinking, setIsLinking] = useState(false)
   const [isUnlinking, setIsUnlinking] = useState(false)
   const [error, setError] = useState('')
+  const [usedFallback, setUsedFallback] = useState(false)
 
   useEffect(() => {
-    loadAddresses()
+    // При открытии мастера сразу ищем по адресу из заявки
+    searchAddresses(streetAndHouse)
   }, [])
 
   useEffect(() => {
-    // Автоматически фильтруем адреса по введенному адресу заявки
-    if (addresses.length > 0) {
-      const query = searchQuery || streetAndHouse
-      if (query) {
-        const filtered = addresses.filter((addr) => {
-          const addressStr = `${addr.street} ${addr.house}`.toLowerCase()
-          return addressStr.includes(query.toLowerCase())
-        })
-        setFilteredAddresses(filtered)
-      } else {
-        setFilteredAddresses(addresses)
+    // Debounce поиска при изменении запроса
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        searchAddresses(searchQuery)
       }
-    }
-  }, [addresses, searchQuery, streetAndHouse])
+    }, 300)
 
-  async function loadAddresses() {
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
+
+  async function searchAddresses(query: string) {
+    if (!query.trim()) {
+      setAddresses([])
+      return
+    }
+
+    setIsSearching(true)
+    setError('')
+
     try {
-      const response = await fetch('/api/addresses')
-      if (!response.ok) throw new Error('Failed to load addresses')
+      const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}`)
+      if (!response.ok) throw new Error('Failed to search addresses')
       const data = await response.json()
-      setAddresses(data.addresses)
+      setAddresses(data.addresses || [])
+      setUsedFallback(data.fallback || false)
     } catch (error) {
-      console.error('Error loading addresses:', error)
-      setError('Не удалось загрузить список адресов')
+      console.error('Error searching addresses:', error)
+      setError('Не удалось выполнить поиск адресов')
+      setAddresses([])
     } finally {
       setIsLoading(false)
+      setIsSearching(false)
     }
   }
 
@@ -150,30 +160,37 @@ export default function AddressLinkWizard({
           {/* Поиск */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Поиск по справочнику адресов
+              Поиск по справочнику адресов {usedFallback && <span className="text-yellow-600 text-xs">(упрощенный поиск)</span>}
             </label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Введите улицу или номер дома для уточнения..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Введите улицу или номер дома для уточнения..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              {isSearching && (
+                <div className="absolute right-3 top-2.5">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Список адресов */}
           {isLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-              <p className="mt-2 text-sm text-gray-600">Загрузка адресов...</p>
+              <p className="mt-2 text-sm text-gray-600">Поиск адресов...</p>
             </div>
-          ) : filteredAddresses.length === 0 ? (
+          ) : addresses.length === 0 ? (
             <div className="text-center py-8">
               <svg className="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <p className="mt-4 text-gray-600">
-                {searchQuery || streetAndHouse ? 'Адреса не найдены' : 'Справочник адресов пуст'}
+                {searchQuery || streetAndHouse ? 'Адреса не найдены' : 'Введите запрос для поиска'}
               </p>
               <p className="mt-2 text-sm text-gray-500">
                 Попробуйте изменить поисковый запрос или закройте окно
@@ -182,9 +199,14 @@ export default function AddressLinkWizard({
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-gray-600 mb-3">
-                Найдено адресов: {filteredAddresses.length}
+                Найдено адресов: {addresses.length}
+                {addresses.length > 0 && addresses[0].similarity !== undefined && (
+                  <span className="ml-2 text-xs text-gray-500">
+                    (отсортировано по релевантности)
+                  </span>
+                )}
               </p>
-              {filteredAddresses.map((address) => {
+              {addresses.map((address) => {
                 const isCurrent = address.id === currentAddressId
                 return (
                   <button

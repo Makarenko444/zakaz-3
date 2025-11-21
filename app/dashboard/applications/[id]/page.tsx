@@ -278,6 +278,7 @@ export default function ApplicationDetailPage() {
         body: JSON.stringify({
           ...application,
           address_id: addressId,
+          address_match_status: 'manual_matched',
           updated_by: currentUserId,
         }),
       })
@@ -307,6 +308,7 @@ export default function ApplicationDetailPage() {
         body: JSON.stringify({
           ...application,
           address_id: null,
+          address_match_status: 'unmatched',
           updated_by: currentUserId,
         }),
       })
@@ -585,44 +587,59 @@ export default function ApplicationDetailPage() {
 
               {/* Адрес */}
               <div className="mb-4 pb-4 border-b border-gray-200">
-                <div className="flex justify-between items-center gap-3">
+                <div className="space-y-2">
                   {/* Адрес заявки */}
-                  <div className="flex-1">
-                    {application.street_and_house && (
-                      <p className="text-base text-gray-900">
-                        <span className="text-gray-500">Адрес:</span>{' '}
-                        <span className="font-medium">
-                          {application.street_and_house}
-                          {application.address_details && `, ${application.address_details}`}
-                        </span>
-                      </p>
-                    )}
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex-1">
+                      {application.street_and_house && (
+                        <p className="text-base text-gray-900">
+                          <span className="text-gray-500">Адрес:</span>{' '}
+                          <span className="font-medium">
+                            {application.street_and_house}
+                            {application.address_details && `, ${application.address_details}`}
+                          </span>
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Привязка к узлу справа */}
-                  <div className="flex items-center gap-2">
-                    {application.address_id && application.zakaz_addresses ? (
-                      <Link
-                        href={`/dashboard/applications?address_id=${application.address_id}&address_street=${encodeURIComponent(application.zakaz_addresses.street)}&address_house=${encodeURIComponent(application.zakaz_addresses.house)}`}
-                        className="flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition"
-                      >
-                        <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="text-xs font-medium text-green-700 hover:text-green-800">
-                          Узел: {formatAddress(application.zakaz_addresses)}
-                        </span>
-                      </Link>
-                    ) : (
-                      <span className="text-xs text-amber-600 px-2 py-1">Без узла</span>
-                    )}
+                  {/* Привязка к формализованному адресу */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {application.address_id && application.zakaz_addresses ? (
+                        <>
+                          <span className="text-xs text-gray-500">Формализованный адрес:</span>
+                          <Link
+                            href={`/dashboard/applications?address_id=${application.address_id}&address_street=${encodeURIComponent(application.zakaz_addresses.street)}&address_house=${encodeURIComponent(application.zakaz_addresses.house)}`}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition"
+                          >
+                            <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-xs font-medium text-green-700 hover:text-green-800">
+                              {formatAddress(application.zakaz_addresses)}
+                            </span>
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-xs text-gray-500">Статус:</span>
+                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 px-2 py-1 bg-amber-50 border border-amber-200 rounded">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            Не привязан к формализованному адресу
+                          </span>
+                        </>
+                      )}
+                    </div>
                     {application.street_and_house && (
                       <button
                         onClick={() => setShowAddressWizard(true)}
-                        className={`text-xs px-2 py-1 rounded transition ${
+                        className={`text-xs px-3 py-1.5 rounded transition font-medium ${
                           application.address_id
                             ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
                         }`}
                       >
                         {application.address_id ? 'Изменить' : 'Привязать'}

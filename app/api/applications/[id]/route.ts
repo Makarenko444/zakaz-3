@@ -83,6 +83,17 @@ export async function PATCH(
       }
     }
 
+    // Валидация статуса привязки адреса
+    if (body.address_match_status) {
+      const validStatuses = ['unmatched', 'auto_matched', 'manual_matched']
+      if (!validStatuses.includes(body.address_match_status)) {
+        return NextResponse.json(
+          { error: 'Invalid address_match_status' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Получаем старые значения для логирования
     const { data: oldData } = await supabase
       .from('zakaz_applications')
@@ -91,7 +102,7 @@ export async function PATCH(
       .single()
 
     // Подготовка данных для обновления
-    const updateData = {
+    const updateData: Record<string, unknown> = {
       address_id: body.address_id || null,
       street_and_house: body.street_and_house || null,
       address_details: body.address_details || null,
@@ -105,6 +116,11 @@ export async function PATCH(
       client_comment: body.client_comment || null,
       assigned_to: body.assigned_to || null,
       updated_by: body.updated_by || null,
+    }
+
+    // Обновляем статус привязки адреса если передан
+    if (body.address_match_status) {
+      updateData.address_match_status = body.address_match_status
     }
 
     // Обходим проблемы с автогенерируемыми типами Supabase через unknown
