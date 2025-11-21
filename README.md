@@ -12,7 +12,8 @@
 - **Управление заявками** - создание, редактирование, просмотр, фильтрация
 - **Статусы заявок** - справочник статусов из БД с историей изменений
 - **Назначение исполнителей** - привязка заявок к пользователям
-- **Комментарии** - система комментариев к заявкам
+- **Комментарии** - система комментариев к заявкам с возможностью ответа и прикрепления файлов
+- **Управление узлами подключения** - импорт из Excel, фильтрация, поиск, просмотр и редактирование узлов сети (АО, ПРП, СК, РТК)
 - **Аудит действий** - полное логирование всех действий в системе
 - **Адресная система** - управление адресами объектов
 
@@ -71,9 +72,12 @@ SUPABASE_DIRECT_URL=http://your-supabase-ip:8000
 
 ```bash
 # Дополнительные таблицы (выполняются в Supabase Dashboard -> SQL Editor)
-database/migrations/005_create_audit_log.sql          # Журнал аудита действий
-database/migrations/006_create_comments.sql           # Комментарии к заявкам
-database/migrations/007_create_application_statuses.sql  # Справочник статусов
+database/migrations/005_create_audit_log.sql              # Журнал аудита действий
+database/migrations/006_create_comments.sql               # Комментарии к заявкам
+database/migrations/007_create_application_statuses.sql   # Справочник статусов
+database/migrations/016_add_reply_to_comments.sql         # Ответы на комментарии
+database/migrations/018_create_nodes_table.sql            # Таблица узлов подключения
+database/migrations/019_fix_node_types.sql                # Исправление типов узлов
 ```
 
 **Примечание**: Если базовые таблицы еще не созданы, создайте их согласно техническому заданию или обратитесь к администратору БД.
@@ -112,22 +116,28 @@ zakaz-3/
 │   ├── api/                      # API Routes
 │   │   ├── applications/         # API заявок
 │   │   ├── addresses/            # API адресов
+│   │   ├── nodes/                # API узлов подключения
 │   │   ├── statuses/             # API статусов
 │   │   └── users/                # API пользователей
 │   ├── components/               # React компоненты
 │   ├── dashboard/                # Страницы дашборда
-│   │   └── applications/         # Страницы заявок
+│   │   ├── applications/         # Страницы заявок
+│   │   └── nodes/                # Управление узлами подключения
 │   ├── login/                    # Страница входа
 │   └── layout.tsx                # Корневой layout
 ├── lib/                          # Утилиты и библиотеки
 │   ├── supabase.ts               # Supabase клиент (браузер)
 │   ├── supabase-direct.ts        # Прямое подключение (сервер)
 │   ├── audit-log.ts              # Система аудита
+│   ├── auth-client.ts            # Клиентская аутентификация
+│   ├── session.ts                # Управление сессиями
 │   └── types.ts                  # TypeScript типы
 ├── database/                     # SQL миграции
 │   └── migrations/
 ├── docs/                         # Документация
-│   └── progress/                 # История разработки
+│   ├── progress/                 # История разработки
+│   ├── workflow.md               # Схема работы над проектом
+│   └── DEPLOYMENT.md             # Инструкции по развертыванию
 ├── frontend/                     # Стили и ресурсы
 ├── middleware.ts                 # Next.js middleware
 └── package.json
@@ -151,6 +161,7 @@ zakaz-3/
 - `zakaz_users` - пользователи системы
 - `zakaz_applications` - заявки
 - `zakaz_addresses` - адреса объектов
+- `zakaz_nodes` - узлы подключения (АО, ПРП, СК, РТК)
 - `zakaz_application_statuses` - справочник статусов
 - `zakaz_application_status_history` - история изменения статусов
 - `zakaz_application_comments` - комментарии к заявкам
