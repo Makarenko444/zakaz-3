@@ -15,6 +15,16 @@ interface SearchResult extends Address {
   full_address: string
 }
 
+interface RpcSearchResult {
+  id: string
+  street: string
+  house: string
+  comment: string | null
+  similarity: number
+  created_at?: string
+  updated_at?: string
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -71,7 +81,7 @@ export async function GET(request: Request) {
     }
 
     // Форматируем результаты с similarity
-    const formattedResults: SearchResult[] = (addresses || []).map((addr: any) => ({
+    const formattedResults: SearchResult[] = (addresses as RpcSearchResult[] || []).map((addr) => ({
       id: addr.id,
       street: addr.street,
       house: addr.house,

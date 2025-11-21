@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Address {
   id: string
@@ -39,23 +39,7 @@ export default function AddressLinkWizard({
   const [error, setError] = useState('')
   const [usedFallback, setUsedFallback] = useState(false)
 
-  useEffect(() => {
-    // При открытии мастера сразу ищем по адресу из заявки
-    searchAddresses(streetAndHouse)
-  }, [])
-
-  useEffect(() => {
-    // Debounce поиска при изменении запроса
-    const timeoutId = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchAddresses(searchQuery)
-      }
-    }, 300)
-
-    return () => clearTimeout(timeoutId)
-  }, [searchQuery])
-
-  async function searchAddresses(query: string) {
+  const searchAddresses = useCallback(async (query: string) => {
     if (!query.trim()) {
       setAddresses([])
       return
@@ -78,7 +62,23 @@ export default function AddressLinkWizard({
       setIsLoading(false)
       setIsSearching(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    // При открытии мастера сразу ищем по адресу из заявки
+    searchAddresses(streetAndHouse)
+  }, [streetAndHouse, searchAddresses])
+
+  useEffect(() => {
+    // Debounce поиска при изменении запроса
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        searchAddresses(searchQuery)
+      }
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery, searchAddresses])
 
   async function handleLink(addressId: string) {
     setIsLinking(true)
