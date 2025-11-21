@@ -67,24 +67,16 @@ export async function POST(
     const oldStatus = currentApp.status
 
     // Обновляем статус заявки
-    const updateData: {
-      status: string
-      updated_by: string | null
-      updated_at: string
-    } = {
-      status: body.new_status,
-      updated_by: body.changed_by || null,
-      updated_at: new Date().toISOString(),
-    }
+    console.log('Updating application:', id, 'with status:', body.new_status)
 
-    console.log('Updating application:', id, 'with data:', updateData)
-
-    const updateResult = await supabase
+    const { error: updateError } = await supabase
       .from('zakaz_applications')
-      .update(updateData as Record<string, unknown>)
+      .update({
+        status: body.new_status,
+        updated_by: body.changed_by || null,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id)
-
-    const { error: updateError } = updateResult
 
     if (updateError) {
       console.error('Error updating application status:', updateError)
@@ -96,27 +88,17 @@ export async function POST(
     }
 
     // Записываем в историю изменений статуса
-    const historyData: {
-      application_id: string
-      old_status: string
-      new_status: string
-      comment: string | null
-      changed_by: string | null
-    } = {
-      application_id: id,
-      old_status: oldStatus,
-      new_status: body.new_status,
-      comment: body.comment || null,
-      changed_by: body.changed_by || null,
-    }
+    console.log('Inserting status history for application:', id)
 
-    console.log('Inserting status history:', historyData)
-
-    const historyResult = await supabase
+    const { error: historyError } = await supabase
       .from('zakaz_application_status_history')
-      .insert(historyData as Record<string, unknown>)
-
-    const { error: historyError } = historyResult
+      .insert({
+        application_id: id,
+        old_status: oldStatus,
+        new_status: body.new_status,
+        comment: body.comment || null,
+        changed_by: body.changed_by || null,
+      })
 
     if (historyError) {
       console.error('Error inserting status history:', historyError)
