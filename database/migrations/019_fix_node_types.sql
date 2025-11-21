@@ -67,7 +67,8 @@ CREATE TRIGGER trigger_set_node_type
   EXECUTE FUNCTION set_node_type_from_code();
 
 -- Обновляем существующие записи с правильными типами
-UPDATE zakaz_nodes SET node_type = set_node_type_from_code().node_type;
+-- Обновляем код каждой записи, что заставит триггер пересчитать тип
+UPDATE zakaz_nodes SET code = code;
 
 -- Обновляем комментарий
 COMMENT ON COLUMN zakaz_nodes.node_type IS 'Тип узла: prp - ПРП (узел связи), ao - АО (абонентское окончание), sk - СК (СКУД), other - прочее (РТК и др.)';
