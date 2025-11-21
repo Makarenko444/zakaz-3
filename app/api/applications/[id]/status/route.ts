@@ -79,10 +79,9 @@ export async function POST(
 
     console.log('Updating application:', id, 'with data:', updateData)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateResult = await supabase
       .from('zakaz_applications')
-      .update(updateData as any)
+      .update(updateData as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       .eq('id', id)
 
     const { error: updateError } = updateResult
@@ -113,10 +112,9 @@ export async function POST(
 
     console.log('Inserting status history:', historyData)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const historyResult = await supabase
       .from('zakaz_application_status_history')
-      .insert(historyData as any)
+      .insert(historyData as any) // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const { error: historyError } = historyResult
 
