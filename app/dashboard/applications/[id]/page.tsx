@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, User } from '@/lib/types'
-import StatusChangeModal from '@/app/components/StatusChangeModal'
 import StatusProgressBar from '@/app/components/StatusProgressBar'
 import UserInfoModal from '@/app/components/UserInfoModal'
 import AuditLog from '@/app/components/AuditLog'
@@ -99,7 +98,6 @@ export default function ApplicationDetailPage() {
   const [application, setApplication] = useState<ApplicationWithAddress | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showStatusModal, setShowStatusModal] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [isAssigning, setIsAssigning] = useState(false)
   const [fileRefreshTrigger, setFileRefreshTrigger] = useState(0)
@@ -444,16 +442,6 @@ export default function ApplicationDetailPage() {
                 </svg>
                 <span className="hidden lg:inline">Редактировать</span>
               </button>
-              <button
-                onClick={() => setShowStatusModal(true)}
-                className="px-3 lg:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium flex items-center gap-2 text-sm"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                </svg>
-                <span className="hidden lg:inline">Изменить статус</span>
-                <span className="lg:hidden">Статус</span>
-              </button>
             </div>
           </div>
 
@@ -487,12 +475,6 @@ export default function ApplicationDetailPage() {
                   className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-xs font-medium"
                 >
                   Редактировать
-                </button>
-                <button
-                  onClick={() => setShowStatusModal(true)}
-                  className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-xs font-medium"
-                >
-                  Статус
                 </button>
               </div>
             </div>
@@ -751,19 +733,6 @@ export default function ApplicationDetailPage() {
           </div>
         </div>
       </main>
-
-      {/* Модальное окно изменения статуса */}
-      {showStatusModal && (
-        <StatusChangeModal
-          applicationId={id}
-          currentStatus={application.status}
-          onClose={() => setShowStatusModal(false)}
-          onStatusChanged={() => {
-            setShowStatusModal(false)
-            loadApplication()
-          }}
-        />
-      )}
 
       {/* Модальное окно полной истории */}
       {showAuditLogModal && (

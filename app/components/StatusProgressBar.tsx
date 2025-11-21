@@ -18,18 +18,102 @@ interface StatusProgressBarProps {
   disabled?: boolean
 }
 
-const statusColors: Record<ApplicationStatus, { bg: string; border: string; text: string }> = {
-  new: { bg: 'bg-gray-100', border: 'border-gray-400', text: 'text-gray-800' },
-  thinking: { bg: 'bg-blue-100', border: 'border-blue-400', text: 'text-blue-800' },
-  estimation: { bg: 'bg-indigo-100', border: 'border-indigo-400', text: 'text-indigo-800' },
-  contract: { bg: 'bg-cyan-100', border: 'border-cyan-400', text: 'text-cyan-800' },
-  design: { bg: 'bg-teal-100', border: 'border-teal-400', text: 'text-teal-800' },
-  approval: { bg: 'bg-emerald-100', border: 'border-emerald-400', text: 'text-emerald-800' },
-  queue_install: { bg: 'bg-purple-100', border: 'border-purple-400', text: 'text-purple-800' },
-  install: { bg: 'bg-violet-100', border: 'border-violet-400', text: 'text-violet-800' },
-  installed: { bg: 'bg-green-100', border: 'border-green-400', text: 'text-green-800' },
-  rejected: { bg: 'bg-red-100', border: 'border-red-400', text: 'text-red-800' },
-  no_tech: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-800' },
+const statusColors: Record<ApplicationStatus, {
+  bg: string;
+  bgActive: string;
+  border: string;
+  borderActive: string;
+  text: string;
+  textActive: string;
+}> = {
+  new: {
+    bg: 'bg-gray-100',
+    bgActive: 'bg-gray-200',
+    border: 'border-gray-300',
+    borderActive: 'border-gray-500',
+    text: 'text-gray-700',
+    textActive: 'text-gray-900'
+  },
+  thinking: {
+    bg: 'bg-blue-100',
+    bgActive: 'bg-blue-200',
+    border: 'border-blue-300',
+    borderActive: 'border-blue-500',
+    text: 'text-blue-700',
+    textActive: 'text-blue-900'
+  },
+  estimation: {
+    bg: 'bg-indigo-100',
+    bgActive: 'bg-indigo-200',
+    border: 'border-indigo-300',
+    borderActive: 'border-indigo-500',
+    text: 'text-indigo-700',
+    textActive: 'text-indigo-900'
+  },
+  contract: {
+    bg: 'bg-cyan-100',
+    bgActive: 'bg-cyan-200',
+    border: 'border-cyan-300',
+    borderActive: 'border-cyan-500',
+    text: 'text-cyan-700',
+    textActive: 'text-cyan-900'
+  },
+  design: {
+    bg: 'bg-teal-100',
+    bgActive: 'bg-teal-200',
+    border: 'border-teal-300',
+    borderActive: 'border-teal-500',
+    text: 'text-teal-700',
+    textActive: 'text-teal-900'
+  },
+  approval: {
+    bg: 'bg-emerald-100',
+    bgActive: 'bg-emerald-200',
+    border: 'border-emerald-300',
+    borderActive: 'border-emerald-500',
+    text: 'text-emerald-700',
+    textActive: 'text-emerald-900'
+  },
+  queue_install: {
+    bg: 'bg-purple-100',
+    bgActive: 'bg-purple-200',
+    border: 'border-purple-300',
+    borderActive: 'border-purple-500',
+    text: 'text-purple-700',
+    textActive: 'text-purple-900'
+  },
+  install: {
+    bg: 'bg-violet-100',
+    bgActive: 'bg-violet-200',
+    border: 'border-violet-300',
+    borderActive: 'border-violet-500',
+    text: 'text-violet-700',
+    textActive: 'text-violet-900'
+  },
+  installed: {
+    bg: 'bg-green-100',
+    bgActive: 'bg-green-200',
+    border: 'border-green-300',
+    borderActive: 'border-green-500',
+    text: 'text-green-700',
+    textActive: 'text-green-900'
+  },
+  rejected: {
+    bg: 'bg-red-100',
+    bgActive: 'bg-red-200',
+    border: 'border-red-300',
+    borderActive: 'border-red-500',
+    text: 'text-red-700',
+    textActive: 'text-red-900'
+  },
+  no_tech: {
+    bg: 'bg-orange-100',
+    bgActive: 'bg-orange-200',
+    border: 'border-orange-300',
+    borderActive: 'border-orange-500',
+    text: 'text-orange-700',
+    textActive: 'text-orange-900'
+  },
 }
 
 export default function StatusProgressBar({ currentStatus, onStatusChange, disabled = false }: StatusProgressBarProps) {
@@ -91,67 +175,66 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
 
   return (
     <>
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Статус заявки</h3>
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        {/* Канбан-стиль статусов как в Битрикс24 */}
+        <div className="flex divide-x divide-gray-200">
+          {statuses.map((status, index) => {
+            const isCurrent = status.code === currentStatus
+            const isPassed = index < currentIndex
+            const colors = statusColors[status.code]
 
-        {/* Progress bar */}
-        <div className="relative">
-          {/* Линия соединения */}
-          <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 z-0"></div>
-
-          {/* Прогресс-линия (до текущего статуса) */}
-          {currentIndex >= 0 && (
-            <div
-              className="absolute top-5 left-0 h-0.5 bg-indigo-500 z-0 transition-all duration-500"
-              style={{ width: `${(currentIndex / (statuses.length - 1)) * 100}%` }}
-            ></div>
-          )}
-
-          {/* Статусы */}
-          <div className="relative z-10 grid gap-2" style={{ gridTemplateColumns: `repeat(${statuses.length}, minmax(0, 1fr))` }}>
-            {statuses.map((status, index) => {
-              const isCurrent = status.code === currentStatus
-              const isPassed = index < currentIndex
-              const colors = statusColors[status.code]
-
-              return (
-                <div key={status.code} className="flex flex-col items-center">
-                  <button
-                    onClick={() => handleStatusClick(status.code)}
-                    disabled={disabled || isCurrent}
-                    className={`
-                      w-10 h-10 rounded-full border-2 flex items-center justify-center
-                      transition-all duration-200 mb-2
-                      ${isCurrent
-                        ? `${colors.bg} ${colors.border} ring-4 ring-opacity-30 ${colors.border.replace('border-', 'ring-')} scale-110`
-                        : isPassed
-                          ? 'bg-indigo-500 border-indigo-600 hover:scale-110'
-                          : 'bg-white border-gray-300 hover:border-gray-400 hover:scale-105'
-                      }
-                      ${disabled || isCurrent ? 'cursor-default' : 'cursor-pointer'}
-                    `}
-                    title={status.description_ru || status.name_ru}
-                  >
+            return (
+              <button
+                key={status.code}
+                onClick={() => handleStatusClick(status.code)}
+                disabled={disabled || isCurrent}
+                className={`
+                  flex-1 px-3 py-4 transition-all duration-200
+                  ${isCurrent
+                    ? `${colors.bgActive} ${colors.borderActive} border-2 border-opacity-100`
+                    : isPassed
+                      ? `${colors.bg} hover:${colors.bgActive} border-2 border-transparent`
+                      : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                  }
+                  ${disabled || isCurrent ? 'cursor-default' : 'cursor-pointer'}
+                `}
+                title={status.description_ru || status.name_ru}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  {/* Индикатор/галочка */}
+                  <div className={`
+                    w-8 h-8 rounded-full flex items-center justify-center
+                    ${isCurrent
+                      ? `${colors.bgActive} border-2 ${colors.borderActive}`
+                      : isPassed
+                        ? 'bg-green-500'
+                        : 'bg-gray-300'
+                    }
+                  `}>
                     {isPassed ? (
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
-                      <span className={`text-xs font-semibold ${isCurrent ? colors.text : 'text-gray-600'}`}>
+                      <span className={`text-xs font-bold ${isCurrent ? colors.textActive : 'text-white'}`}>
                         {index + 1}
                       </span>
                     )}
-                  </button>
+                  </div>
 
+                  {/* Название статуса */}
                   <div className="text-center">
-                    <p className={`text-xs font-medium leading-tight ${isCurrent ? colors.text + ' font-bold' : 'text-gray-600'}`}>
+                    <p className={`
+                      text-xs font-semibold leading-tight
+                      ${isCurrent ? colors.textActive : isPassed ? colors.text : 'text-gray-600'}
+                    `}>
                       {status.name_ru}
                     </p>
                   </div>
                 </div>
-              )
-            })}
-          </div>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -171,7 +254,7 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                 <div className="flex-1">
                   <p className="text-sm text-gray-500 mb-1">Текущий статус:</p>
-                  <p className={`font-semibold ${statusColors[currentStatus].text}`}>
+                  <p className={`font-semibold ${statusColors[currentStatus].textActive}`}>
                     {statuses.find(s => s.code === currentStatus)?.name_ru}
                   </p>
                 </div>
@@ -182,7 +265,7 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
 
                 <div className="flex-1">
                   <p className="text-sm text-gray-500 mb-1">Новый статус:</p>
-                  <p className={`font-semibold ${statusColors[confirmingStatus].text}`}>
+                  <p className={`font-semibold ${statusColors[confirmingStatus].textActive}`}>
                     {statuses.find(s => s.code === confirmingStatus)?.name_ru}
                   </p>
                 </div>
