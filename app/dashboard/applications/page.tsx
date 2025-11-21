@@ -242,11 +242,9 @@ function ApplicationsContent() {
   }
 
   const formatTitle = (app: ApplicationWithAddress) => {
-    const baseAddress = app.zakaz_addresses
-      ? `${app.zakaz_addresses.street} ${app.zakaz_addresses.house}`
-      : 'Адрес не указан'
-
-    const details = app.address_details ? `. ${app.address_details}` : ''
+    // Используем реальный адрес от абонента, а не формализованный из справочника
+    const baseAddress = app.street_and_house || 'Адрес не указан'
+    const details = app.address_details ? `, ${app.address_details}` : ''
     return `№${app.application_number}. ${baseAddress}${details}`
   }
 
