@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
@@ -69,7 +70,6 @@ export async function POST(
     // Обновляем статус заявки
     console.log('Updating application:', id, 'with status:', body.new_status)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: updateError } = await (supabase
       .from('zakaz_applications') as any)
       .update({
@@ -91,7 +91,6 @@ export async function POST(
     // Записываем в историю изменений статуса
     console.log('Inserting status history for application:', id)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: historyError } = await (supabase
       .from('zakaz_application_status_history') as any)
       .insert({
