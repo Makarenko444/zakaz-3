@@ -9,6 +9,7 @@ interface Address {
   comment: string | null
   similarity?: number
   full_address?: string
+  source?: 'local' | 'external' // Источник адреса
 }
 
 interface AddressLinkWizardProps {
@@ -80,11 +81,38 @@ export default function AddressLinkWizard({
     return () => clearTimeout(timeoutId)
   }, [searchQuery, searchAddresses])
 
-  async function handleLink(addressId: string) {
+  async function handleLink(address: Address) {
     setIsLinking(true)
     setError('')
 
     try {
+      let addressId = address.id
+
+      // Если адрес из внешнего источника - сначала сохраняем его в локальную БД
+      if (address.source === 'external') {
+        const saveResponse = await fetch('/api/addresses/save-external', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            street: address.street,
+            house: address.house,
+            comment: address.comment
+          })
+        })
+
+        if (!saveResponse.ok) {
+          throw new Error('Не удалось сохранить адрес из внешнего источника')
+        }
+
+        const savedAddress = await saveResponse.json()
+        addressId = savedAddress.id
+
+        console.log(`Saved external address to local DB: ${address.street}, ${address.house} -> ID: ${addressId}`)
+      }
+
+      // Привязываем заявку к адресу
       await onLink(addressId)
     } catch (error) {
       console.error('Error linking address:', error)
@@ -208,24 +236,39 @@ export default function AddressLinkWizard({
               </p>
               {addresses.map((address) => {
                 const isCurrent = address.id === currentAddressId
+                const isExternal = address.source === 'external'
                 return (
                   <button
                     key={address.id}
-                    onClick={() => handleLink(address.id)}
+                    onClick={() => handleLink(address)}
                     disabled={isLinking || isUnlinking}
                     className={`w-full text-left p-4 rounded-lg border-2 transition ${
                       isCurrent
                         ? 'border-green-500 bg-green-50'
+                        : isExternal
+                        ? 'border-blue-200 hover:border-blue-500 hover:bg-blue-50'
                         : 'border-gray-200 hover:border-indigo-500 hover:bg-indigo-50'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">
-                          {address.street}, {address.house}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900">
+                            {address.street}, {address.house}
+                          </p>
+                          {isExternal && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                              КЛАДР
+                            </span>
+                          )}
+                        </div>
                         {address.comment && (
                           <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
+                        )}
+                        {isExternal && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Будет сохранен в локальную базу при выборе
+                          </p>
                         )}
                       </div>
                       {isCurrent ? (
@@ -233,7 +276,7 @@ export default function AddressLinkWizard({
                           Текущий
                         </span>
                       ) : (
-                        <span className="ml-2 text-indigo-600 text-sm font-medium">
+                        <span className={`ml-2 text-sm font-medium ${isExternal ? 'text-blue-600' : 'text-indigo-600'}`}>
                           {currentAddressId ? 'Изменить →' : 'Выбрать →'}
                         </span>
                       )}

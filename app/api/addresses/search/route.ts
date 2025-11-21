@@ -13,6 +13,7 @@ interface Address {
 interface SearchResult extends Address {
   similarity: number
   full_address: string
+  source: 'local' | 'external' // Источник: локальная БД или внешний API
 }
 
 interface RpcSearchResult {
@@ -23,6 +24,73 @@ interface RpcSearchResult {
   similarity: number
   created_at?: string
   updated_at?: string
+}
+
+interface KladrBuilding {
+  name: string // Номер дома
+}
+
+interface KladrStreet {
+  id: string
+  name: string // Название улицы
+  typeShort: string // Тип (ул., пр., пер.)
+}
+
+async function searchKladrAPI(query: string): Promise<SearchResult[]> {
+  /**
+   * Поиск адресов через КЛАДР API
+   * Используется когда в локальной БД мало результатов
+   */
+  const results: SearchResult[] = []
+
+  try {
+    // Ищем улицы в Томске по запросу
+    const streetsResponse = await fetch(
+      `http://kladr-api.ru/api.php?contentType=street&cityId=7000000100000&query=${encodeURIComponent(query)}&limit=5`,
+      { next: { revalidate: 3600 } } // Кешируем на 1 час
+    )
+
+    if (!streetsResponse.ok) {
+      console.error('KLADR API error:', streetsResponse.status)
+      return results
+    }
+
+    const streetsData = await streetsResponse.json()
+    const streets = streetsData.result as KladrStreet[] || []
+
+    // Для каждой улицы получаем дома
+    for (const street of streets.slice(0, 3)) { // Берем первые 3 улицы
+      const streetId = street.id
+      const streetName = `${street.typeShort} ${street.name}`.trim()
+
+      const buildingsResponse = await fetch(
+        `http://kladr-api.ru/api.php?contentType=building&streetId=${streetId}&limit=20`,
+        { next: { revalidate: 3600 } }
+      )
+
+      if (buildingsResponse.ok) {
+        const buildingsData = await buildingsResponse.json()
+        const buildings = buildingsData.result as KladrBuilding[] || []
+
+        for (const building of buildings) {
+          results.push({
+            id: `external_${streetId}_${building.name}`, // Временный ID для внешних адресов
+            street: streetName,
+            house: building.name,
+            comment: null,
+            similarity: 0.7, // Средняя похожесть для внешних результатов
+            full_address: `${streetName}, ${building.name}`,
+            source: 'external'
+          })
+        }
+      }
+    }
+
+    return results.slice(0, 10) // Ограничиваем 10 результатами
+  } catch (error) {
+    console.error('Error fetching from KLADR API:', error)
+    return results
+  }
 }
 
 export async function GET(request: Request) {
@@ -39,13 +107,13 @@ export async function GET(request: Request) {
 
     const supabase = createDirectClient()
 
-    // Используем pg_trgm для нечеткого поиска
-    // similarity() возвращает степень похожести от 0 до 1
-    // Ищем по улице и дому одновременно
+    // Шаг 1: Поиск в локальной БД через fuzzy search
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: addresses, error } = await (supabase as any).rpc('search_addresses_fuzzy', {
       search_query: query.trim()
     })
+
+    let localResults: SearchResult[] = []
 
     if (error) {
       // Если RPC функция еще не создана, используем простой ILIKE поиск
@@ -69,31 +137,47 @@ export async function GET(request: Request) {
       }
 
       // Форматируем результаты
-      const formattedResults: SearchResult[] = (fallbackAddresses || []).map(addr => ({
+      localResults = (fallbackAddresses || []).map(addr => ({
         ...addr,
-        similarity: 0.5, // Примерное значение для ILIKE поиска
-        full_address: `${addr.street}, ${addr.house}`
+        similarity: 0.5,
+        full_address: `${addr.street}, ${addr.house}`,
+        source: 'local' as const
       }))
-
-      return NextResponse.json({
-        addresses: formattedResults,
-        fallback: true
-      })
+    } else {
+      // Форматируем результаты с similarity
+      localResults = (addresses as RpcSearchResult[] || []).map((addr) => ({
+        id: addr.id,
+        street: addr.street,
+        house: addr.house,
+        comment: addr.comment,
+        similarity: addr.similarity || 0,
+        full_address: `${addr.street}, ${addr.house}`,
+        created_at: addr.created_at,
+        updated_at: addr.updated_at,
+        source: 'local' as const
+      }))
     }
 
-    // Форматируем результаты с similarity
-    const formattedResults: SearchResult[] = (addresses as RpcSearchResult[] || []).map((addr) => ({
-      id: addr.id,
-      street: addr.street,
-      house: addr.house,
-      comment: addr.comment,
-      similarity: addr.similarity || 0,
-      full_address: `${addr.street}, ${addr.house}`,
-      created_at: addr.created_at,
-      updated_at: addr.updated_at
-    }))
+    // Шаг 2: Если найдено мало результатов локально - дополняем через КЛАДР API
+    let externalResults: SearchResult[] = []
+    const MIN_LOCAL_RESULTS = 3
 
-    return NextResponse.json({ addresses: formattedResults })
+    if (localResults.length < MIN_LOCAL_RESULTS) {
+      console.log(`Found only ${localResults.length} local results, fetching from KLADR API...`)
+      externalResults = await searchKladrAPI(query.trim())
+    }
+
+    // Объединяем результаты: сначала локальные, потом внешние
+    const allResults = [...localResults, ...externalResults]
+
+    return NextResponse.json({
+      addresses: allResults,
+      stats: {
+        local: localResults.length,
+        external: externalResults.length,
+        total: allResults.length
+      }
+    })
   } catch (error) {
     console.error('Unexpected error:', error)
     return NextResponse.json(
