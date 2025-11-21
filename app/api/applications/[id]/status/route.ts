@@ -69,10 +69,9 @@ export async function POST(
     // Обновляем статус заявки
     console.log('Updating application:', id, 'with status:', body.new_status)
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - Supabase types are not properly generated
-    const { error: updateError } = await supabase
-      .from('zakaz_applications')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateError } = await (supabase
+      .from('zakaz_applications') as any)
       .update({
         status: body.new_status,
         updated_by: body.changed_by || null,
@@ -92,10 +91,9 @@ export async function POST(
     // Записываем в историю изменений статуса
     console.log('Inserting status history for application:', id)
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - Supabase types are not properly generated
-    const { error: historyError } = await supabase
-      .from('zakaz_application_status_history')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: historyError } = await (supabase
+      .from('zakaz_application_status_history') as any)
       .insert({
         application_id: id,
         old_status: oldStatus,
