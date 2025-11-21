@@ -29,9 +29,9 @@ export async function POST(request: Request) {
       .select('id')
       .eq('street', street)
       .eq('house', house)
-      .single()
+      .maybeSingle() // Возвращает null если не найдено, вместо error
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
+    if (checkError) {
       console.error('Error checking existing address:', checkError)
       return NextResponse.json(
         { error: 'Failed to check existing address' },
