@@ -69,7 +69,7 @@ export async function POST(
     // Обновляем статус заявки
     console.log('Updating application:', id, 'with status:', body.new_status)
 
-    // @ts-expect-error - Supabase types are not properly generated
+    // @ts-ignore - Supabase types are not properly generated
     const { error: updateError } = await supabase
       .from('zakaz_applications')
       .update({
@@ -91,7 +91,7 @@ export async function POST(
     // Записываем в историю изменений статуса
     console.log('Inserting status history for application:', id)
 
-    // @ts-expect-error - Supabase types are not properly generated
+    // @ts-ignore - Supabase types are not properly generated
     const { error: historyError } = await supabase
       .from('zakaz_application_status_history')
       .insert({
