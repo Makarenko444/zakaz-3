@@ -437,17 +437,16 @@ export default function NodesPage() {
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">№</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Код</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Тип</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Адрес</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Местоположение</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ком.инфо</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата создания</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">№</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Код</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Тип</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Адрес</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Местоположение</th>
+                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Дата</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -457,37 +456,36 @@ export default function NodesPage() {
                       className="hover:bg-gray-50 cursor-pointer"
                       onClick={() => handleNodeClick(node)}
                     >
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-2 py-3 whitespace-nowrap text-sm text-gray-500">
                         {(pagination.page - 1) * pagination.limit + index + 1}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <span className="text-sm font-medium text-gray-900">{node.code}</span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-sm text-gray-600">{nodeTypeLabels[node.node_type]}</span>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <span className="text-xs text-gray-600">
+                          {node.node_type === 'prp' ? 'ПРП' :
+                           node.node_type === 'ao' ? 'АО' :
+                           node.node_type === 'sk' ? 'СК' : 'Др.'}
+                        </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-900 max-w-xs" title={node.address}>
+                      <td className="px-3 py-3">
+                        <div className="text-sm text-gray-900 max-w-md truncate" title={node.address}>
                           {node.address}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3 hidden xl:table-cell">
                         <div className="text-sm text-gray-600 max-w-xs truncate" title={node.location_details || ''}>
                           {node.location_details || '—'}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-600 max-w-xs truncate" title={node.comm_info || ''}>
-                          {node.comm_info || '—'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${statusColors[node.status]}`}>
-                          {statusLabels[node.status]}
+                      <td className="px-3 py-3 whitespace-nowrap text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[node.status]}`}>
+                          {node.status === 'existing' ? 'Сущ.' : 'Проект.'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-sm text-gray-600">
+                      <td className="px-3 py-3 whitespace-nowrap hidden lg:table-cell">
+                        <span className="text-xs text-gray-600">
                           {node.node_created_date ? new Date(node.node_created_date).toLocaleDateString('ru-RU') : '—'}
                         </span>
                       </td>
