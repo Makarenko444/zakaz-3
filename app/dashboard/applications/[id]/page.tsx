@@ -210,6 +210,8 @@ export default function ApplicationDetailPage() {
 
   async function handleStatusChangeFromProgressBar(newStatus: ApplicationStatus) {
     try {
+      console.log('Changing status to:', newStatus, 'by user:', currentUserId)
+
       const response = await fetch(`/api/applications/${id}/status`, {
         method: 'POST',
         headers: {
@@ -224,14 +226,15 @@ export default function ApplicationDetailPage() {
       if (!response.ok) {
         const errorData = await response.json()
         console.error('Status change error:', errorData)
-        throw new Error(errorData.error || 'Failed to change status')
+        alert(`Не удалось изменить статус: ${errorData.error || 'Неизвестная ошибка'}`)
+        return
       }
 
       // Перезагружаем данные заявки
       await loadApplication()
     } catch (error) {
       console.error('Error changing status:', error)
-      alert('Не удалось изменить статус')
+      alert(`Не удалось изменить статус: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`)
     }
   }
 
