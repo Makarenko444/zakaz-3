@@ -52,7 +52,8 @@ export async function POST(request: Request) {
     }
 
     // Сохраняем новый адрес
-    const { data: newAddress, error: insertError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: newAddress, error: insertError } = await (supabase
       .from('zakaz_addresses')
       .insert({
         street,
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
         comment: comment || null
       })
       .select()
-      .single()
+      .single() as any)
 
     if (insertError) {
       console.error('Error inserting address:', insertError)
