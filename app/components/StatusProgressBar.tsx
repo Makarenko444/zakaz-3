@@ -175,9 +175,9 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
 
   return (
     <>
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-3">
         {/* Битрикс24 стиль - горизонтальные pill-кнопки */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {statuses.map((status, index) => {
             const isCurrent = status.code === currentStatus
             const isPassed = index < currentIndex
@@ -189,26 +189,21 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
                 onClick={() => handleStatusClick(status.code)}
                 disabled={disabled || isCurrent}
                 className={`
-                  relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
+                  px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200
                   ${isCurrent
-                    ? `${colors.bgActive} ${colors.textActive} shadow-sm`
+                    ? `${colors.bgActive} ${colors.textActive}`
                     : isPassed
                       ? `${colors.bg} ${colors.text} hover:${colors.bgActive}`
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }
                   ${disabled || isCurrent ? 'cursor-default' : 'cursor-pointer'}
                 `}
                 title={status.description_ru || status.name_ru}
               >
-                {/* Нижняя рамка для текущего статуса */}
-                {isCurrent && (
-                  <div className={`absolute bottom-0 left-0 right-0 h-1 ${colors.bgActive} rounded-b-full`}></div>
-                )}
-
                 {/* Текст статуса */}
-                <span className="relative z-10 flex items-center gap-1.5">
+                <span className="flex items-center gap-1">
                   {isPassed && (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
                   )}
@@ -236,7 +231,7 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                 <div className="flex-1">
                   <p className="text-sm text-gray-500 mb-1">Текущий статус:</p>
-                  <p className={`font-semibold ${statusColors[currentStatus].textActive}`}>
+                  <p className={`font-semibold ${statusColors[currentStatus].text}`}>
                     {statuses.find(s => s.code === currentStatus)?.name_ru}
                   </p>
                 </div>
@@ -247,7 +242,7 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
 
                 <div className="flex-1">
                   <p className="text-sm text-gray-500 mb-1">Новый статус:</p>
-                  <p className={`font-semibold ${statusColors[confirmingStatus].textActive}`}>
+                  <p className={`font-semibold ${statusColors[confirmingStatus].text}`}>
                     {statuses.find(s => s.code === confirmingStatus)?.name_ru}
                   </p>
                 </div>
