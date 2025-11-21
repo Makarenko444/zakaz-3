@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
+import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
+import { validateSession } from '@/lib/session'
 import * as XLSX from 'xlsx'
 
 interface ExcelRow {
@@ -23,7 +24,7 @@ function parseStatus(status?: string): 'existing' | 'planned' {
 }
 
 // Функция для парсинга даты из Excel
-function parseDate(dateValue: any): string | null {
+function parseDate(dateValue: unknown): string | null {
   if (!dateValue) return null
 
   try {
@@ -70,10 +71,10 @@ function cleanCode(code?: string): string | null {
 export async function POST(request: NextRequest) {
   try {
     const supabase = createDirectClient()
-    const userData = await getUserData(request)
+    const session = await validateSession(request)
 
     // Проверяем права доступа (только админы могут импортировать)
-    if (userData?.role !== 'admin') {
+    if (!session || session.user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Only admins can import nodes' },
         { status: 403 }
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
           status: parseStatus(row['Статус']),
           contract_link: row['Договор']?.trim() || null,
           node_created_date: parseDate(row['Дата создания']),
-          created_by: userData?.userId || null,
+          created_by: session.user.id,
         })
       } catch (error) {
         console.error(`Error processing row ${rowNumber}:`, error)
@@ -180,10 +181,9 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < nodesToInsert.length; i += batchSize) {
       const batch = nodesToInsert.slice(i, i + batchSize)
 
-      const { data, error } = await supabase
-        .from('zakaz_nodes')
-        .insert(batch)
-        .select()
+      const table = supabase.from('zakaz_nodes') as unknown
+      const result = await (table as { insert: (data: unknown) => { select: () => Promise<unknown> } }).insert(batch).select()
+      const { data, error } = result as { data: unknown[] | null; error: { message: string } | null }
 
       if (error) {
         console.error(`Error inserting batch ${i / batchSize + 1}:`, error)
@@ -199,11 +199,13 @@ export async function POST(request: NextRequest) {
 
     // Логируем импорт
     await logAudit({
-      userId: userData?.userId || null,
-      action: 'nodes.import',
-      resourceType: 'nodes',
-      resourceId: null,
-      details: {
+      userId: session.user.id,
+      userEmail: session.user.email,
+      userName: session.user.full_name,
+      actionType: 'create',
+      entityType: 'other',
+      description: `Imported ${insertedCount} nodes from ${file.name}`,
+      newValues: {
         filename: file.name,
         totalRows: rawData.length,
         inserted: insertedCount,

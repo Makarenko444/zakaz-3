@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Node, NodeStatus, NodeType } from '@/lib/types'
 
@@ -14,8 +14,20 @@ interface NodesResponse {
   }
 }
 
-type SortField = 'code' | 'address' | 'status' | 'node_type' | 'created_at'
-type SortDirection = 'asc' | 'desc'
+interface ImportResult {
+  success: boolean
+  message: string
+  stats: {
+    total: number
+    inserted: number
+    skipped: number
+    errors: number
+  }
+  details?: {
+    skipped?: Array<{ row: number; reason: string }>
+    errors?: Array<{ row: number; error: string }>
+  }
+}
 
 const statusLabels: Record<NodeStatus, string> = {
   existing: 'Существующий',
@@ -43,7 +55,7 @@ export default function NodesPage() {
 
   // Импорт
   const [isImporting, setIsImporting] = useState(false)
-  const [importResult, setImportResult] = useState<any>(null)
+  const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Фильтры и поиск
@@ -52,7 +64,8 @@ export default function NodesPage() {
   const [selectedNodeType, setSelectedNodeType] = useState<NodeType | ''>('')
 
   useEffect(() => {
-    loadNodes()
+    void loadNodes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function loadNodes() {
@@ -221,7 +234,7 @@ export default function NodesPage() {
                       Показать пропущенные строки
                     </summary>
                     <div className="mt-2 max-h-40 overflow-y-auto">
-                      {importResult.details.skipped.map((item: any, idx: number) => (
+                      {importResult.details.skipped.map((item, idx) => (
                         <div key={idx} className="text-xs text-gray-600 py-1">
                           Строка {item.row}: {item.reason}
                         </div>
