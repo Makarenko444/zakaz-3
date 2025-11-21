@@ -158,12 +158,28 @@ export async function GET(request: Request) {
       }))
     }
 
-    // Шаг 2: Если найдено мало результатов локально - дополняем через КЛАДР API
+    // Шаг 2: Умная логика - запрашиваем КЛАДР API если:
+    // 1. Найдено мало локальных результатов (< 3)
+    // 2. ИЛИ нет точного совпадения с запросом
     let externalResults: SearchResult[] = []
     const MIN_LOCAL_RESULTS = 3
 
-    if (localResults.length < MIN_LOCAL_RESULTS) {
-      console.log(`Found only ${localResults.length} local results, fetching from KLADR API...`)
+    // Проверяем есть ли точное совпадение среди локальных результатов
+    const hasExactMatch = localResults.some(addr => {
+      const fullAddress = `${addr.street}, ${addr.house}`.toLowerCase()
+      const normalizedQuery = query.trim().toLowerCase()
+
+      // Проверяем точное совпадение или совпадение без запятой
+      return fullAddress === normalizedQuery ||
+             fullAddress.replace(/,\s*/g, ' ') === normalizedQuery ||
+             `${addr.street} ${addr.house}`.toLowerCase() === normalizedQuery
+    })
+
+    if (localResults.length < MIN_LOCAL_RESULTS || !hasExactMatch) {
+      const reason = localResults.length < MIN_LOCAL_RESULTS
+        ? `only ${localResults.length} local results`
+        : 'no exact match found'
+      console.log(`Fetching from KLADR API (${reason})...`)
       externalResults = await searchKladrAPI(query.trim())
     }
 
