@@ -144,19 +144,7 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Проверяем уникальность кода
-        const { data: existingNode } = await supabase
-          .from('zakaz_nodes')
-          .select('id')
-          .eq('code', code)
-          .single()
-
-        if (existingNode) {
-          skipped.push({ row: rowNumber, reason: `Code ${code} already exists`, data: row })
-          continue
-        }
-
-        // Формируем объект для вставки
+        // Формируем объект для вставки (дубликаты будут обработаны через upsert)
         nodesToInsert.push({
           code,
           address,
@@ -174,26 +162,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Вставляем узлы партиями по 100 штук для оптимизации
+    // Используем upsert для обновления существующих записей и вставки новых
     const batchSize = 100
-    let insertedCount = 0
+    let processedCount = 0
     const insertErrors = []
 
     for (let i = 0; i < nodesToInsert.length; i += batchSize) {
       const batch = nodesToInsert.slice(i, i + batchSize)
 
       const table = supabase.from('zakaz_nodes') as unknown
-      const result = await (table as { insert: (data: unknown) => { select: () => Promise<unknown> } }).insert(batch).select()
+      const result = await (table as {
+        upsert: (data: unknown, options: unknown) => {
+          select: () => Promise<unknown>
+        }
+      }).upsert(batch, {
+        onConflict: 'code',
+        ignoreDuplicates: false // Обновляем существующие записи
+      }).select()
       const { data, error } = result as { data: unknown[] | null; error: { message: string } | null }
 
       if (error) {
-        console.error(`Error inserting batch ${i / batchSize + 1}:`, error)
+        console.error(`Error upserting batch ${i / batchSize + 1}:`, error)
         insertErrors.push({
           batch: i / batchSize + 1,
           error: error.message,
           count: batch.length,
         })
       } else {
-        insertedCount += data?.length || 0
+        const batchCount = data?.length || 0
+        processedCount += batchCount
       }
     }
 
@@ -204,11 +201,11 @@ export async function POST(request: NextRequest) {
       userName: session.user.full_name,
       actionType: 'create',
       entityType: 'other',
-      description: `Imported ${insertedCount} nodes from ${file.name}`,
+      description: `Imported/updated ${processedCount} nodes from ${file.name}`,
       newValues: {
         filename: file.name,
         totalRows: rawData.length,
-        inserted: insertedCount,
+        processed: processedCount,
         skipped: skipped.length,
         errors: errors.length + insertErrors.length,
       },
@@ -218,10 +215,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Import completed: ${insertedCount} nodes imported`,
+      message: `Import completed: ${processedCount} nodes processed (inserted or updated)`,
       stats: {
         total: rawData.length,
-        inserted: insertedCount,
+        processed: processedCount,
         skipped: skipped.length,
         errors: errors.length + insertErrors.length,
       },

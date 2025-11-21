@@ -19,7 +19,7 @@ interface ImportResult {
   message: string
   stats: {
     total: number
-    inserted: number
+    processed: number
     skipped: number
     errors: number
   }
@@ -224,7 +224,7 @@ export default function NodesPage() {
                 <h3 className="text-sm font-medium text-green-800">{importResult.message}</h3>
                 <div className="mt-2 text-sm text-green-700">
                   <p>Всего строк: {importResult.stats.total}</p>
-                  <p>Импортировано: {importResult.stats.inserted}</p>
+                  <p>Обработано (добавлено/обновлено): {importResult.stats.processed}</p>
                   {importResult.stats.skipped > 0 && <p>Пропущено: {importResult.stats.skipped}</p>}
                   {importResult.stats.errors > 0 && <p className="text-red-600">Ошибок: {importResult.stats.errors}</p>}
                 </div>
