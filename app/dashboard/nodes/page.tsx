@@ -169,6 +169,7 @@ export default function NodesPage() {
   }
 
   function openNodeModal(node: Node) {
+    console.log('Opening node modal with data:', node)
     setSelectedNode(node)
     setEditForm(node)
     setIsEditing(false)
@@ -536,14 +537,12 @@ export default function NodesPage() {
 
       {/* Модальное окно */}
       {selectedNode && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={closeNodeModal}></div>
-
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-500 bg-opacity-75" onClick={closeNodeModal}>
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4">
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
                     {isEditing ? 'Редактирование узла' : 'Информация об узле'}
@@ -696,15 +695,16 @@ export default function NodesPage() {
                   )}
                 </div>
               </div>
+            </div>
 
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex flex-row-reverse gap-2">
                 {isEditing ? (
                   <>
                     <button
                       type="button"
                       onClick={handleSaveNode}
                       disabled={isSaving}
-                      className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSaving ? 'Сохранение...' : 'Сохранить'}
                     </button>
@@ -715,7 +715,7 @@ export default function NodesPage() {
                         setEditForm(selectedNode)
                       }}
                       disabled={isSaving}
-                      className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                      className="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >
                       Отмена
                     </button>
@@ -726,7 +726,7 @@ export default function NodesPage() {
                       <button
                         type="button"
                         onClick={() => setIsEditing(true)}
-                        className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
+                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       >
                         Редактировать
                       </button>
@@ -734,13 +734,12 @@ export default function NodesPage() {
                     <button
                       type="button"
                       onClick={closeNodeModal}
-                      className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                      className="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >
                       Закрыть
                     </button>
                   </>
                 )}
-              </div>
             </div>
           </div>
         </div>
