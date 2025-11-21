@@ -225,66 +225,127 @@ export default function AddressLinkWizard({
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600 mb-3">
-                Найдено адресов: {addresses.length}
-                {addresses.length > 0 && addresses[0].similarity !== undefined && (
-                  <span className="ml-2 text-xs text-gray-500">
-                    (отсортировано по релевантности)
-                  </span>
-                )}
-              </p>
-              {addresses.map((address) => {
-                const isCurrent = address.id === currentAddressId
-                const isExternal = address.source === 'external'
+            <>
+              {/* Разделяем адреса на локальные и внешние */}
+              {(() => {
+                const localAddresses = addresses.filter(addr => addr.source === 'local')
+                const externalAddresses = addresses.filter(addr => addr.source === 'external')
+
                 return (
-                  <button
-                    key={address.id}
-                    onClick={() => handleLink(address)}
-                    disabled={isLinking || isUnlinking}
-                    className={`w-full text-left p-4 rounded-lg border-2 transition ${
-                      isCurrent
-                        ? 'border-green-500 bg-green-50'
-                        : isExternal
-                        ? 'border-blue-200 hover:border-blue-500 hover:bg-blue-50'
-                        : 'border-gray-200 hover:border-indigo-500 hover:bg-indigo-50'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-gray-900">
-                            {address.street}, {address.house}
-                          </p>
-                          {isExternal && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                              КЛАДР
-                            </span>
-                          )}
+                  <div className="space-y-6">
+                    {/* Локальные адреса из базы данных */}
+                    {localAddresses.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                          </svg>
+                          <h3 className="text-sm font-semibold text-gray-700">
+                            Адреса из базы данных ({localAddresses.length})
+                          </h3>
                         </div>
-                        {address.comment && (
-                          <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
-                        )}
-                        {isExternal && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            Будет сохранен в локальную базу при выборе
-                          </p>
-                        )}
+                        <div className="space-y-2">
+                          {localAddresses.map((address) => {
+                            const isCurrent = address.id === currentAddressId
+                            return (
+                              <button
+                                key={address.id}
+                                onClick={() => handleLink(address)}
+                                disabled={isLinking || isUnlinking}
+                                className={`w-full text-left p-4 rounded-lg border-2 transition ${
+                                  isCurrent
+                                    ? 'border-green-500 bg-green-50'
+                                    : 'border-gray-200 hover:border-indigo-500 hover:bg-indigo-50'
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <p className="font-medium text-gray-900">
+                                      {address.street}, {address.house}
+                                    </p>
+                                    {address.comment && (
+                                      <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
+                                    )}
+                                  </div>
+                                  {isCurrent ? (
+                                    <span className="ml-2 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                                      Текущий
+                                    </span>
+                                  ) : (
+                                    <span className="ml-2 text-sm font-medium text-indigo-600">
+                                      {currentAddressId ? 'Изменить →' : 'Выбрать →'}
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
-                      {isCurrent ? (
-                        <span className="ml-2 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                          Текущий
-                        </span>
-                      ) : (
-                        <span className={`ml-2 text-sm font-medium ${isExternal ? 'text-blue-600' : 'text-indigo-600'}`}>
-                          {currentAddressId ? 'Изменить →' : 'Выбрать →'}
-                        </span>
-                      )}
-                    </div>
-                  </button>
+                    )}
+
+                    {/* Внешние адреса из КЛАДР API */}
+                    {externalAddresses.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <h3 className="text-sm font-semibold text-blue-700">
+                            Адреса из КЛАДР API ({externalAddresses.length})
+                          </h3>
+                        </div>
+                        <div className="space-y-2">
+                          {externalAddresses.map((address) => (
+                            <button
+                              key={address.id}
+                              onClick={() => handleLink(address)}
+                              disabled={isLinking || isUnlinking}
+                              className="w-full text-left p-4 rounded-lg border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium text-gray-900">
+                                      {address.street}, {address.house}
+                                    </p>
+                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                                      КЛАДР
+                                    </span>
+                                  </div>
+                                  {address.comment && (
+                                    <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
+                                  )}
+                                  <p className="text-xs text-blue-600 mt-1">
+                                    Будет сохранен в локальную базу при выборе
+                                  </p>
+                                </div>
+                                <span className="ml-2 text-sm font-medium text-blue-600">
+                                  {currentAddressId ? 'Изменить →' : 'Выбрать →'}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Если нет ни локальных, ни внешних адресов */}
+                    {localAddresses.length === 0 && externalAddresses.length === 0 && (
+                      <div className="text-center py-8">
+                        <svg className="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="mt-4 text-gray-600">Адреса не найдены</p>
+                        <p className="mt-2 text-sm text-gray-500">
+                          Попробуйте изменить поисковый запрос
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 )
-              })}
-            </div>
+              })()}
+            </>
           )}
         </div>
 
