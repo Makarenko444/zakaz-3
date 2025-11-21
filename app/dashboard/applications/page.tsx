@@ -243,7 +243,16 @@ function ApplicationsContent() {
 
   const formatAddress = (address: ApplicationWithAddress['zakaz_addresses']) => {
     if (!address) return 'Адрес не указан'
-    return `${address.street}, ${address.house}`
+    return `${address.street} ${address.house}`
+  }
+
+  const formatTitle = (app: ApplicationWithAddress) => {
+    const baseAddress = app.zakaz_addresses
+      ? `${app.zakaz_addresses.street} ${app.zakaz_addresses.house}`
+      : 'Адрес не указан'
+
+    const details = app.address_details ? `. ${app.address_details}` : ''
+    return `№${app.application_number}. ${baseAddress}${details}`
   }
 
   return (
@@ -433,39 +442,31 @@ function ApplicationsContent() {
                 onClick={() => router.push(`/dashboard/applications/${app.id}`)}
                 className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition cursor-pointer"
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-base font-semibold text-gray-900">
-                        Заявка №{app.application_number}
-                      </h3>
-                      <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${statusColors[app.status]}`}>
-                        {statusLabels[app.status]}
-                      </span>
-                      <span className={`text-xs font-medium ${urgencyColors[app.urgency]}`}>
-                        {urgencyLabels[app.urgency]}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500">{formatDate(app.created_at)}</p>
+                {/* Первая строка: Заголовок, статусы слева, дата справа */}
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 flex-wrap flex-1">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      {formatTitle(app)}
+                    </h3>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap ${statusColors[app.status]}`}>
+                      {statusLabels[app.status]}
+                    </span>
+                    <span className={`text-xs font-medium whitespace-nowrap ${urgencyColors[app.urgency]}`}>
+                      {urgencyLabels[app.urgency]}
+                    </span>
                   </div>
+                  <span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(app.created_at)}</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Клиент:</p>
-                    <p className="text-sm font-medium text-gray-900">{app.customer_fullname}</p>
-                    <p className="text-xs text-gray-600">{app.customer_phone}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {customerTypeLabels[app.customer_type]} • {serviceTypeLabels[app.service_type]}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-gray-500">Адрес:</p>
-                    <p className="text-sm font-medium text-gray-900">{formatAddress(app.zakaz_addresses)}</p>
-                  </div>
+                {/* Вторая строка: Клиент и тип услуги */}
+                <div className="mb-1">
+                  <p className="text-sm font-medium text-gray-900">{app.customer_fullname}</p>
+                  <p className="text-xs text-gray-500">
+                    {customerTypeLabels[app.customer_type]} • {serviceTypeLabels[app.service_type]}
+                  </p>
                 </div>
 
+                {/* Комментарий */}
                 {app.client_comment && (
                   <div className="mt-2 pt-2 border-t border-gray-100">
                     <p className="text-xs text-gray-500">Комментарий:</p>
