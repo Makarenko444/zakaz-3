@@ -241,11 +241,6 @@ function ApplicationsContent() {
     })
   }
 
-  const formatAddress = (address: ApplicationWithAddress['zakaz_addresses']) => {
-    if (!address) return 'Адрес не указан'
-    return `${address.street} ${address.house}`
-  }
-
   const formatTitle = (app: ApplicationWithAddress) => {
     const baseAddress = app.zakaz_addresses
       ? `${app.zakaz_addresses.street} ${app.zakaz_addresses.house}`

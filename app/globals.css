@@ -3,7 +3,7 @@
 /* Светлая тема (по умолчанию) - Битрикс-24 стиль */
 :root,
 [data-theme="light"] {
-  --background: #f0f4f8;
+  --background: #6ba3b0;
   --foreground: #1a202c;
   --surface: #ffffff;
   --surface-secondary: #f7fafc;
