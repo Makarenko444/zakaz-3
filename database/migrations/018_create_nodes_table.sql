@@ -97,3 +97,9 @@ COMMENT ON COLUMN zakaz_nodes.comm_info IS 'Коммутационная инф�
 COMMENT ON COLUMN zakaz_nodes.status IS 'Статус узла (existing - существующий, planned - проектируемый)';
 COMMENT ON COLUMN zakaz_nodes.contract_link IS 'Ссылка на договор';
 COMMENT ON COLUMN zakaz_nodes.node_created_date IS 'Дата создания узла в реальности';
+
+-- Предоставляем права доступа для Supabase ролей
+GRANT ALL ON zakaz_nodes TO authenticator;
+GRANT ALL ON zakaz_nodes TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE zakaz_nodes_id_seq TO authenticator;
+GRANT USAGE, SELECT ON SEQUENCE zakaz_nodes_id_seq TO service_role;
