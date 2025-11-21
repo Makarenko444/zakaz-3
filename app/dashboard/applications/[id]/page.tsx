@@ -213,18 +213,20 @@ export default function ApplicationDetailPage() {
   async function handleStatusChangeFromProgressBar(newStatus: ApplicationStatus) {
     try {
       const response = await fetch(`/api/applications/${id}/status`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          status: newStatus,
+          new_status: newStatus,
           changed_by: currentUserId,
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to change status')
+        const errorData = await response.json()
+        console.error('Status change error:', errorData)
+        throw new Error(errorData.error || 'Failed to change status')
       }
 
       // Перезагружаем данные заявки
