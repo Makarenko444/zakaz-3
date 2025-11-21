@@ -19,6 +19,10 @@ export type CustomerType = 'individual' | 'business'
 
 export type ServiceType = 'apartment' | 'office' | 'scs'
 
+export type NodeStatus = 'existing' | 'planned'
+
+export type NodeType = 'pp' | 'ao' | 'do_ls' | 'other'
+
 export interface User {
   id: string
   email: string
@@ -76,6 +80,22 @@ export interface FileAttachment {
   description: string | null
 }
 
+export interface Node {
+  id: string
+  code: string
+  node_type: NodeType
+  address: string
+  location_details: string | null
+  comm_info: string | null
+  status: NodeStatus
+  contract_link: string | null
+  node_created_date: string | null
+  created_by: string | null
+  created_at: string
+  updated_by: string | null
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -98,6 +118,11 @@ export interface Database {
         Row: FileAttachment
         Insert: Omit<FileAttachment, 'id' | 'uploaded_at'>
         Update: Partial<Omit<FileAttachment, 'id' | 'uploaded_at'>>
+      }
+      zakaz_nodes: {
+        Row: Node
+        Insert: Omit<Node, 'id' | 'created_at' | 'updated_at' | 'node_type'>
+        Update: Partial<Omit<Node, 'id' | 'created_at' | 'updated_at' | 'node_type'>>
       }
     }
   }
