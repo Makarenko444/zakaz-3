@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       .select('id')
       .eq('street', street)
       .eq('house', house)
-      .maybeSingle() // Возвращает null если не найдено, вместо error
+      .maybeSingle<{ id: string }>() // Возвращает null если не найдено, вместо error
 
     if (checkError) {
       console.error('Error checking existing address:', checkError)
