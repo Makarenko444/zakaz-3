@@ -326,10 +326,10 @@ export default function NodesPage() {
                 className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               >
                 <option value="">Все</option>
-                <option value="pp">ПП</option>
-                <option value="ao">АО</option>
-                <option value="do_ls">ДО-ЛС</option>
-                <option value="other">Другое</option>
+                <option value="prp">ПРП (узел связи)</option>
+                <option value="ao">АО (абонентское окончание)</option>
+                <option value="sk">СК (СКУД)</option>
+                <option value="other">Другое (РТК и др.)</option>
               </select>
             </div>
           </div>
@@ -371,6 +371,7 @@ export default function NodesPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">№</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Код</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Тип</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Адрес</th>
@@ -381,8 +382,11 @@ export default function NodesPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {nodes.map((node) => (
+                  {nodes.map((node, index) => (
                     <tr key={node.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        {(pagination.page - 1) * pagination.limit + index + 1}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="text-sm font-medium text-gray-900">{node.code}</span>
                       </td>
