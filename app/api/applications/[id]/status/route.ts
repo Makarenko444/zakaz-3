@@ -67,7 +67,11 @@ export async function POST(
     const oldStatus = currentApp.status
 
     // Обновляем статус заявки
-    const updateData = {
+    const updateData: {
+      status: string
+      updated_by: string | null
+      updated_at: string
+    } = {
       status: body.new_status,
       updated_by: body.changed_by || null,
       updated_at: new Date().toISOString(),
@@ -90,7 +94,13 @@ export async function POST(
     }
 
     // Записываем в историю изменений статуса
-    const historyData = {
+    const historyData: {
+      application_id: string
+      old_status: string
+      new_status: string
+      comment: string | null
+      changed_by: string | null
+    } = {
       application_id: id,
       old_status: oldStatus,
       new_status: body.new_status,
