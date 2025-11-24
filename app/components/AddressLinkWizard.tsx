@@ -58,6 +58,21 @@ export default function AddressLinkWizard({
   const [searchStats, setSearchStats] = useState<SearchStats | null>(null)
   const [osmValidation, setOsmValidation] = useState<OsmValidation | null>(null)
 
+  const validateAddressWithOSM = useCallback(async (address: string) => {
+    try {
+      const response = await fetch(`/api/addresses/validate-osm?address=${encodeURIComponent(address)}`)
+      if (!response.ok) {
+        setOsmValidation({ status: 'no_match' })
+        return
+      }
+      const data = await response.json()
+      setOsmValidation(data)
+    } catch (error) {
+      console.error('Error validating address with OSM:', error)
+      setOsmValidation({ status: 'no_match' })
+    }
+  }, [])
+
   const searchAddresses = useCallback(async (query: string) => {
     if (!query.trim()) {
       setAddresses([])
@@ -104,8 +119,11 @@ export default function AddressLinkWizard({
 
   useEffect(() => {
     // При открытии мастера сразу ищем по адресу из заявки
-    searchAddresses(streetAndHouse)
-  }, [streetAndHouse, searchAddresses])
+    if (streetAndHouse && streetAndHouse.trim()) {
+      searchAddresses(streetAndHouse)
+      validateAddressWithOSM(streetAndHouse)
+    }
+  }, [streetAndHouse, searchAddresses, validateAddressWithOSM])
 
   useEffect(() => {
     // Debounce поиска при изменении запроса
