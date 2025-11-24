@@ -8,8 +8,8 @@ type SearchStats = {
   local: number
   external: number
   total: number
-  yandex?: number
-  openstreet?: number
+  yandex: number
+  openstreet: number
 }
 
 interface Address {
@@ -67,8 +67,18 @@ export default function AddressLinkWizard({
       const data = await response.json()
       setAddresses(data.addresses || [])
       setUsedFallback(data.fallback || false)
-      setSearchStats(data.stats || null)
-      setOsmValidation(data.osm_validation || null)
+
+      // Гарантируем наличие числовых счётчиков для Яндекс/OSM,
+      // чтобы не было undefined при отображении бейджей
+      if (data.stats) {
+        setSearchStats({
+          ...data.stats,
+          yandex: data.stats.yandex ?? 0,
+          openstreet: data.stats.openstreet ?? 0
+        })
+      } else {
+        setSearchStats(null)
+      }
 
       // Отладочная информация
       if (data.debug) {
@@ -403,7 +413,7 @@ export default function AddressLinkWizard({
                                     Будет сохранен в локальную базу при выборе
                                   </p>
                                 </div>
-                                <span className="ml-2 text-sm font-medium text-blue-600">
+                                <span className="ml-2 text-sm font-medium text-green-700">
                                   {currentNodeId ? 'Изменить →' : 'Выбрать →'}
                                 </span>
                               </div>
@@ -417,72 +427,6 @@ export default function AddressLinkWizard({
                           </p>
                           <p className="text-xs text-blue-600 mt-1">
                             Внешние API запрашиваются автоматически при отсутствии точного совпадения
-                          </p>
-                          {searchStats && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Локальных: {searchStats.local}, Внешних: {searchStats.external}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Внешние адреса из OpenStreetMap */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3 0 2.25 3 5 3 5s3-2.75 3-5c0-1.657-1.343-3-3-3z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.5 11c0 5.5-6.5 9-8.5 9s-8.5-3.5-8.5-9a8.5 8.5 0 1117 0z" />
-                        </svg>
-                        <h3 className="text-sm font-semibold text-green-700">
-                          OpenStreetMap ({osmAddresses.length})
-                        </h3>
-                        {searchStats && (
-                          <span className="text-xs text-gray-500">
-                            • Всего найдено: {searchStats.openstreet ?? osmAddresses.length}
-                          </span>
-                        )}
-                      </div>
-                      {osmAddresses.length > 0 ? (
-                        <div className="space-y-2">
-                          {osmAddresses.map((address) => (
-                            <button
-                              key={address.id}
-                              onClick={() => handleLink(address)}
-                              disabled={isLinking || isUnlinking}
-                              className="w-full text-left p-4 rounded-lg border-2 border-green-200 hover:border-green-500 hover:bg-green-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900">
-                                      {address.street}, {address.house}
-                                    </p>
-                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
-                                      OSM
-                                    </span>
-                                  </div>
-                                  {address.comment && (
-                                    <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
-                                  )}
-                                  <p className="text-xs text-green-700 mt-1">
-                                    Адрес будет сохранен в локальную базу при выборе
-                                  </p>
-                                </div>
-                                <span className="ml-2 text-sm font-medium text-green-700">
-                                  {currentNodeId ? 'Изменить →' : 'Выбрать →'}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="p-4 bg-green-50 border-2 border-green-100 rounded-lg">
-                          <p className="text-sm text-green-700">
-                            {isSearching ? '⏳ Проверка OpenStreetMap...' : '📭 В OpenStreetMap пока нет подсказок'}
-                          </p>
-                          <p className="text-xs text-green-700 mt-1">
-                            Запрос к OSM выполняется автоматически для проверки написания
                           </p>
                           {searchStats && (
                             <p className="text-xs text-gray-500 mt-1">
