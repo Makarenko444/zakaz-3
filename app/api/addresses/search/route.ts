@@ -250,7 +250,9 @@ export async function GET(request: Request) {
              `${node.street} ${node.house}`.toLowerCase() === normalizedQuery
     })
 
-    if (localResults.length < MIN_LOCAL_RESULTS || !hasExactMatch) {
+    const triggeredExternalSearch = localResults.length < MIN_LOCAL_RESULTS || !hasExactMatch
+
+    if (triggeredExternalSearch) {
       const reason = localResults.length < MIN_LOCAL_RESULTS
         ? `only ${localResults.length} local results`
         : 'no exact match found'
@@ -279,11 +281,11 @@ export async function GET(request: Request) {
         yandex: yandexCount,
         openstreet: osmCount
       },
-      osm_validation: osmValidation,
+      fallback: triggeredExternalSearch,
       debug: {
         query: query.trim(),
         hasExactMatch,
-        triggeredExternalSearch: localResults.length < MIN_LOCAL_RESULTS || !hasExactMatch
+        triggeredExternalSearch
       }
     })
   } catch (error) {
