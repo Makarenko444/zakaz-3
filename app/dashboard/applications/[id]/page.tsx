@@ -14,12 +14,16 @@ import FileList from '@/app/components/FileList'
 import AddressLinkWizard from '@/app/components/AddressLinkWizard'
 import { getCurrentUser } from '@/lib/auth-client'
 
-// Расширенный тип для заявки с адресом
+// Расширенный тип для заявки с узлом/адресом
 interface ApplicationWithAddress extends Application {
-  zakaz_addresses: {
-    street: string
-    house: string
+  zakaz_nodes: {
+    id: string
+    code: string
+    street: string | null
+    house: string | null
+    address: string
     comment: string | null
+    presence_type: string
   } | null
   assigned_user?: {
     id: string
@@ -148,7 +152,7 @@ export default function ApplicationDetailPage() {
 
   // Автоматически открываем мастера привязки, если адрес не привязан к справочнику
   useEffect(() => {
-    if (application && !application.address_id && (application.street_and_house)) {
+    if (application && !application.node_id && (application.street_and_house)) {
       setShowAddressWizard(true)
     }
   }, [application])
@@ -266,7 +270,7 @@ export default function ApplicationDetailPage() {
     }
   }
 
-  async function handleLinkAddress(addressId: string) {
+  async function handleLinkAddress(nodeId: string) {
     if (!application) return
 
     try {
@@ -277,7 +281,7 @@ export default function ApplicationDetailPage() {
         },
         body: JSON.stringify({
           ...application,
-          address_id: addressId,
+          node_id: nodeId,
           address_match_status: 'manual_matched',
           updated_by: currentUserId,
         }),
@@ -307,7 +311,7 @@ export default function ApplicationDetailPage() {
         },
         body: JSON.stringify({
           ...application,
-          address_id: null,
+          node_id: null,
           address_match_status: 'unmatched',
           updated_by: currentUserId,
         }),
@@ -337,9 +341,9 @@ export default function ApplicationDetailPage() {
     })
   }
 
-  const formatAddress = (address: ApplicationWithAddress['zakaz_addresses']) => {
-    if (!address) return 'Адрес не указан'
-    return `${address.street}, ${address.house}`
+  const formatAddress = (node: ApplicationWithAddress['zakaz_nodes']) => {
+    if (!node || !node.street || !node.house) return 'Адрес не указан'
+    return `${node.street}, ${node.house}`
   }
 
   const formatTitle = () => {
@@ -603,21 +607,21 @@ export default function ApplicationDetailPage() {
                     </div>
                   </div>
 
-                  {/* Привязка к формализованному адресу */}
+                  {/* Привязка к формализованному адресу/узлу */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      {application.address_id && application.zakaz_addresses ? (
+                      {application.node_id && application.zakaz_nodes ? (
                         <>
                           <span className="text-xs text-gray-500">Формализованный адрес:</span>
                           <Link
-                            href={`/dashboard/applications?address_id=${application.address_id}&address_street=${encodeURIComponent(application.zakaz_addresses.street)}&address_house=${encodeURIComponent(application.zakaz_addresses.house)}`}
+                            href={`/dashboard/applications?node_id=${application.node_id}&node_street=${encodeURIComponent(application.zakaz_nodes.street || '')}&node_house=${encodeURIComponent(application.zakaz_nodes.house || '')}`}
                             className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition"
                           >
                             <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             <span className="text-xs font-medium text-green-700 hover:text-green-800">
-                              {formatAddress(application.zakaz_addresses)}
+                              {formatAddress(application.zakaz_nodes)}
                             </span>
                           </Link>
                         </>
@@ -637,12 +641,12 @@ export default function ApplicationDetailPage() {
                       <button
                         onClick={() => setShowAddressWizard(true)}
                         className={`text-xs px-3 py-1.5 rounded transition font-medium ${
-                          application.address_id
+                          application.node_id
                             ? 'bg-green-100 text-green-700 hover:bg-green-200'
                             : 'bg-indigo-600 text-white hover:bg-indigo-700'
                         }`}
                       >
-                        {application.address_id ? 'Изменить' : 'Привязать'}
+                        {application.node_id ? 'Изменить' : 'Привязать'}
                       </button>
                     )}
                   </div>
@@ -835,7 +839,7 @@ export default function ApplicationDetailPage() {
           applicationId={id}
           streetAndHouse={application.street_and_house}
           addressDetails={application.address_details}
-          currentAddressId={application.address_id}
+          currentNodeId={application.node_id}
           onClose={() => setShowAddressWizard(false)}
           onLink={handleLinkAddress}
           onUnlink={handleUnlinkAddress}
