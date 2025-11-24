@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     // Город по умолчанию если не указан
-    const nodeCity = city || 'Москва'
+    const nodeCity = city || 'Томск'
 
     const supabase = createDirectClient()
 
