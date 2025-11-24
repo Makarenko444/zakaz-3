@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Application, ApplicationStatus, Urgency, CustomerType, ServiceType, User } from '@/lib/types'
@@ -13,6 +13,19 @@ import FileUpload from '@/app/components/FileUpload'
 import FileList from '@/app/components/FileList'
 import AddressLinkWizard from '@/app/components/AddressLinkWizard'
 import { getCurrentUser } from '@/lib/auth-client'
+
+interface InstallerProfile {
+  id: string
+  full_name: string
+  email: string
+  phone: string
+  region: string
+  node: string
+  skills: string[]
+  availability: string[]
+  workload: number
+  activeAssignments: number
+}
 
 // Расширенный тип для заявки с узлом/адресом
 interface ApplicationWithAddress extends Application {
@@ -94,6 +107,15 @@ const serviceTypeLabels: Record<ServiceType, string> = {
   scs: 'Строительство СКС',
 }
 
+const skillOptions = ['Оптика', 'Сварка', 'СКУД', 'Эл. часть', 'ЛВС/ВОЛС', 'ПНР']
+const fallbackRegions = ['Москва', 'Санкт-Петербург', 'Нижний Новгород']
+const fallbackNodes = ['Node-07', 'Node-12', 'Node-03', 'Node-21']
+const availabilityTemplates = [
+  ['Сегодня 10:00–14:00', 'Завтра 12:00–16:00', 'Чт 09:00–18:00'],
+  ['Сегодня 13:00–18:00', 'Пт 10:00–15:00', 'Сб 09:00–13:00'],
+  ['Завтра 09:00–17:00', 'Пт 12:00–18:00', 'Вс 10:00–14:00'],
+]
+
 export default function ApplicationDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -115,6 +137,35 @@ export default function ApplicationDetailPage() {
   const [showUserInfoModal, setShowUserInfoModal] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedUserName, setSelectedUserName] = useState<string>('')
+  const [installers, setInstallers] = useState<InstallerProfile[]>([])
+  const [selectedInstallers, setSelectedInstallers] = useState<string[]>([])
+  const [responsibleInstallerId, setResponsibleInstallerId] = useState<string>('')
+  const [installerRegion, setInstallerRegion] = useState<string>('all')
+  const [installerSkills, setInstallerSkills] = useState<string[]>([])
+  const [installerSearch, setInstallerSearch] = useState('')
+  const [availabilityWindow, setAvailabilityWindow] = useState('Завтра 12:00–16:00')
+  const [minCapacity, setMinCapacity] = useState(2)
+  const [brigadeNote, setBrigadeNote] = useState('')
+  const [brigadeMessage, setBrigadeMessage] = useState('')
+  const [showWorkOrderModal, setShowWorkOrderModal] = useState(false)
+  const [workOrderWindow, setWorkOrderWindow] = useState('Завтра 10:00–14:00')
+  const [workOrderTitle, setWorkOrderTitle] = useState('Монтаж и пусконаладка')
+  const [workOrderNote, setWorkOrderNote] = useState('')
+  const [workOrderInstallers, setWorkOrderInstallers] = useState<string[]>([])
+  const [workOrderError, setWorkOrderError] = useState('')
+  const [workOrders, setWorkOrders] = useState<
+    {
+      id: string
+      number: string
+      window: string
+      title: string
+      installers: string[]
+      note?: string
+      fileName: string
+      status: 'Сформирован' | 'В работе' | 'Завершен'
+      createdAt: string
+    }[]
+  >([])
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
@@ -193,6 +244,45 @@ export default function ApplicationDetailPage() {
       if (!response.ok) throw new Error('Failed to load users')
       const data = await response.json()
       setUsers(data.users)
+
+      const installersFromApi = (data.users || []).filter(
+        (user: { role: string }) => user.role === 'installer',
+      )
+
+      const enrichedInstallers: InstallerProfile[] = installersFromApi
+        .filter(Boolean)
+        .map(
+          (
+            user: {
+              id: string
+              full_name: string
+              email: string
+              phone?: string | null
+              assigned_node?: string | null
+            },
+            index: number,
+          ) => {
+            const skills = [
+              skillOptions[index % skillOptions.length],
+              skillOptions[(index + 2) % skillOptions.length],
+            ]
+
+            return {
+              id: user.id,
+              full_name: user.full_name,
+              email: user.email,
+              phone: user.phone || '+7 (900) 000-00-00',
+              region: fallbackRegions[index % fallbackRegions.length],
+              node: user.assigned_node || fallbackNodes[index % fallbackNodes.length],
+              skills,
+              availability: availabilityTemplates[index % availabilityTemplates.length],
+              workload: 20 + index * 8,
+              activeAssignments: (index % 3) + 1,
+            }
+          },
+        )
+
+      setInstallers(enrichedInstallers)
     } catch (error) {
       console.error('Error loading users:', error)
     }
@@ -362,6 +452,119 @@ export default function ApplicationDetailPage() {
     }
 
     return title
+  }
+
+  const installerRegions = useMemo(
+    () => ['all', ...Array.from(new Set(installers.map(installer => installer.region)))],
+    [installers],
+  )
+
+  const filteredInstallers = useMemo(() => {
+    return installers.filter(installer => {
+      const matchesRegion = installerRegion === 'all' || installer.region === installerRegion
+      const matchesSkills = installerSkills.every(skill => installer.skills.includes(skill))
+      const matchesSearch = installer.full_name.toLowerCase().includes(installerSearch.toLowerCase())
+
+      return matchesRegion && matchesSkills && matchesSearch
+    })
+  }, [installers, installerRegion, installerSkills, installerSearch])
+
+  const commonSlots = useMemo(() => {
+    if (selectedInstallers.length === 0) return [] as string[]
+    const selectedProfiles = installers.filter(profile => selectedInstallers.includes(profile.id))
+
+    const slotCounts = new Map<string, number>()
+    selectedProfiles.forEach(profile => {
+      profile.availability.forEach(slot => {
+        slotCounts.set(slot, (slotCounts.get(slot) || 0) + 1)
+      })
+    })
+
+    return Array.from(slotCounts.entries())
+      .filter(([, count]) => count === selectedProfiles.length)
+      .map(([slot]) => slot)
+  }, [installers, selectedInstallers])
+
+  function toggleInstallerSkill(skill: string) {
+    setInstallerSkills(prev =>
+      prev.includes(skill) ? prev.filter(item => item !== skill) : [...prev, skill],
+    )
+  }
+
+  function toggleInstallerSelection(id: string) {
+    setBrigadeMessage('')
+    setSelectedInstallers(prev => {
+      if (prev.includes(id)) {
+        const updated = prev.filter(item => item !== id)
+        if (responsibleInstallerId === id) {
+          setResponsibleInstallerId(updated[0] || '')
+        }
+        return updated
+      }
+      if (!responsibleInstallerId) {
+        setResponsibleInstallerId(id)
+      }
+      return [...prev, id]
+    })
+  }
+
+  function toggleWorkOrderInstaller(installerId: string) {
+    setWorkOrderError('')
+    setWorkOrderInstallers(prev =>
+      prev.includes(installerId)
+        ? prev.filter(item => item !== installerId)
+        : [...prev, installerId],
+    )
+  }
+
+  function handleCreateWorkOrder() {
+    if (!application) return
+    if (workOrderInstallers.length === 0) {
+      setWorkOrderError('Добавьте хотя бы одного монтажника для наряда')
+      return
+    }
+
+    const newOrder = {
+      id: `${Date.now()}`,
+      number: `WR-${application.application_number}-${workOrders.length + 1}`,
+      window: workOrderWindow || 'Окно не указано',
+      title: workOrderTitle || 'Наряд на монтаж',
+      installers: workOrderInstallers,
+      note: workOrderNote,
+      fileName: `Наряд_${application.application_number}_${workOrders.length + 1}.pdf`,
+      status: 'Сформирован' as const,
+      createdAt: new Date().toISOString(),
+    }
+
+    setWorkOrders(prev => [...prev, newOrder])
+    setShowWorkOrderModal(false)
+    setWorkOrderInstallers([])
+    setWorkOrderNote('')
+    setWorkOrderError('')
+    setWorkOrderWindow('Завтра 10:00–14:00')
+    setWorkOrderTitle('Монтаж и пусконаладка')
+    setFileRefreshTrigger(prev => prev + 1)
+    setBrigadeMessage(
+      `Наряд ${newOrder.number} сформирован. Документ ${newOrder.fileName} будет прикреплен к заявке после генерации`,
+    )
+  }
+
+  function handleSaveBrigade() {
+    if (!application) return
+    if (selectedInstallers.length === 0) {
+      setBrigadeMessage('Добавьте монтажников, чтобы зафиксировать состав бригады')
+      return
+    }
+    if (selectedInstallers.length < minCapacity) {
+      setBrigadeMessage('Количество участников ниже требуемой вместимости — уточните состав')
+      return
+    }
+
+    setBrigadeMessage(
+      `Состав из ${selectedInstallers.length} исполнителя(ей) зафиксирован для №${application.application_number}. Ответственный: ${
+        installers.find(item => item.id === responsibleInstallerId)?.full_name || 'не выбран'
+      }.`,
+    )
   }
 
   if (isLoading) {
@@ -695,6 +898,301 @@ export default function ApplicationDetailPage() {
               )}
             </div>
 
+            {/* Монтажная бригада для объекта */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-gray-200 pb-3 mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Монтажная бригада</h2>
+                  <p className="text-sm text-gray-600">
+                    Подберите состав из каталога монтажников под эту заявку и зафиксируйте ответственного.
+                  </p>
+                </div>
+                <div className="flex flex-col md:flex-row gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Окно работ</label>
+                    <select
+                      value={availabilityWindow}
+                      onChange={event => setAvailabilityWindow(event.target.value)}
+                      className="border border-gray-200 rounded-md px-3 py-2 text-sm"
+                    >
+                      {['Сегодня 10:00–14:00', 'Завтра 12:00–16:00', 'Пт 09:00–15:00', 'Сб 09:00–13:00'].map(slot => (
+                        <option key={slot}>{slot}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Минимум</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={minCapacity}
+                      onChange={event => setMinCapacity(Number(event.target.value))}
+                      className="w-20 border border-gray-200 rounded-md px-3 py-2 text-sm"
+                    />
+                    <span className="text-sm text-gray-600">монтажников</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600">Регион</label>
+                      <select
+                        value={installerRegion}
+                        onChange={event => setInstallerRegion(event.target.value)}
+                        className="border border-gray-200 rounded-md px-3 py-2 text-sm"
+                      >
+                        {installerRegions.map(regionName => (
+                          <option key={regionName} value={regionName}>
+                            {regionName === 'all' ? 'Все' : regionName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <input
+                      type="search"
+                      value={installerSearch}
+                      onChange={event => setInstallerSearch(event.target.value)}
+                      placeholder="Поиск монтажников"
+                      className="border border-gray-200 rounded-md px-3 py-2 text-sm w-full md:w-80"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {skillOptions.map(skill => {
+                      const isActive = installerSkills.includes(skill)
+                      return (
+                        <button
+                          key={skill}
+                          onClick={() => toggleInstallerSkill(skill)}
+                          className={`px-3 py-1 rounded-full text-sm border transition ${
+                            isActive
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm'
+                              : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          {skill}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {filteredInstallers.length === 0 ? (
+                    <div className="py-6 text-center text-gray-500 border border-dashed border-gray-200 rounded-lg">
+                      Нет монтажников по заданным фильтрам
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {filteredInstallers.map(installer => {
+                        const isSelected = selectedInstallers.includes(installer.id)
+                        const hasConflict = installer.workload >= 80 || installer.activeAssignments >= 3
+                        return (
+                          <div
+                            key={installer.id}
+                            className={`border rounded-lg p-3 transition hover:border-indigo-200 shadow-sm ${
+                              isSelected ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-gray-900">{installer.full_name}</h3>
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                                    {installer.region}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-600">{installer.email}</p>
+                                <p className="text-sm text-gray-600">{installer.phone}</p>
+                                <p className="text-xs text-gray-500 mt-1">Узел: {installer.node}</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xs text-gray-500">Активных объектов</div>
+                                <div className={`font-semibold ${hasConflict ? 'text-red-600' : 'text-indigo-700'}`}>
+                                  {installer.activeAssignments}
+                                </div>
+                                <div className="text-xs text-gray-500">Загрузка {installer.workload}%</div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {installer.skills.map(skill => (
+                                <span
+                                  key={skill}
+                                  className={`text-xs px-2 py-1 rounded-full border ${
+                                    installerSkills.includes(skill)
+                                      ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                      : 'border-gray-200 text-gray-700'
+                                  }`}
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+
+                            <div className="mt-3 space-y-1">
+                              <p className="text-xs text-gray-600">Доступность</p>
+                              <div className="flex flex-wrap gap-1">
+                                {installer.availability.map(slot => (
+                                  <span
+                                    key={slot}
+                                    className={`text-xs px-2 py-1 rounded-md border ${
+                                      commonSlots.includes(slot)
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border-gray-200 text-gray-700'
+                                    }`}
+                                  >
+                                    {slot}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {hasConflict && (
+                              <div className="mt-3 text-xs text-red-600 flex items-center gap-2">
+                                <span className="text-lg">⚠️</span>
+                                Возможен конфликт по загрузке или текущим объектам
+                              </div>
+                            )}
+
+                            <div className="mt-3 flex items-center justify-between gap-2">
+                              <button
+                                onClick={() => toggleInstallerSelection(installer.id)}
+                                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition ${
+                                  isSelected
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'border-gray-200 text-gray-800 hover:border-gray-300'
+                                }`}
+                              >
+                                {isSelected ? 'Убрать из состава' : 'Добавить в состав'}
+                              </button>
+                              {isSelected && (
+                                <button
+                                  onClick={() => setResponsibleInstallerId(installer.id)}
+                                  className={`px-3 py-2 rounded-md text-xs font-semibold border transition ${
+                                    responsibleInstallerId === installer.id
+                                      ? 'bg-amber-500 text-white border-amber-500'
+                                      : 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                                  }`}
+                                >
+                                  Ответственный
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="border border-gray-200 rounded-lg p-3">
+                    <p className="text-sm font-semibold text-gray-900 mb-1">Состав на объект</p>
+                    <p className="text-xs text-gray-600 mb-3">
+                      {application.zakaz_nodes?.address || application.street_and_house || 'Адрес не указан'}
+                      {application.zakaz_nodes?.code ? ` • ${application.zakaz_nodes.code}` : ''}
+                    </p>
+                    <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                      <span className="px-2 py-1 rounded bg-indigo-50 text-indigo-700 font-semibold">
+                        {selectedInstallers.length} монтажника
+                      </span>
+                      <span>минимум {minCapacity} требуются</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {selectedInstallers.map(installerId => {
+                        const installer = installers.find(item => item.id === installerId)
+                        if (!installer) return null
+                        return (
+                          <div
+                            key={installer.id}
+                            className="flex items-center justify-between gap-2 bg-gray-50 rounded-md px-2 py-2"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{installer.full_name}</p>
+                              <p className="text-xs text-gray-600">{installer.skills.join(', ')}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setResponsibleInstallerId(installer.id)}
+                                className={`px-3 py-2 rounded-md text-xs font-semibold border transition ${
+                                  responsibleInstallerId === installer.id
+                                    ? 'bg-amber-500 text-white border-amber-500'
+                                    : 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                                }`}
+                              >
+                                Ответственный
+                              </button>
+                              <button
+                                onClick={() => toggleInstallerSelection(installer.id)}
+                                className="p-2 text-gray-500 hover:text-red-600"
+                                aria-label="Удалить из состава"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {selectedInstallers.length === 0 && (
+                        <div className="text-sm text-gray-600">Добавьте монтажников из списка слева</div>
+                      )}
+                    </div>
+
+                    <div className="mt-3">
+                      <p className="text-sm font-medium text-gray-800 mb-2">Совместные слоты</p>
+                      {commonSlots.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {commonSlots.map(slot => (
+                            <span
+                              key={slot}
+                              className="text-xs px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            >
+                              {slot}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-600">
+                          Выберите двух и более монтажников, чтобы увидеть пересечение доступности
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      <label className="text-sm text-gray-700 font-medium">Комментарий для бригады</label>
+                      <textarea
+                        value={brigadeNote}
+                        onChange={event => setBrigadeNote(event.target.value)}
+                        placeholder="Например: доступ на объект после 12:00, нужны сварочные работы"
+                        className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm min-h-[60px]"
+                      />
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      <button
+                        onClick={handleSaveBrigade}
+                        className="w-full px-4 py-3 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700 transition"
+                      >
+                        Зафиксировать состав
+                      </button>
+                      {brigadeMessage && <p className="text-sm text-gray-700">{brigadeMessage}</p>}
+                      {responsibleInstallerId && (
+                        <p className="text-xs text-gray-600">
+                          Ответственный: {installers.find(item => item.id === responsibleInstallerId)?.full_name}
+                          {availabilityWindow ? ` • Окно: ${availabilityWindow}` : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Комментарии сотрудников */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h2 className="text-lg font-bold text-gray-900 mb-4 pb-3 border-b border-gray-200">Комментарии сотрудников</h2>
@@ -714,8 +1212,78 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
 
-          {/* Правая колонка - Файлы и история */}
+          {/* Правая колонка - Задания, файлы и история */}
           <div className="lg:col-span-1 space-y-4">
+            {/* Задания / Наряды */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                <h3 className="text-base font-bold text-gray-900">Задания</h3>
+                <button
+                  onClick={() => {
+                    setShowWorkOrderModal(true)
+                    setWorkOrderInstallers(selectedInstallers)
+                  }}
+                  className="text-sm px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition"
+                >
+                  Сформировать наряд
+                </button>
+              </div>
+
+              {workOrders.length === 0 ? (
+                <p className="text-sm text-gray-600">
+                  Наряды ещё не созданы. Сформируйте задание для монтажников по данному объекту.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {workOrders.map(order => (
+                    <div key={order.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-semibold text-gray-900">{order.number}</span>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full border ${
+                            order.status === 'Сформирован'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              : order.status === 'В работе'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}
+                        >
+                          {order.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-sm text-gray-700 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10m-12 8h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          <span>{order.window}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          <span className="font-medium text-gray-900">{order.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span>
+                            {order.installers
+                              .map(installerId => installers.find(item => item.id === installerId)?.full_name || 'Исполнитель')
+                              .join(', ')}
+                          </span>
+                        </div>
+                        {order.note && <p className="text-xs text-gray-600">{order.note}</p>}
+                        <div className="text-xs text-gray-500">Файл: {order.fileName} (будет прикреплён)</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Файлы заявки */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h3 className="text-base font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">Прикрепленные файлы</h3>
@@ -827,6 +1395,125 @@ export default function ApplicationDetailPage() {
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно формирования наряда */}
+      {showWorkOrderModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-xl">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Наряд на работы</h3>
+                <p className="text-sm text-gray-600">Формирование задания для монтажников по объекту</p>
+              </div>
+              <button
+                onClick={() => setShowWorkOrderModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition"
+                aria-label="Закрыть"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-500">Объект</p>
+                  <p className="text-base font-semibold text-gray-900">{formatTitle()}</p>
+                  {application?.zakaz_nodes && (
+                    <p className="text-xs text-gray-600">Узел: {application.zakaz_nodes.code}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-700 font-medium">Окно выполнения</label>
+                  <input
+                    value={workOrderWindow}
+                    onChange={event => setWorkOrderWindow(event.target.value)}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
+                    placeholder="Например: 12.03 10:00–14:00"
+                  />
+                  {commonSlots.length > 0 && (
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {commonSlots.slice(0, 3).map(slot => (
+                        <button
+                          key={slot}
+                          onClick={() => setWorkOrderWindow(slot)}
+                          className="px-2 py-1 rounded-full border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
+                          type="button"
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-700 font-medium">Что нужно сделать</label>
+                  <input
+                    value={workOrderTitle}
+                    onChange={event => setWorkOrderTitle(event.target.value)}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
+                    placeholder="Например: монтаж и сварка, установка коммутатора"
+                  />
+                  <textarea
+                    value={workOrderNote}
+                    onChange={event => setWorkOrderNote(event.target.value)}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm min-h-[90px]"
+                    placeholder="Требования по доступу, материалы, контакты на объекте"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-700 font-medium">Исполнители</label>
+                    <span className="text-xs text-gray-500">Выбрано: {workOrderInstallers.length}</span>
+                  </div>
+                  <div className="border border-gray-200 rounded-md max-h-64 overflow-y-auto divide-y divide-gray-100">
+                    {installers.map(installer => (
+                      <label key={installer.id} className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={workOrderInstallers.includes(installer.id)}
+                          onChange={() => toggleWorkOrderInstaller(installer.id)}
+                          className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                        />
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900">{installer.full_name}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{installer.region}</span>
+                          </div>
+                          <p className="text-xs text-gray-600">{installer.skills.join(' • ')}</p>
+                          <p className="text-xs text-gray-500">Доступность: {installer.availability[0]}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  {workOrderError && <p className="text-sm text-red-600">{workOrderError}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowWorkOrderModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleCreateWorkOrder}
+                className="px-4 py-2 text-sm font-semibold rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition"
+              >
+                Создать наряд и прикрепить
               </button>
             </div>
           </div>
