@@ -59,6 +59,7 @@ export default function AddressLinkWizard({
 
     setIsSearching(true)
     setError('')
+    setOsmValidation(null)
 
     try {
       const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}`)
@@ -214,6 +215,56 @@ export default function AddressLinkWizard({
             )}
           </div>
 
+          {/* Проверка написания по OpenStreetMap */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3 0 2.25 3 5 3 5s3-2.75 3-5c0-1.657-1.343-3-3-3z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.5 11c0 5.5-6.5 9-8.5 9s-8.5-3.5-8.5-9a8.5 8.5 0 1117 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Проверка написания через OpenStreetMap</p>
+                <p className="text-xs text-gray-600">Используем OSM, чтобы убедиться, что адрес написан корректно.</p>
+              </div>
+            </div>
+
+            {isLoading && !osmValidation ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+                <span>Идет проверка по OpenStreetMap...</span>
+              </div>
+            ) : osmValidation?.status === 'match' ? (
+              <div className="p-3 rounded-lg border border-green-200 bg-green-50 flex items-start gap-2">
+                <svg className="w-5 h-5 text-green-700 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-green-800">Написание совпадает с данными OSM</p>
+                  {osmValidation.suggestion && (
+                    <p className="text-xs text-green-700 mt-1">{osmValidation.suggestion}</p>
+                  )}
+                </div>
+              </div>
+            ) : osmValidation?.status === 'suggestions' ? (
+              <div className="p-3 rounded-lg border border-amber-200 bg-amber-50">
+                <p className="text-sm font-medium text-amber-800">OSM предлагает уточнения для написания</p>
+                <p className="text-xs text-amber-700 mt-1">Проверьте варианты и выберите подходящий адрес.</p>
+                {osmValidation.suggestions && osmValidation.suggestions.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-xs text-amber-800 list-disc list-inside">
+                    {osmValidation.suggestions.map((item, index) => (
+                      <li key={index}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg border border-gray-200 bg-gray-50">
+                <p className="text-sm font-medium text-gray-800">Подходящих подсказок в OSM не найдено</p>
+                <p className="text-xs text-gray-600 mt-1">Адрес можно привязать вручную или воспользоваться подсказками других источников.</p>
+              </div>
+            )}
+          </div>
+
           {/* Поиск */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -336,9 +387,9 @@ export default function AddressLinkWizard({
                           </span>
                         )}
                       </div>
-                      {externalAddresses.length > 0 ? (
+                      {yandexAddresses.length > 0 ? (
                         <div className="space-y-2">
-                          {externalAddresses.map((address) => (
+                          {yandexAddresses.map((address) => (
                             <button
                               key={address.id}
                               onClick={() => handleLink(address)}
@@ -362,7 +413,7 @@ export default function AddressLinkWizard({
                                     Будет сохранен в локальную базу при выборе
                                   </p>
                                 </div>
-                                <span className="ml-2 text-sm font-medium text-blue-600">
+                                <span className="ml-2 text-sm font-medium text-green-700">
                                   {currentNodeId ? 'Изменить →' : 'Выбрать →'}
                                 </span>
                               </div>
@@ -387,7 +438,7 @@ export default function AddressLinkWizard({
                     </div>
 
                     {/* Если нет ни локальных, ни внешних адресов */}
-                    {localAddresses.length === 0 && externalAddresses.length === 0 && (
+                    {localAddresses.length === 0 && yandexAddresses.length === 0 && osmAddresses.length === 0 && (
                       <div className="text-center py-8">
                         <svg className="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

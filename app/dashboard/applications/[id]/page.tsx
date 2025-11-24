@@ -849,6 +849,301 @@ export default function ApplicationDetailPage() {
               )}
             </div>
 
+            {/* Монтажная бригада для объекта */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-gray-200 pb-3 mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Монтажная бригада</h2>
+                  <p className="text-sm text-gray-600">
+                    Подберите состав из каталога монтажников под эту заявку и зафиксируйте ответственного.
+                  </p>
+                </div>
+                <div className="flex flex-col md:flex-row gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Окно работ</label>
+                    <select
+                      value={availabilityWindow}
+                      onChange={event => setAvailabilityWindow(event.target.value)}
+                      className="border border-gray-200 rounded-md px-3 py-2 text-sm"
+                    >
+                      {['Сегодня 10:00–14:00', 'Завтра 12:00–16:00', 'Пт 09:00–15:00', 'Сб 09:00–13:00'].map(slot => (
+                        <option key={slot}>{slot}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Минимум</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={minCapacity}
+                      onChange={event => setMinCapacity(Number(event.target.value))}
+                      className="w-20 border border-gray-200 rounded-md px-3 py-2 text-sm"
+                    />
+                    <span className="text-sm text-gray-600">монтажников</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600">Регион</label>
+                      <select
+                        value={installerRegion}
+                        onChange={event => setInstallerRegion(event.target.value)}
+                        className="border border-gray-200 rounded-md px-3 py-2 text-sm"
+                      >
+                        {installerRegions.map(regionName => (
+                          <option key={regionName} value={regionName}>
+                            {regionName === 'all' ? 'Все' : regionName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <input
+                      type="search"
+                      value={installerSearch}
+                      onChange={event => setInstallerSearch(event.target.value)}
+                      placeholder="Поиск монтажников"
+                      className="border border-gray-200 rounded-md px-3 py-2 text-sm w-full md:w-80"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {skillOptions.map(skill => {
+                      const isActive = installerSkills.includes(skill)
+                      return (
+                        <button
+                          key={skill}
+                          onClick={() => toggleInstallerSkill(skill)}
+                          className={`px-3 py-1 rounded-full text-sm border transition ${
+                            isActive
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm'
+                              : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          {skill}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {filteredInstallers.length === 0 ? (
+                    <div className="py-6 text-center text-gray-500 border border-dashed border-gray-200 rounded-lg">
+                      Нет монтажников по заданным фильтрам
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {filteredInstallers.map(installer => {
+                        const isSelected = selectedInstallers.includes(installer.id)
+                        const hasConflict = installer.workload >= 80 || installer.activeAssignments >= 3
+                        return (
+                          <div
+                            key={installer.id}
+                            className={`border rounded-lg p-3 transition hover:border-indigo-200 shadow-sm ${
+                              isSelected ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-gray-900">{installer.full_name}</h3>
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                                    {installer.region}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-600">{installer.email}</p>
+                                <p className="text-sm text-gray-600">{installer.phone}</p>
+                                <p className="text-xs text-gray-500 mt-1">Узел: {installer.node}</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xs text-gray-500">Активных объектов</div>
+                                <div className={`font-semibold ${hasConflict ? 'text-red-600' : 'text-indigo-700'}`}>
+                                  {installer.activeAssignments}
+                                </div>
+                                <div className="text-xs text-gray-500">Загрузка {installer.workload}%</div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {installer.skills.map(skill => (
+                                <span
+                                  key={skill}
+                                  className={`text-xs px-2 py-1 rounded-full border ${
+                                    installerSkills.includes(skill)
+                                      ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                      : 'border-gray-200 text-gray-700'
+                                  }`}
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+
+                            <div className="mt-3 space-y-1">
+                              <p className="text-xs text-gray-600">Доступность</p>
+                              <div className="flex flex-wrap gap-1">
+                                {installer.availability.map(slot => (
+                                  <span
+                                    key={slot}
+                                    className={`text-xs px-2 py-1 rounded-md border ${
+                                      commonSlots.includes(slot)
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border-gray-200 text-gray-700'
+                                    }`}
+                                  >
+                                    {slot}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {hasConflict && (
+                              <div className="mt-3 text-xs text-red-600 flex items-center gap-2">
+                                <span className="text-lg">⚠️</span>
+                                Возможен конфликт по загрузке или текущим объектам
+                              </div>
+                            )}
+
+                            <div className="mt-3 flex items-center justify-between gap-2">
+                              <button
+                                onClick={() => toggleInstallerSelection(installer.id)}
+                                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition ${
+                                  isSelected
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'border-gray-200 text-gray-800 hover:border-gray-300'
+                                }`}
+                              >
+                                {isSelected ? 'Убрать из состава' : 'Добавить в состав'}
+                              </button>
+                              {isSelected && (
+                                <button
+                                  onClick={() => setResponsibleInstallerId(installer.id)}
+                                  className={`px-3 py-2 rounded-md text-xs font-semibold border transition ${
+                                    responsibleInstallerId === installer.id
+                                      ? 'bg-amber-500 text-white border-amber-500'
+                                      : 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                                  }`}
+                                >
+                                  Ответственный
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="border border-gray-200 rounded-lg p-3">
+                    <p className="text-sm font-semibold text-gray-900 mb-1">Состав на объект</p>
+                    <p className="text-xs text-gray-600 mb-3">
+                      {application.zakaz_nodes?.address || application.street_and_house || 'Адрес не указан'}
+                      {application.zakaz_nodes?.code ? ` • ${application.zakaz_nodes.code}` : ''}
+                    </p>
+                    <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                      <span className="px-2 py-1 rounded bg-indigo-50 text-indigo-700 font-semibold">
+                        {selectedInstallers.length} монтажника
+                      </span>
+                      <span>минимум {minCapacity} требуются</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {selectedInstallers.map(installerId => {
+                        const installer = installers.find(item => item.id === installerId)
+                        if (!installer) return null
+                        return (
+                          <div
+                            key={installer.id}
+                            className="flex items-center justify-between gap-2 bg-gray-50 rounded-md px-2 py-2"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{installer.full_name}</p>
+                              <p className="text-xs text-gray-600">{installer.skills.join(', ')}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setResponsibleInstallerId(installer.id)}
+                                className={`px-3 py-2 rounded-md text-xs font-semibold border transition ${
+                                  responsibleInstallerId === installer.id
+                                    ? 'bg-amber-500 text-white border-amber-500'
+                                    : 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                                }`}
+                              >
+                                Ответственный
+                              </button>
+                              <button
+                                onClick={() => toggleInstallerSelection(installer.id)}
+                                className="p-2 text-gray-500 hover:text-red-600"
+                                aria-label="Удалить из состава"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {selectedInstallers.length === 0 && (
+                        <div className="text-sm text-gray-600">Добавьте монтажников из списка слева</div>
+                      )}
+                    </div>
+
+                    <div className="mt-3">
+                      <p className="text-sm font-medium text-gray-800 mb-2">Совместные слоты</p>
+                      {commonSlots.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {commonSlots.map(slot => (
+                            <span
+                              key={slot}
+                              className="text-xs px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            >
+                              {slot}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-600">
+                          Выберите двух и более монтажников, чтобы увидеть пересечение доступности
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      <label className="text-sm text-gray-700 font-medium">Комментарий для бригады</label>
+                      <textarea
+                        value={brigadeNote}
+                        onChange={event => setBrigadeNote(event.target.value)}
+                        placeholder="Например: доступ на объект после 12:00, нужны сварочные работы"
+                        className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm min-h-[60px]"
+                      />
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      <button
+                        onClick={handleSaveBrigade}
+                        className="w-full px-4 py-3 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700 transition"
+                      >
+                        Зафиксировать состав
+                      </button>
+                      {brigadeMessage && <p className="text-sm text-gray-700">{brigadeMessage}</p>}
+                      {responsibleInstallerId && (
+                        <p className="text-xs text-gray-600">
+                          Ответственный: {installers.find(item => item.id === responsibleInstallerId)?.full_name}
+                          {availabilityWindow ? ` • Окно: ${availabilityWindow}` : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Комментарии сотрудников */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h2 className="text-lg font-bold text-gray-900 mb-4 pb-3 border-b border-gray-200">Комментарии сотрудников</h2>
