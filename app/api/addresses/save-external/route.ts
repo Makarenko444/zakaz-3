@@ -4,7 +4,7 @@ import { createDirectClient } from '@/lib/supabase-direct'
 /**
  * POST /api/addresses/save-external
  *
- * Сохраняет внешний адрес (из КЛАДР API) в локальную таблицу zakaz_addresses
+ * Сохраняет внешний адрес (из Яндекс API) в локальную таблицу zakaz_nodes
  * Вызывается автоматически когда пользователь выбирает адрес из внешнего источника
  */
 export async function POST(request: Request) {
@@ -23,16 +23,16 @@ export async function POST(request: Request) {
 
     const supabase = createDirectClient()
 
-    // Проверяем, есть ли уже такой адрес в БД
+    // Проверяем, есть ли уже такой адрес/узел в БД
     const { data: existing, error: checkError } = await supabase
-      .from('zakaz_addresses')
+      .from('zakaz_nodes')
       .select('id')
       .eq('street', street)
       .eq('house', house)
       .maybeSingle<{ id: string }>() // Возвращает null если не найдено, вместо error
 
     if (checkError) {
-      console.error('Error checking existing address:', checkError)
+      console.error('Error checking existing node:', checkError)
       return NextResponse.json(
         { error: 'Failed to check existing address' },
         { status: 500 }
@@ -51,20 +51,27 @@ export async function POST(request: Request) {
       })
     }
 
-    // Сохраняем новый адрес
-    const { data: newAddress, error: insertError } = await (supabase
+    // Генерируем уникальный код для адреса
+    const code = `ADDR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+
+    // Сохраняем новый адрес как узел с presence_type = 'not_present'
+    const { data: newNode, error: insertError } = await (supabase
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .from('zakaz_addresses') as any)
+      .from('zakaz_nodes') as any)
       .insert({
+        code,
         street,
         house,
-        comment: comment || null
+        address: `${street}, ${house}`,
+        comment: comment || null,
+        presence_type: 'not_present',
+        status: 'existing'
       })
       .select()
       .single()
 
     if (insertError) {
-      console.error('Error inserting address:', insertError)
+      console.error('Error inserting node:', insertError)
       return NextResponse.json(
         { error: 'Failed to save address', details: insertError.message },
         { status: 500 }
@@ -72,7 +79,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      ...newAddress,
+      ...newNode,
       message: 'Address saved to local database',
       isNew: true
     })

@@ -1,14 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-
-interface Address {
-  id: string
-  street: string
-  house: string
-  comment: string | null
-  created_at?: string
-  updated_at?: string
-}
+import { Node } from '@/lib/types'
 
 interface Application {
   id: string
@@ -20,35 +12,35 @@ export async function GET() {
   try {
     const supabase = createDirectClient()
 
-    // Получаем все адреса (узлы)
-    const { data: addresses, error: addressesError } = await supabase
-      .from('zakaz_addresses')
+    // Получаем все адреса/узлы из zakaz_nodes
+    const { data: nodes, error: nodesError } = await supabase
+      .from('zakaz_nodes')
       .select('*')
       .order('street', { ascending: true })
       .order('house', { ascending: true })
-      .returns<Address[]>()
+      .returns<Node[]>()
 
-    if (addressesError) {
-      console.error('Database error:', addressesError)
+    if (nodesError) {
+      console.error('Database error:', nodesError)
       return NextResponse.json(
-        { error: 'Failed to fetch addresses', details: addressesError.message },
+        { error: 'Failed to fetch addresses', details: nodesError.message },
         { status: 500 }
       )
     }
 
     // Для каждого адреса получаем статистику по заявкам
-    const addressesWithStats = await Promise.all(
-      (addresses || []).map(async (address) => {
+    const nodesWithStats = await Promise.all(
+      (nodes || []).map(async (node) => {
         const { data: applications, error: applicationsError } = await supabase
           .from('zakaz_applications')
           .select('id, status, application_number')
-          .eq('address_id', address.id)
+          .eq('node_id', node.id)
           .returns<Application[]>()
 
         if (applicationsError) {
-          console.error('Error fetching applications for address:', applicationsError)
+          console.error('Error fetching applications for node:', applicationsError)
           return {
-            ...address,
+            ...node,
             total_applications: 0,
             status_counts: {},
             applications: []
@@ -62,7 +54,7 @@ export async function GET() {
         })
 
         return {
-          ...address,
+          ...node,
           total_applications: applications?.length || 0,
           status_counts: statusCounts,
           applications: applications || []
@@ -70,7 +62,7 @@ export async function GET() {
       })
     )
 
-    return NextResponse.json({ addresses: addressesWithStats })
+    return NextResponse.json({ addresses: nodesWithStats })
   } catch (error) {
     console.error('Unexpected error:', error)
     return NextResponse.json(
