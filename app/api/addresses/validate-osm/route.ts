@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     }
 
     // Собираем все найденные варианты написания
-    const suggestions = data
+    const allSuggestions = data
       .filter(item => {
         const addr = item.address || {}
         const street = addr.road || addr.pedestrian || addr.residential
@@ -75,6 +75,9 @@ export async function GET(request: Request) {
         const house = addr.house_number
         return `${street}, ${house}`
       })
+
+    // Убираем дубликаты
+    const suggestions = Array.from(new Set(allSuggestions))
 
     if (suggestions.length === 0) {
       return NextResponse.json({
