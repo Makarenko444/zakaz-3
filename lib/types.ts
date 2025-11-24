@@ -89,8 +89,10 @@ export interface Node {
   id: string
   code: string
   node_type: NodeType
+  city: string | null
   street: string | null
   house: string | null
+  building: string | null
   address: string
   comment: string | null
   presence_type: PresenceType
