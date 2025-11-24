@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
+type AddressSource = 'local' | 'external_yandex' | 'external_osm'
+
 interface Address {
   id: string
   street: string
@@ -9,15 +11,7 @@ interface Address {
   comment: string | null
   similarity?: number
   full_address?: string
-  source?: 'local' | 'external_yandex' | 'external_osm' // Источник адреса
-}
-
-interface OsmValidation {
-  status: 'match' | 'suggestions' | 'not_found'
-  suggestion?: string
-  street?: string | null
-  house?: string | null
-  suggestions?: string[]
+  source?: AddressSource // Источник адреса
 }
 
 interface AddressLinkWizardProps {
@@ -298,8 +292,7 @@ export default function AddressLinkWizard({
               {/* Разделяем адреса на локальные и внешние */}
               {(() => {
                 const localAddresses = addresses.filter(addr => !addr.source || addr.source === 'local')
-                const yandexAddresses = addresses.filter(addr => addr.source === 'external_yandex')
-                const osmAddresses = addresses.filter(addr => addr.source === 'external_osm')
+                const externalAddresses = addresses.filter(addr => addr.source && addr.source !== 'local')
 
                 return (
                   <div className="space-y-6">

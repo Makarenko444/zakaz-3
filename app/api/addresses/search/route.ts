@@ -12,10 +12,12 @@ interface NodeSearchResult {
   updated_at?: string
 }
 
+type AddressSource = 'local' | 'external_yandex' | 'external_osm'
+
 interface SearchResult extends NodeSearchResult {
   similarity: number
   full_address: string
-  source: 'local' | 'external_yandex' | 'external_osm'
+  source: AddressSource // Источник: локальная БД или внешний API
 }
 
 interface YandexSuggestResult {
@@ -111,7 +113,7 @@ async function searchYandexAPI(query: string): Promise<SearchResult[]> {
         comment: null,
         similarity: 0.7, // Средняя похожесть для внешних результатов
         full_address: item.address.formatted_address || `${street}, ${house}`,
-        source: 'external'
+        source: 'external_yandex'
       })
     }
 
