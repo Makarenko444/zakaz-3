@@ -138,15 +138,6 @@ export default function ApplicationDetailPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedUserName, setSelectedUserName] = useState<string>('')
   const [installers, setInstallers] = useState<InstallerProfile[]>([])
-  const [selectedInstallers, setSelectedInstallers] = useState<string[]>([])
-  const [responsibleInstallerId, setResponsibleInstallerId] = useState<string>('')
-  const [installerRegion, setInstallerRegion] = useState<string>('all')
-  const [installerSkills, setInstallerSkills] = useState<string[]>([])
-  const [installerSearch, setInstallerSearch] = useState('')
-  const [availabilityWindow, setAvailabilityWindow] = useState('Завтра 12:00–16:00')
-  const [minCapacity, setMinCapacity] = useState(2)
-  const [brigadeNote, setBrigadeNote] = useState('')
-  const [brigadeMessage, setBrigadeMessage] = useState('')
   const [showWorkOrderModal, setShowWorkOrderModal] = useState(false)
   const [workOrderWindow, setWorkOrderWindow] = useState('Завтра 10:00–14:00')
   const [workOrderTitle, setWorkOrderTitle] = useState('Монтаж и пусконаладка')
@@ -200,6 +191,25 @@ export default function ApplicationDetailPage() {
     loadUsers()
     loadCurrentUser()
   }, [id, loadApplication])
+
+  useEffect(() => {
+    if (!application?.id) return
+
+    try {
+      const saved = localStorage.getItem(`workOrders:${application.id}`)
+      if (saved) {
+        setWorkOrders(JSON.parse(saved))
+      }
+    } catch (error) {
+      console.error('Не удалось загрузить сохраненные наряды', error)
+    }
+  }, [application?.id])
+
+  useEffect(() => {
+    if (!application?.id) return
+
+    localStorage.setItem(`workOrders:${application.id}`, JSON.stringify(workOrders))
+  }, [application?.id, workOrders])
 
   // Автоматически открываем мастера привязки, если адрес не привязан к справочнику
   useEffect(() => {
@@ -454,24 +464,9 @@ export default function ApplicationDetailPage() {
     return title
   }
 
-  const installerRegions = useMemo(
-    () => ['all', ...Array.from(new Set(installers.map(installer => installer.region)))],
-    [installers],
-  )
-
-  const filteredInstallers = useMemo(() => {
-    return installers.filter(installer => {
-      const matchesRegion = installerRegion === 'all' || installer.region === installerRegion
-      const matchesSkills = installerSkills.every(skill => installer.skills.includes(skill))
-      const matchesSearch = installer.full_name.toLowerCase().includes(installerSearch.toLowerCase())
-
-      return matchesRegion && matchesSkills && matchesSearch
-    })
-  }, [installers, installerRegion, installerSkills, installerSearch])
-
   const commonSlots = useMemo(() => {
-    if (selectedInstallers.length === 0) return [] as string[]
-    const selectedProfiles = installers.filter(profile => selectedInstallers.includes(profile.id))
+    if (workOrderInstallers.length === 0) return [] as string[]
+    const selectedProfiles = installers.filter(profile => workOrderInstallers.includes(profile.id))
 
     const slotCounts = new Map<string, number>()
     selectedProfiles.forEach(profile => {
@@ -483,30 +478,7 @@ export default function ApplicationDetailPage() {
     return Array.from(slotCounts.entries())
       .filter(([, count]) => count === selectedProfiles.length)
       .map(([slot]) => slot)
-  }, [installers, selectedInstallers])
-
-  function toggleInstallerSkill(skill: string) {
-    setInstallerSkills(prev =>
-      prev.includes(skill) ? prev.filter(item => item !== skill) : [...prev, skill],
-    )
-  }
-
-  function toggleInstallerSelection(id: string) {
-    setBrigadeMessage('')
-    setSelectedInstallers(prev => {
-      if (prev.includes(id)) {
-        const updated = prev.filter(item => item !== id)
-        if (responsibleInstallerId === id) {
-          setResponsibleInstallerId(updated[0] || '')
-        }
-        return updated
-      }
-      if (!responsibleInstallerId) {
-        setResponsibleInstallerId(id)
-      }
-      return [...prev, id]
-    })
-  }
+  }, [installers, workOrderInstallers])
 
   function toggleWorkOrderInstaller(installerId: string) {
     setWorkOrderError('')
@@ -544,27 +516,6 @@ export default function ApplicationDetailPage() {
     setWorkOrderWindow('Завтра 10:00–14:00')
     setWorkOrderTitle('Монтаж и пусконаладка')
     setFileRefreshTrigger(prev => prev + 1)
-    setBrigadeMessage(
-      `Наряд ${newOrder.number} сформирован. Документ ${newOrder.fileName} будет прикреплен к заявке после генерации`,
-    )
-  }
-
-  function handleSaveBrigade() {
-    if (!application) return
-    if (selectedInstallers.length === 0) {
-      setBrigadeMessage('Добавьте монтажников, чтобы зафиксировать состав бригады')
-      return
-    }
-    if (selectedInstallers.length < minCapacity) {
-      setBrigadeMessage('Количество участников ниже требуемой вместимости — уточните состав')
-      return
-    }
-
-    setBrigadeMessage(
-      `Состав из ${selectedInstallers.length} исполнителя(ей) зафиксирован для №${application.application_number}. Ответственный: ${
-        installers.find(item => item.id === responsibleInstallerId)?.full_name || 'не выбран'
-      }.`,
-    )
   }
 
   if (isLoading) {
@@ -1221,7 +1172,6 @@ export default function ApplicationDetailPage() {
                 <button
                   onClick={() => {
                     setShowWorkOrderModal(true)
-                    setWorkOrderInstallers(selectedInstallers)
                   }}
                   className="text-sm px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition"
                 >
