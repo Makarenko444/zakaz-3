@@ -317,6 +317,8 @@ export default function AddressLinkWizard({
               {(() => {
                 const localAddresses = addresses.filter(addr => !addr.source || addr.source === 'local')
                 const externalAddresses = addresses.filter(addr => addr.source && addr.source !== 'local')
+                const yandexAddresses = addresses.filter(addr => addr.source === 'external_yandex')
+                const osmAddresses = addresses.filter(addr => addr.source === 'external_osm')
 
                 const getSourceLabel = (source?: AddressSource) => {
                   if (source === 'external_osm') return 'OpenStreetMap'

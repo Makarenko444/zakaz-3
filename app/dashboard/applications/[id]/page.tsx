@@ -161,6 +161,110 @@ export default function ApplicationDetailPage() {
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
 
+  // Фильтры и параметры для монтажников
+  const [availabilityWindow, setAvailabilityWindow] = useState('Сегодня 10:00–14:00')
+  const [minCapacity, setMinCapacity] = useState(2)
+  const [installerRegion, setInstallerRegion] = useState('all')
+  const [installerSearch, setInstallerSearch] = useState('')
+  const [installerSkills, setInstallerSkills] = useState<string[]>([])
+  const [selectedInstallers, setSelectedInstallers] = useState<string[]>([])
+  const [responsibleInstallerId, setResponsibleInstallerId] = useState<string | null>(null)
+  const [brigadeNote, setBrigadeNote] = useState('')
+  const [brigadeMessage, setBrigadeMessage] = useState('')
+
+  // Вычисляем уникальные регионы из списка монтажников
+  const installerRegions = useMemo(() => {
+    const regions = new Set<string>()
+    regions.add('all')
+    installers.forEach(installer => {
+      if (installer.region) {
+        regions.add(installer.region)
+      }
+    })
+    return Array.from(regions)
+  }, [installers])
+
+  // Функция для переключения навыка в фильтре
+  const toggleInstallerSkill = (skill: string) => {
+    setInstallerSkills(prev =>
+      prev.includes(skill)
+        ? prev.filter(s => s !== skill)
+        : [...prev, skill]
+    )
+  }
+
+  // Функция для переключения выбора монтажника
+  const toggleInstallerSelection = (installerId: string) => {
+    setSelectedInstallers(prev =>
+      prev.includes(installerId)
+        ? prev.filter(id => id !== installerId)
+        : [...prev, installerId]
+    )
+  }
+
+  // Функция для сохранения состава бригады
+  const handleSaveBrigade = async () => {
+    if (selectedInstallers.length === 0) {
+      setBrigadeMessage('⚠️ Выберите хотя бы одного монтажника')
+      return
+    }
+    if (!responsibleInstallerId) {
+      setBrigadeMessage('⚠️ Укажите ответственного за объект')
+      return
+    }
+
+    try {
+      // Здесь должен быть API вызов для сохранения бригады
+      console.log('Saving brigade:', {
+        installers: selectedInstallers,
+        responsible: responsibleInstallerId,
+        note: brigadeNote,
+        window: availabilityWindow
+      })
+
+      // TODO: Реализовать API вызов
+      setBrigadeMessage('✅ Состав бригады зафиксирован')
+    } catch (error) {
+      console.error('Error saving brigade:', error)
+      setBrigadeMessage('❌ Не удалось сохранить состав бригады')
+    }
+  }
+
+  // Фильтруем монтажников по заданным критериям
+  const filteredInstallers = useMemo(() => {
+    return installers.filter(installer => {
+      // Фильтр по региону
+      if (installerRegion !== 'all' && installer.region !== installerRegion) {
+        return false
+      }
+
+      // Фильтр по поиску (имя, email, phone)
+      if (installerSearch) {
+        const searchLower = installerSearch.toLowerCase()
+        const matchesSearch =
+          installer.full_name.toLowerCase().includes(searchLower) ||
+          installer.email.toLowerCase().includes(searchLower) ||
+          installer.phone.includes(searchLower)
+        if (!matchesSearch) return false
+      }
+
+      // Фильтр по навыкам
+      if (installerSkills.length > 0) {
+        const hasAllSkills = installerSkills.every(skill =>
+          installer.skills.includes(skill)
+        )
+        if (!hasAllSkills) return false
+      }
+
+      // Фильтр по доступности
+      if (availabilityWindow && !installer.availability.includes(availabilityWindow)) {
+        return false
+      }
+
+      return true
+    })
+  }, [installers, installerRegion, installerSearch, installerSkills, availabilityWindow])
+
   const loadApplication = useCallback(async () => {
     setIsLoading(true)
     try {
