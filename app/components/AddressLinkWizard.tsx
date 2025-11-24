@@ -273,13 +273,22 @@ export default function AddressLinkWizard({
             ) : osmValidation?.status === 'suggestions' ? (
               <div className="p-3 rounded-lg border border-amber-200 bg-amber-50">
                 <p className="text-sm font-medium text-amber-800">OSM предлагает уточнения для написания</p>
-                <p className="text-xs text-amber-700 mt-1">Проверьте варианты и выберите подходящий адрес.</p>
+                <p className="text-xs text-amber-700 mt-1">Нажмите на вариант для поиска в базе адресов.</p>
                 {osmValidation.suggestions && osmValidation.suggestions.length > 0 && (
-                  <ul className="mt-2 space-y-1 text-xs text-amber-800 list-disc list-inside">
+                  <div className="mt-2 space-y-2">
                     {osmValidation.suggestions.map((item, index) => (
-                      <li key={index}>{item}</li>
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setSearchQuery(item)
+                          searchAddresses(item)
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm rounded-md border border-amber-300 bg-white hover:bg-amber-50 hover:border-amber-400 transition text-gray-900"
+                      >
+                        📍 {item}
+                      </button>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             ) : (
