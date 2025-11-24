@@ -15,7 +15,7 @@ interface NodeSearchResult {
 interface SearchResult extends NodeSearchResult {
   similarity: number
   full_address: string
-  source: 'local' | 'external' // Источник: локальная БД или внешний API
+  source: 'local' | 'external_yandex' | 'external_osm'
 }
 
 interface RpcSearchResult {
@@ -49,6 +49,19 @@ interface YandexSuggestResult {
 
 interface YandexSuggestResponse {
   results: YandexSuggestResult[]
+}
+
+interface OpenStreetSearchResult {
+  place_id: string
+  display_name: string
+  address?: {
+    road?: string
+    pedestrian?: string
+    residential?: string
+    house_number?: string
+    city?: string
+    town?: string
+  }
 }
 
 async function searchYandexAPI(query: string): Promise<SearchResult[]> {
@@ -122,6 +135,65 @@ async function searchYandexAPI(query: string): Promise<SearchResult[]> {
   }
 }
 
+async function searchOpenStreetMap(query: string): Promise<SearchResult[]> {
+  /**
+   * Поиск адресов через OpenStreetMap (Nominatim)
+   * Используется для проверки написания адреса и подсказок при привязке
+   */
+  const results: SearchResult[] = []
+
+  try {
+    const searchQuery = query.includes('Томск') ? query : `Томск ${query}`
+
+    const url = new URL('https://nominatim.openstreetmap.org/search')
+    url.searchParams.set('format', 'jsonv2')
+    url.searchParams.set('addressdetails', '1')
+    url.searchParams.set('limit', '5')
+    url.searchParams.set('q', searchQuery)
+    url.searchParams.set('countrycodes', 'ru')
+    url.searchParams.set('dedupe', '1')
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'zakaz-app/1.0 (support@zakaz.local)',
+        'Accept-Language': 'ru',
+      },
+      next: { revalidate: 3600 }
+    })
+
+    if (!response.ok) {
+      console.error('OpenStreetMap API error:', response.status, await response.text())
+      return results
+    }
+
+    const data = await response.json() as OpenStreetSearchResult[]
+
+    for (const item of data) {
+      const address = item.address || {}
+      const street = address.road || address.pedestrian || address.residential
+      const house = address.house_number
+
+      if (!street || !house) continue
+
+      results.push({
+        id: `external_osm_${item.place_id}`,
+        street,
+        house,
+        comment: item.display_name,
+        similarity: 0.72,
+        full_address: item.display_name,
+        source: 'external_osm'
+      })
+    }
+
+    console.log(`OpenStreetMap API returned ${results.length} results for query: ${searchQuery}`)
+    return results
+  } catch (error) {
+    console.error('Error fetching from OpenStreetMap API:', error)
+    return results
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -167,10 +239,13 @@ export async function GET(request: Request) {
         source: 'local' as const
       }))
 
-    // Шаг 2: Умная логика - запрашиваем Яндекс API если:
+    const normalize = (value: string) => value.trim().toLowerCase().replace(/,+/g, ' ').replace(/\s+/g, ' ')
+
+    // Шаг 2: Умная логика - запрашиваем внешние API если:
     // 1. Найдено мало локальных результатов (< 3)
     // 2. ИЛИ нет точного совпадения с запросом
     let externalResults: SearchResult[] = []
+    let openStreetResults: SearchResult[] = []
     const MIN_LOCAL_RESULTS = 3
 
     // Проверяем есть ли точное совпадение среди локальных результатов
@@ -189,20 +264,57 @@ export async function GET(request: Request) {
       const reason = localResults.length < MIN_LOCAL_RESULTS
         ? `only ${localResults.length} local results`
         : 'no exact match found'
-      console.log(`Fetching from Yandex Geosuggest API (${reason})...`)
-      externalResults = await searchYandexAPI(query.trim())
+      console.log(`Fetching from external geocoders (${reason})...`)
+      const trimmedQuery = query.trim()
+      const [yandexResults, osmResults] = await Promise.all([
+        searchYandexAPI(trimmedQuery),
+        searchOpenStreetMap(trimmedQuery)
+      ])
+
+      externalResults = yandexResults
+      openStreetResults = osmResults
     }
 
-    // Объединяем результаты: сначала локальные, потом внешние
-    const allResults = [...localResults, ...externalResults]
+    // Объединяем результаты: сначала локальные, затем Яндекс и OpenStreetMap
+    const allResults = [...localResults, ...externalResults, ...openStreetResults]
+
+    // Проверка написания по OpenStreetMap
+    const osmValidation = (() => {
+      if (openStreetResults.length === 0) {
+        return { status: 'not_found', suggestions: [] as string[] }
+      }
+
+      const normalizedQuery = normalize(query)
+      const matched = openStreetResults.find(result => {
+        const candidate = normalize(`${result.street} ${result.house}`)
+        return normalizedQuery.includes(candidate)
+      })
+
+      if (matched) {
+        return {
+          status: 'match',
+          suggestion: matched.full_address,
+          street: matched.street,
+          house: matched.house
+        }
+      }
+
+      return {
+        status: 'suggestions',
+        suggestions: openStreetResults.slice(0, 3).map(result => result.full_address)
+      }
+    })()
 
     return NextResponse.json({
       addresses: allResults,
       stats: {
         local: localResults.length,
-        external: externalResults.length,
+        external: externalResults.length + openStreetResults.length,
+        yandex: externalResults.length,
+        openstreet: openStreetResults.length,
         total: allResults.length
       },
+      osm_validation: osmValidation,
       debug: {
         query: query.trim(),
         hasExactMatch,
