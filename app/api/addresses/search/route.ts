@@ -26,69 +26,94 @@ interface RpcSearchResult {
   updated_at?: string
 }
 
-interface KladrBuilding {
-  name: string // Номер дома
+interface YandexSuggestResult {
+  title: {
+    text: string
+  }
+  subtitle?: {
+    text: string
+  }
+  address?: {
+    formatted_address: string
+    component: Array<{
+      name: string
+      kind: string[]
+    }>
+  }
+  uri?: string
 }
 
-interface KladrStreet {
-  id: string
-  name: string // Название улицы
-  typeShort: string // Тип (ул., пр., пер.)
+interface YandexSuggestResponse {
+  results: YandexSuggestResult[]
 }
 
-async function searchKladrAPI(query: string): Promise<SearchResult[]> {
+async function searchYandexAPI(query: string): Promise<SearchResult[]> {
   /**
-   * Поиск адресов через КЛАДР API
-   * Используется когда в локальной БД мало результатов
+   * Поиск адресов через Яндекс Геосаджест API
+   * Используется когда в локальной БД мало результатов или нет точного совпадения
    */
   const results: SearchResult[] = []
+  const apiKey = process.env.YANDEX_GEOSUGGEST_API_KEY
+
+  if (!apiKey) {
+    console.error('YANDEX_GEOSUGGEST_API_KEY not configured')
+    return results
+  }
 
   try {
-    // Ищем улицы в Томске по запросу
-    const streetsResponse = await fetch(
-      `http://kladr-api.ru/api.php?contentType=street&cityId=7000000100000&query=${encodeURIComponent(query)}&limit=5`,
-      { next: { revalidate: 3600 } } // Кешируем на 1 час
-    )
+    // Добавляем "Томск" к запросу для поиска в нужном городе
+    const searchQuery = query.includes('Томск') ? query : `Томск ${query}`
 
-    if (!streetsResponse.ok) {
-      console.error('KLADR API error:', streetsResponse.status)
+    // Координаты Томска для фокусировки поиска
+    const tomskCoords = '84.97,56.5'
+
+    const url = new URL('https://suggest-maps.yandex.ru/v1/suggest')
+    url.searchParams.set('apikey', apiKey)
+    url.searchParams.set('text', searchQuery)
+    url.searchParams.set('print_address', '1')
+    url.searchParams.set('types', 'house')
+    url.searchParams.set('ll', tomskCoords)
+    url.searchParams.set('results', '10')
+
+    const response = await fetch(url.toString(), {
+      next: { revalidate: 3600 } // Кешируем на 1 час
+    })
+
+    if (!response.ok) {
+      console.error('Yandex Geosuggest API error:', response.status, await response.text())
       return results
     }
 
-    const streetsData = await streetsResponse.json()
-    const streets = streetsData.result as KladrStreet[] || []
+    const data = await response.json() as YandexSuggestResponse
 
-    // Для каждой улицы получаем дома
-    for (const street of streets.slice(0, 3)) { // Берем первые 3 улицы
-      const streetId = street.id
-      const streetName = `${street.typeShort} ${street.name}`.trim()
+    for (const item of data.results || []) {
+      if (!item.address) continue
 
-      const buildingsResponse = await fetch(
-        `http://kladr-api.ru/api.php?contentType=building&streetId=${streetId}&limit=20`,
-        { next: { revalidate: 3600 } }
-      )
+      // Извлекаем улицу и номер дома из компонентов адреса
+      const components = item.address.component || []
+      const streetComponent = components.find(c => c.kind.includes('street'))
+      const houseComponent = components.find(c => c.kind.includes('house'))
 
-      if (buildingsResponse.ok) {
-        const buildingsData = await buildingsResponse.json()
-        const buildings = buildingsData.result as KladrBuilding[] || []
+      if (!streetComponent || !houseComponent) continue
 
-        for (const building of buildings) {
-          results.push({
-            id: `external_${streetId}_${building.name}`, // Временный ID для внешних адресов
-            street: streetName,
-            house: building.name,
-            comment: null,
-            similarity: 0.7, // Средняя похожесть для внешних результатов
-            full_address: `${streetName}, ${building.name}`,
-            source: 'external'
-          })
-        }
-      }
+      const street = streetComponent.name
+      const house = houseComponent.name
+
+      results.push({
+        id: `external_yandex_${street}_${house}`, // Временный ID для внешних адресов
+        street: street,
+        house: house,
+        comment: null,
+        similarity: 0.7, // Средняя похожесть для внешних результатов
+        full_address: item.address.formatted_address || `${street}, ${house}`,
+        source: 'external'
+      })
     }
 
+    console.log(`Yandex API returned ${results.length} results for query: ${searchQuery}`)
     return results.slice(0, 10) // Ограничиваем 10 результатами
   } catch (error) {
-    console.error('Error fetching from KLADR API:', error)
+    console.error('Error fetching from Yandex Geosuggest API:', error)
     return results
   }
 }
@@ -158,7 +183,7 @@ export async function GET(request: Request) {
       }))
     }
 
-    // Шаг 2: Умная логика - запрашиваем КЛАДР API если:
+    // Шаг 2: Умная логика - запрашиваем Яндекс API если:
     // 1. Найдено мало локальных результатов (< 3)
     // 2. ИЛИ нет точного совпадения с запросом
     let externalResults: SearchResult[] = []
@@ -179,8 +204,8 @@ export async function GET(request: Request) {
       const reason = localResults.length < MIN_LOCAL_RESULTS
         ? `only ${localResults.length} local results`
         : 'no exact match found'
-      console.log(`Fetching from KLADR API (${reason})...`)
-      externalResults = await searchKladrAPI(query.trim())
+      console.log(`Fetching from Yandex Geosuggest API (${reason})...`)
+      externalResults = await searchYandexAPI(query.trim())
     }
 
     // Объединяем результаты: сначала локальные, потом внешние
