@@ -26,9 +26,10 @@ export async function PATCH(
     if (presence_type !== undefined) updateData.presence_type = presence_type
     // Обновляем поле address если изменились street или house
     if (street !== undefined || house !== undefined) {
-      const currentNode = await supabase.from('zakaz_nodes').select('street, house').eq('id', id).single()
-      const finalStreet = street !== undefined ? street : currentNode.data?.street
-      const finalHouse = house !== undefined ? house : currentNode.data?.house
+      const currentNodeResult = await supabase.from('zakaz_nodes').select('street, house').eq('id', id).single()
+      const currentNode = currentNodeResult.data as { street: string | null; house: string | null } | null
+      const finalStreet = street !== undefined ? street : currentNode?.street
+      const finalHouse = house !== undefined ? house : currentNode?.house
       updateData.address = `${finalStreet}, ${finalHouse}`
     }
 
