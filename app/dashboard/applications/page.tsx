@@ -4,12 +4,13 @@ import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, ServiceType, CustomerType } from '@/lib/types'
 
-// Расширенный тип для заявки с адресом
+// Расширенный тип для заявки с узлом/адресом
 interface ApplicationWithAddress extends Application {
-  zakaz_addresses: {
-    street: string
-    house: string
-    entrance: string | null
+  zakaz_nodes: {
+    street: string | null
+    house: string | null
+    address: string
+    presence_type: string
   } | null
 }
 
@@ -83,8 +84,8 @@ function ApplicationsContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUrgency, setSelectedUrgency] = useState<Urgency | ''>('')
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('')
-  const [selectedAddressId, setSelectedAddressId] = useState<string>('')
-  const [addressInfo, setAddressInfo] = useState<{ street: string; house: string } | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useState<string>('')
+  const [nodeInfo, setNodeInfo] = useState<{ street: string; house: string } | null>(null)
   const [selectedAssignedTo, setSelectedAssignedTo] = useState<string>('')
 
   // Список пользователей для фильтра
@@ -114,8 +115,8 @@ function ApplicationsContent() {
         params.append('service_type', selectedServiceType)
       }
 
-      if (selectedAddressId) {
-        params.append('address_id', selectedAddressId)
+      if (selectedNodeId) {
+        params.append('node_id', selectedNodeId)
       }
 
       if (selectedAssignedTo) {
@@ -136,18 +137,18 @@ function ApplicationsContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedAddressId, selectedAssignedTo])
+  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedNodeId, selectedAssignedTo])
 
-  // Инициализация фильтра по адресу из URL при монтировании
+  // Инициализация фильтра по узлу/адресу из URL при монтировании
   useEffect(() => {
-    const addressId = searchParams.get('address_id')
-    const addressStreet = searchParams.get('address_street')
-    const addressHouse = searchParams.get('address_house')
+    const nodeId = searchParams.get('node_id')
+    const nodeStreet = searchParams.get('node_street')
+    const nodeHouse = searchParams.get('node_house')
 
-    if (addressId) {
-      setSelectedAddressId(addressId)
-      if (addressStreet && addressHouse) {
-        setAddressInfo({ street: addressStreet, house: addressHouse })
+    if (nodeId) {
+      setSelectedNodeId(nodeId)
+      if (nodeStreet && nodeHouse) {
+        setNodeInfo({ street: nodeStreet, house: nodeHouse })
       }
     }
   }, [searchParams])
@@ -269,7 +270,7 @@ function ApplicationsContent() {
         </div>
 
         {/* Фильтр по адресу */}
-        {addressInfo && (
+        {nodeInfo && (
           <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -277,13 +278,13 @@ function ApplicationsContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <span className="text-sm text-blue-900">
-                <span className="font-medium">Фильтр по адресу:</span> {addressInfo.street}, {addressInfo.house}
+                <span className="font-medium">Фильтр по адресу:</span> {nodeInfo.street}, {nodeInfo.house}
               </span>
             </div>
             <button
               onClick={() => {
-                setSelectedAddressId('')
-                setAddressInfo(null)
+                setSelectedNodeId('')
+                setNodeInfo(null)
                 router.push('/dashboard/applications')
               }}
               className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
