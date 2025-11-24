@@ -16,9 +16,9 @@ interface AddressLinkWizardProps {
   applicationId: string
   streetAndHouse: string
   addressDetails: string | null
-  currentAddressId: string | null
+  currentNodeId: string | null
   onClose: () => void
-  onLink: (addressId: string) => Promise<void>
+  onLink: (nodeId: string) => Promise<void>
   onUnlink?: () => Promise<void>
 }
 
@@ -26,7 +26,7 @@ export default function AddressLinkWizard({
   applicationId: _applicationId,
   streetAndHouse,
   addressDetails,
-  currentAddressId,
+  currentNodeId,
   onClose,
   onLink,
   onUnlink,
@@ -94,7 +94,7 @@ export default function AddressLinkWizard({
     setError('')
 
     try {
-      let addressId = address.id
+      let nodeId = address.id
 
       // Если адрес из внешнего источника - сначала сохраняем его в локальную БД
       if (address.source === 'external') {
@@ -114,14 +114,14 @@ export default function AddressLinkWizard({
           throw new Error('Не удалось сохранить адрес из внешнего источника')
         }
 
-        const savedAddress = await saveResponse.json()
-        addressId = savedAddress.id
+        const savedNode = await saveResponse.json()
+        nodeId = savedNode.id
 
-        console.log(`Saved external address to local DB: ${address.street}, ${address.house} -> ID: ${addressId}`)
+        console.log(`Saved external address to local DB: ${address.street}, ${address.house} -> ID: ${nodeId}`)
       }
 
-      // Привязываем заявку к адресу
-      await onLink(addressId)
+      // Привязываем заявку к узлу/адресу
+      await onLink(nodeId)
     } catch (error) {
       console.error('Error linking address:', error)
       setError(error instanceof Error ? error.message : 'Не удалось привязать адрес')
@@ -153,10 +153,10 @@ export default function AddressLinkWizard({
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
-              {currentAddressId ? 'Изменить привязку к узлу' : 'Привязка адреса к узлу'}
+              {currentNodeId ? 'Изменить привязку к узлу' : 'Привязка адреса к узлу'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              {currentAddressId
+              {currentNodeId
                 ? 'Выберите другой адрес или отвяжите текущий'
                 : 'Найдите адрес в справочнике узлов или закройте окно для привязки позже'}
             </p>
@@ -254,7 +254,7 @@ export default function AddressLinkWizard({
                         </div>
                         <div className="space-y-2">
                           {localAddresses.map((address) => {
-                            const isCurrent = address.id === currentAddressId
+                            const isCurrent = address.id === currentNodeId
                             return (
                               <button
                                 key={address.id}
@@ -281,7 +281,7 @@ export default function AddressLinkWizard({
                                     </span>
                                   ) : (
                                     <span className="ml-2 text-sm font-medium text-indigo-600">
-                                      {currentAddressId ? 'Изменить →' : 'Выбрать →'}
+                                      {currentNodeId ? 'Изменить →' : 'Выбрать →'}
                                     </span>
                                   )}
                                 </div>
@@ -334,7 +334,7 @@ export default function AddressLinkWizard({
                                   </p>
                                 </div>
                                 <span className="ml-2 text-sm font-medium text-blue-600">
-                                  {currentAddressId ? 'Изменить →' : 'Выбрать →'}
+                                  {currentNodeId ? 'Изменить →' : 'Выбрать →'}
                                 </span>
                               </div>
                             </button>
@@ -380,7 +380,7 @@ export default function AddressLinkWizard({
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              {currentAddressId && onUnlink && (
+              {currentNodeId && onUnlink && (
                 <button
                   onClick={handleUnlink}
                   disabled={isUnlinking || isLinking}
@@ -390,7 +390,7 @@ export default function AddressLinkWizard({
                 </button>
               )}
               <p className="text-sm text-gray-600">
-                {currentAddressId
+                {currentNodeId
                   ? 'Вы можете изменить привязку или отвязать заявку от узла'
                   : 'Если адреса нет в списке, вы можете привязать его позже'}
               </p>
