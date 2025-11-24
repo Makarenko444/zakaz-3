@@ -49,6 +49,20 @@ export default function Sidebar({ user, applicationsCount, isCollapsed, setIsCol
         </svg>
       ),
     },
+    {
+      path: '/dashboard/brigades',
+      label: 'Бригады',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 14l9-5-9-5-9 5 9 5zm0 0v6m-6-3.5l6 3.5 6-3.5"
+          />
+        </svg>
+      ),
+    },
   ]
 
   if (user?.role === 'admin') {
