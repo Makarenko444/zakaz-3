@@ -15,23 +15,18 @@ export async function PATCH(
 
     const { id } = await context.params
     const body = await request.json()
-    const { street, house, comment, presence_type } = body
+    const { city, street, house, building, comment, presence_type } = body
 
     const supabase = createDirectClient()
 
     const updateData: Record<string, unknown> = {}
+    if (city !== undefined) updateData.city = city
     if (street !== undefined) updateData.street = street
     if (house !== undefined) updateData.house = house
+    if (building !== undefined) updateData.building = building || null
     if (comment !== undefined) updateData.comment = comment || null
     if (presence_type !== undefined) updateData.presence_type = presence_type
-    // Обновляем поле address если изменились street или house
-    if (street !== undefined || house !== undefined) {
-      const currentNodeResult = await supabase.from('zakaz_nodes').select('street, house').eq('id', id).single()
-      const currentNode = currentNodeResult.data as { street: string | null; house: string | null } | null
-      const finalStreet = street !== undefined ? street : currentNode?.street
-      const finalHouse = house !== undefined ? house : currentNode?.house
-      updateData.address = `${finalStreet}, ${finalHouse}`
-    }
+    // address будет автоматически обновлен триггером в БД
 
     const table = supabase.from('zakaz_nodes') as unknown
     const updateBuilder = (table as { update: (data: Record<string, unknown>) => unknown }).update(updateData) as unknown

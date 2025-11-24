@@ -16,14 +16,17 @@ export async function GET(request: NextRequest) {
     const addressesQuery = await supabase
       .from('zakaz_nodes')
       .select('*')
+      .order('city', { ascending: true })
       .order('street', { ascending: true })
       .order('house', { ascending: true })
 
     const addresses = addressesQuery.data as Array<{
       id: string
       code: string
+      city: string | null
       street: string | null
       house: string | null
+      building: string | null
       address: string
       comment: string | null
       presence_type: string
@@ -82,11 +85,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { street, house, comment, presence_type } = body
+    const { city, street, house, building, comment, presence_type } = body
 
-    if (!street || !house) {
+    if (!city || !street || !house) {
       return NextResponse.json(
-        { error: 'Отсутствуют обязательные поля' },
+        { error: 'Отсутствуют обязательные поля (город, улица, дом)' },
         { status: 400 }
       )
     }
@@ -99,12 +102,14 @@ export async function POST(request: NextRequest) {
     const table = supabase.from('zakaz_nodes') as unknown
     const insertBuilder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert({
       code,
+      city,
       street,
       house,
-      address: `${street}, ${house}`,
+      building: building || null,
       comment: comment || null,
       presence_type: presence_type || 'has_node',
       status: 'existing',
+      // address будет автоматически сформирован триггером в БД
     }) as unknown
     const selectBuilder = (insertBuilder as { select: () => unknown }).select() as unknown
     const result = await (selectBuilder as { single: () => Promise<unknown> }).single()

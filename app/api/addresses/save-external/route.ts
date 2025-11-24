@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-    const { street, house, comment } = body
+    const { city, street, house, building, comment } = body
 
     // Валидация
     if (!street || !house) {
@@ -21,12 +21,16 @@ export async function POST(request: Request) {
       )
     }
 
+    // Город по умолчанию если не указан
+    const nodeCity = city || 'Томск'
+
     const supabase = createDirectClient()
 
     // Проверяем, есть ли уже такой адрес/узел в БД
     const { data: existing, error: checkError } = await supabase
       .from('zakaz_nodes')
       .select('id')
+      .eq('city', nodeCity)
       .eq('street', street)
       .eq('house', house)
       .maybeSingle<{ id: string }>() // Возвращает null если не найдено, вместо error
@@ -60,12 +64,14 @@ export async function POST(request: Request) {
       .from('zakaz_nodes') as any)
       .insert({
         code,
+        city: nodeCity,
         street,
         house,
-        address: `${street}, ${house}`,
+        building: building || null,
         comment: comment || null,
         presence_type: 'not_present',
-        status: 'existing'
+        status: 'existing',
+        // address будет автоматически сформирован триггером в БД
       })
       .select()
       .single()
