@@ -265,44 +265,19 @@ export async function GET(request: Request) {
       openStreetResults = osmResults
     }
 
-    // Объединяем результаты: сначала локальные, затем Яндекс и OpenStreetMap
-    const allResults = [...localResults, ...externalResults, ...openStreetResults]
-
-    // Проверка написания по OpenStreetMap
-    const osmValidation = (() => {
-      if (openStreetResults.length === 0) {
-        return { status: 'not_found', suggestions: [] as string[] }
-      }
-
-      const normalizedQuery = normalize(query)
-      const matched = openStreetResults.find(result => {
-        const candidate = normalize(`${result.street} ${result.house}`)
-        return normalizedQuery.includes(candidate)
-      })
-
-      if (matched) {
-        return {
-          status: 'match',
-          suggestion: matched.full_address,
-          street: matched.street,
-          house: matched.house
-        }
-      }
-
-      return {
-        status: 'suggestions',
-        suggestions: openStreetResults.slice(0, 3).map(result => result.full_address)
-      }
-    })()
+    // Объединяем результаты: сначала локальные, потом внешние
+    const allResults = [...localResults, ...externalResults]
+    const yandexCount = externalResults.filter(result => result.source === 'external_yandex').length
+    const osmCount = externalResults.filter(result => result.source === 'external_osm').length
 
     return NextResponse.json({
       addresses: allResults,
       stats: {
         local: localResults.length,
-        external: externalResults.length + openStreetResults.length,
-        yandex: externalResults.length,
-        openstreet: openStreetResults.length,
-        total: allResults.length
+        external: externalResults.length,
+        total: allResults.length,
+        yandex: yandexCount,
+        openstreet: osmCount
       },
       osm_validation: osmValidation,
       debug: {
