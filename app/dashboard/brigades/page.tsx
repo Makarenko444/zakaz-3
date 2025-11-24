@@ -102,8 +102,9 @@ export default function BrigadesPage() {
       const fallbackRegions = ['Москва', 'Санкт-Петербург', 'Нижний Новгород']
       const fallbackNodes = ['Node-07', 'Node-12', 'Node-03', 'Node-21']
 
-      const enriched = installersFromApi.map(
-        (
+      const enriched = installersFromApi
+        .filter(Boolean)
+        .map((
           user: {
             id: string
             full_name: string
@@ -111,10 +112,7 @@ export default function BrigadesPage() {
             phone?: string | null
           },
           index: number,
-        ),
-      )
-        .filter(Boolean)
-        .map((user, index) => {
+        ) => {
           const availability =
             availabilityTemplates[index % availabilityTemplates.length]
           const skills = [
