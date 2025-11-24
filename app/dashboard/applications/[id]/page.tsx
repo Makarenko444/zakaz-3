@@ -147,6 +147,25 @@ export default function ApplicationDetailPage() {
   const [minCapacity, setMinCapacity] = useState(2)
   const [brigadeNote, setBrigadeNote] = useState('')
   const [brigadeMessage, setBrigadeMessage] = useState('')
+  const [showWorkOrderModal, setShowWorkOrderModal] = useState(false)
+  const [workOrderWindow, setWorkOrderWindow] = useState('Завтра 10:00–14:00')
+  const [workOrderTitle, setWorkOrderTitle] = useState('Монтаж и пусконаладка')
+  const [workOrderNote, setWorkOrderNote] = useState('')
+  const [workOrderInstallers, setWorkOrderInstallers] = useState<string[]>([])
+  const [workOrderError, setWorkOrderError] = useState('')
+  const [workOrders, setWorkOrders] = useState<
+    {
+      id: string
+      number: string
+      window: string
+      title: string
+      installers: string[]
+      note?: string
+      fileName: string
+      status: 'Сформирован' | 'В работе' | 'Завершен'
+      createdAt: string
+    }[]
+  >([])
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
@@ -487,6 +506,47 @@ export default function ApplicationDetailPage() {
       }
       return [...prev, id]
     })
+  }
+
+  function toggleWorkOrderInstaller(installerId: string) {
+    setWorkOrderError('')
+    setWorkOrderInstallers(prev =>
+      prev.includes(installerId)
+        ? prev.filter(item => item !== installerId)
+        : [...prev, installerId],
+    )
+  }
+
+  function handleCreateWorkOrder() {
+    if (!application) return
+    if (workOrderInstallers.length === 0) {
+      setWorkOrderError('Добавьте хотя бы одного монтажника для наряда')
+      return
+    }
+
+    const newOrder = {
+      id: `${Date.now()}`,
+      number: `WR-${application.application_number}-${workOrders.length + 1}`,
+      window: workOrderWindow || 'Окно не указано',
+      title: workOrderTitle || 'Наряд на монтаж',
+      installers: workOrderInstallers,
+      note: workOrderNote,
+      fileName: `Наряд_${application.application_number}_${workOrders.length + 1}.pdf`,
+      status: 'Сформирован' as const,
+      createdAt: new Date().toISOString(),
+    }
+
+    setWorkOrders(prev => [...prev, newOrder])
+    setShowWorkOrderModal(false)
+    setWorkOrderInstallers([])
+    setWorkOrderNote('')
+    setWorkOrderError('')
+    setWorkOrderWindow('Завтра 10:00–14:00')
+    setWorkOrderTitle('Монтаж и пусконаладка')
+    setFileRefreshTrigger(prev => prev + 1)
+    setBrigadeMessage(
+      `Наряд ${newOrder.number} сформирован. Документ ${newOrder.fileName} будет прикреплен к заявке после генерации`,
+    )
   }
 
   function handleSaveBrigade() {
@@ -1152,8 +1212,78 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
 
-          {/* Правая колонка - Файлы и история */}
+          {/* Правая колонка - Задания, файлы и история */}
           <div className="lg:col-span-1 space-y-4">
+            {/* Задания / Наряды */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                <h3 className="text-base font-bold text-gray-900">Задания</h3>
+                <button
+                  onClick={() => {
+                    setShowWorkOrderModal(true)
+                    setWorkOrderInstallers(selectedInstallers)
+                  }}
+                  className="text-sm px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition"
+                >
+                  Сформировать наряд
+                </button>
+              </div>
+
+              {workOrders.length === 0 ? (
+                <p className="text-sm text-gray-600">
+                  Наряды ещё не созданы. Сформируйте задание для монтажников по данному объекту.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {workOrders.map(order => (
+                    <div key={order.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-semibold text-gray-900">{order.number}</span>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full border ${
+                            order.status === 'Сформирован'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              : order.status === 'В работе'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}
+                        >
+                          {order.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-sm text-gray-700 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10m-12 8h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          <span>{order.window}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          <span className="font-medium text-gray-900">{order.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span>
+                            {order.installers
+                              .map(installerId => installers.find(item => item.id === installerId)?.full_name || 'Исполнитель')
+                              .join(', ')}
+                          </span>
+                        </div>
+                        {order.note && <p className="text-xs text-gray-600">{order.note}</p>}
+                        <div className="text-xs text-gray-500">Файл: {order.fileName} (будет прикреплён)</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Файлы заявки */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h3 className="text-base font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">Прикрепленные файлы</h3>
@@ -1265,6 +1395,125 @@ export default function ApplicationDetailPage() {
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно формирования наряда */}
+      {showWorkOrderModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-xl">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Наряд на работы</h3>
+                <p className="text-sm text-gray-600">Формирование задания для монтажников по объекту</p>
+              </div>
+              <button
+                onClick={() => setShowWorkOrderModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition"
+                aria-label="Закрыть"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-500">Объект</p>
+                  <p className="text-base font-semibold text-gray-900">{formatTitle()}</p>
+                  {application?.zakaz_nodes && (
+                    <p className="text-xs text-gray-600">Узел: {application.zakaz_nodes.code}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-700 font-medium">Окно выполнения</label>
+                  <input
+                    value={workOrderWindow}
+                    onChange={event => setWorkOrderWindow(event.target.value)}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
+                    placeholder="Например: 12.03 10:00–14:00"
+                  />
+                  {commonSlots.length > 0 && (
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {commonSlots.slice(0, 3).map(slot => (
+                        <button
+                          key={slot}
+                          onClick={() => setWorkOrderWindow(slot)}
+                          className="px-2 py-1 rounded-full border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
+                          type="button"
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-700 font-medium">Что нужно сделать</label>
+                  <input
+                    value={workOrderTitle}
+                    onChange={event => setWorkOrderTitle(event.target.value)}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
+                    placeholder="Например: монтаж и сварка, установка коммутатора"
+                  />
+                  <textarea
+                    value={workOrderNote}
+                    onChange={event => setWorkOrderNote(event.target.value)}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm min-h-[90px]"
+                    placeholder="Требования по доступу, материалы, контакты на объекте"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-700 font-medium">Исполнители</label>
+                    <span className="text-xs text-gray-500">Выбрано: {workOrderInstallers.length}</span>
+                  </div>
+                  <div className="border border-gray-200 rounded-md max-h-64 overflow-y-auto divide-y divide-gray-100">
+                    {installers.map(installer => (
+                      <label key={installer.id} className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={workOrderInstallers.includes(installer.id)}
+                          onChange={() => toggleWorkOrderInstaller(installer.id)}
+                          className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                        />
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900">{installer.full_name}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{installer.region}</span>
+                          </div>
+                          <p className="text-xs text-gray-600">{installer.skills.join(' • ')}</p>
+                          <p className="text-xs text-gray-500">Доступность: {installer.availability[0]}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  {workOrderError && <p className="text-sm text-red-600">{workOrderError}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowWorkOrderModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleCreateWorkOrder}
+                className="px-4 py-2 text-sm font-semibold rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition"
+              >
+                Создать наряд и прикрепить
               </button>
             </div>
           </div>
