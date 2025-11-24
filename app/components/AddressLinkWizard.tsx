@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
+type AddressSource = 'local' | 'external_yandex' | 'external_osm'
+
 interface Address {
   id: string
   street: string
@@ -9,7 +11,7 @@ interface Address {
   comment: string | null
   similarity?: number
   full_address?: string
-  source?: 'local' | 'external' // Источник адреса
+  source?: AddressSource // Источник адреса
 }
 
 interface AddressLinkWizardProps {
@@ -97,7 +99,7 @@ export default function AddressLinkWizard({
       let nodeId = address.id
 
       // Если адрес из внешнего источника - сначала сохраняем его в локальную БД
-      if (address.source === 'external') {
+      if (address.source && address.source !== 'local') {
         const saveResponse = await fetch('/api/addresses/save-external', {
           method: 'POST',
           headers: {
@@ -236,8 +238,8 @@ export default function AddressLinkWizard({
             <>
               {/* Разделяем адреса на локальные и внешние */}
               {(() => {
-                const localAddresses = addresses.filter(addr => addr.source === 'local')
-                const externalAddresses = addresses.filter(addr => addr.source === 'external')
+                const localAddresses = addresses.filter(addr => !addr.source || addr.source === 'local')
+                const externalAddresses = addresses.filter(addr => addr.source && addr.source !== 'local')
 
                 return (
                   <div className="space-y-6">
