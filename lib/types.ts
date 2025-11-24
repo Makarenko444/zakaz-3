@@ -23,6 +23,8 @@ export type NodeStatus = 'existing' | 'planned'
 
 export type NodeType = 'prp' | 'ao' | 'sk' | 'other'
 
+export type PresenceType = 'has_node' | 'has_ao' | 'has_transit_cable' | 'not_present'
+
 export type AddressMatchStatus = 'unmatched' | 'auto_matched' | 'manual_matched'
 
 export interface User {
@@ -38,7 +40,7 @@ export interface User {
 
 export interface Application {
   id: string
-  address_id: string | null
+  node_id: string | null
   street_and_house: string | null
   address_details: string | null
   address_match_status: AddressMatchStatus
@@ -87,7 +89,11 @@ export interface Node {
   id: string
   code: string
   node_type: NodeType
+  street: string | null
+  house: string | null
   address: string
+  comment: string | null
+  presence_type: PresenceType
   location_details: string | null
   comm_info: string | null
   status: NodeStatus
