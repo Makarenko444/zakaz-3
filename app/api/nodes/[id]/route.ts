@@ -23,6 +23,7 @@ export async function PUT(
     const body = await request.json()
 
     // Обновляем узел
+    // Поле address будет автоматически обновлено триггером в БД на основе city, street, house, building
     const table = supabase.from('zakaz_nodes') as unknown
     const result = await (table as {
       update: (data: unknown) => {
@@ -36,7 +37,10 @@ export async function PUT(
       .update({
         code: body.code,
         node_type: body.node_type,
-        address: body.address,
+        city: body.city,
+        street: body.street,
+        house: body.house,
+        building: body.building || null,
         location_details: body.location_details,
         comm_info: body.comm_info,
         status: body.status,

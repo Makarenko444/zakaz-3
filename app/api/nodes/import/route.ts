@@ -68,6 +68,54 @@ function cleanCode(code?: string): string | null {
   return code.replace(/[^\wА-Яа-я0-9\-]/g, '').trim()
 }
 
+// Функция для парсинга адреса на компоненты
+function parseAddress(fullAddress: string): {
+  city: string
+  street: string | null
+  house: string | null
+  building: string | null
+} {
+  const result = {
+    city: 'Томск', // По умолчанию город Томск
+    street: null as string | null,
+    house: null as string | null,
+    building: null as string | null,
+  }
+
+  if (!fullAddress) return result
+
+  // Убираем лишние пробелы и нормализуем
+  let normalized = fullAddress.trim().replace(/\s+/g, ' ')
+
+  // Проверяем есть ли город в адресе (Томск, Москва и т.д.)
+  const cityMatch = normalized.match(/^(Томск|Москва|Санкт-Петербург|Новосибирск|Екатеринбург)[,\s]/i)
+  if (cityMatch) {
+    result.city = cityMatch[1]
+    normalized = normalized.substring(cityMatch[0].length).trim()
+  }
+
+  // Ищем корпус/строение (корп. X, стр. X, к. X, с. X)
+  const buildingMatch = normalized.match(/,?\s*(корп\.?|к\.?|стр\.?|строение|с\.?)\s*(\d+[а-яА-Яa-zA-Z]?)/i)
+  if (buildingMatch) {
+    result.building = `${buildingMatch[1]} ${buildingMatch[2]}`.trim()
+    // Убираем найденный корпус из строки
+    normalized = normalized.replace(buildingMatch[0], '').trim()
+  }
+
+  // Теперь ищем улицу и дом
+  // Формат: "улица/проспект/переулок Название, номер" или просто "Название, номер"
+  const addressMatch = normalized.match(/^(.+?)[,\s]+(\d+[а-яА-Яa-zA-Z]?)(?:\s|$)/)
+  if (addressMatch) {
+    result.street = addressMatch[1].trim()
+    result.house = addressMatch[2].trim()
+  } else {
+    // Если не смогли распарсить, берем всю строку как улицу
+    result.street = normalized
+  }
+
+  return result
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createDirectClient()
@@ -131,7 +179,7 @@ export async function POST(request: NextRequest) {
       try {
         // Очищаем код от гиперссылок
         const code = cleanCode(row['Код'])
-        const address = row['Адрес']?.trim()
+        const fullAddress = row['Адрес']?.trim()
 
         // Проверяем обязательные поля
         if (!code) {
@@ -139,15 +187,28 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        if (!address) {
+        if (!fullAddress) {
           skipped.push({ row: rowNumber, reason: 'Missing address', data: row })
           continue
         }
 
+        // Парсим адрес на компоненты
+        const addressComponents = parseAddress(fullAddress)
+
+        // Проверяем что хотя бы улица есть
+        if (!addressComponents.street) {
+          skipped.push({ row: rowNumber, reason: 'Could not parse street from address', data: row })
+          continue
+        }
+
         // Формируем объект для вставки (дубликаты будут обработаны через upsert)
+        // Поле address будет автоматически сформировано триггером в БД
         nodesToInsert.push({
           code,
-          address,
+          city: addressComponents.city,
+          street: addressComponents.street,
+          house: addressComponents.house,
+          building: addressComponents.building,
           location_details: row['Местоположение']?.trim() || null,
           comm_info: row['Ком.информация']?.trim() || null,
           status: parseStatus(row['Статус']),

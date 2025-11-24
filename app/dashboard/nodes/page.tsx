@@ -615,19 +615,65 @@ export default function NodesPage() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Адрес</label>
-                      {isEditMode ? (
-                        <textarea
-                          value={editFormData.address || ''}
-                          onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                          rows={2}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        />
-                      ) : (
+                    {/* Адрес */}
+                    {isEditMode ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
+                          <input
+                            type="text"
+                            value={editFormData.city || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            placeholder="Томск"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Улица *</label>
+                            <input
+                              type="text"
+                              value={editFormData.street || ''}
+                              onChange={(e) => setEditFormData({ ...editFormData, street: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              placeholder="проспект Ленина"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Дом</label>
+                            <input
+                              type="text"
+                              value={editFormData.house || ''}
+                              onChange={(e) => setEditFormData({ ...editFormData, house: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              placeholder="22"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Корпус/строение (необязательно)</label>
+                          <input
+                            type="text"
+                            value={editFormData.building || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, building: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            placeholder="корп. 2"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Адрес</label>
                         <p className="text-sm text-gray-900">{selectedNode.address}</p>
-                      )}
-                    </div>
+                        <div className="mt-2 text-xs text-gray-600 space-y-1">
+                          {selectedNode.city && <div>Город: {selectedNode.city}</div>}
+                          {selectedNode.street && <div>Улица: {selectedNode.street}</div>}
+                          {selectedNode.house && <div>Дом: {selectedNode.house}</div>}
+                          {selectedNode.building && <div>Корпус: {selectedNode.building}</div>}
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Местоположение</label>
