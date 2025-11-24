@@ -14,7 +14,7 @@ export async function GET(
       .from('zakaz_applications')
       .select(`
         *,
-        zakaz_addresses(street, house, comment),
+        zakaz_nodes(id, code, street, house, address, presence_type),
         assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
         created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
         updated_by_user:zakaz_users!zakaz_applications_updated_by_fkey(id, full_name, email, role)
@@ -103,7 +103,7 @@ export async function PATCH(
 
     // Подготовка данных для обновления
     const updateData: Record<string, unknown> = {
-      address_id: body.address_id || null,
+      node_id: body.node_id || null,
       street_and_house: body.street_and_house || null,
       address_details: body.address_details || null,
       customer_type: body.customer_type,
@@ -129,7 +129,7 @@ export async function PATCH(
     const filtered = (builder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
     const selector = (filtered as { select: (cols: string) => unknown }).select(`
       *,
-      zakaz_addresses(street, house, comment),
+      zakaz_nodes(id, code, street, house, address, presence_type),
       assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
       created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
       updated_by_user:zakaz_users!zakaz_applications_updated_by_fkey(id, full_name, email, role)

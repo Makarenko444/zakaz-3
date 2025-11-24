@@ -66,7 +66,7 @@ export async function GET(_request: NextRequest) {
       // Последние 10 заявок
       supabase
         .from('zakaz_applications')
-        .select('id, application_number, customer_fullname, customer_phone, service_type, urgency, status, created_at, zakaz_addresses(street, house, entrance)')
+        .select('id, application_number, customer_fullname, customer_phone, service_type, urgency, status, created_at, zakaz_nodes(id, code, street, house, address, presence_type)')
         .order('created_at', { ascending: false })
         .limit(10),
     ])

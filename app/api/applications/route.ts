@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const urgency = searchParams.get('urgency')
     const serviceType = searchParams.get('service_type')
     const customerType = searchParams.get('customer_type')
-    const addressId = searchParams.get('address_id')
+    const nodeId = searchParams.get('node_id')
     const assignedTo = searchParams.get('assigned_to')
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Базовый запрос
     let query = supabase
       .from('zakaz_applications')
-      .select('*, zakaz_addresses(street, house)', { count: 'exact' })
+      .select('*, zakaz_nodes(id, code, street, house, address, presence_type)', { count: 'exact' })
       .order('created_at', { ascending: false })
 
     // Применяем фильтры
@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
       query = query.eq('customer_type', customerType)
     }
 
-    if (addressId) {
-      query = query.eq('address_id', addressId)
+    if (nodeId) {
+      query = query.eq('node_id', nodeId)
     }
 
     // Фильтр по назначенному менеджеру
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
       urgency,
       serviceType,
       customerType,
-      addressId,
+      nodeId,
       assignedTo,
       search
     })
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
 
     // Подготовка данных для вставки
     const applicationData = {
-      address_id: body.address_id || null,
+      node_id: body.node_id || null,
       street_and_house: body.street_and_house,
       address_details: body.address_details || null,
       customer_type: body.customer_type,
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
     // Обходим проблемы с автогенерируемыми типами Supabase через unknown
     const table = supabase.from('zakaz_applications') as unknown
     const builder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert(applicationData) as unknown
-    const selector = (builder as { select: (cols: string) => unknown }).select('*, zakaz_addresses(street, house)') as unknown
+    const selector = (builder as { select: (cols: string) => unknown }).select('*, zakaz_nodes(id, code, street, house, address, presence_type)') as unknown
     const query = (selector as { single: () => Promise<unknown> }).single()
     const result = await query
     const { data, error } = result as { data: { id: string; application_number: string; [key: string]: unknown } | null; error: { message?: string; [key: string]: unknown } | null }

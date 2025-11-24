@@ -21,9 +21,13 @@ interface ApplicationItem {
   street_and_house: string | null
   address_details: string | null
   created_at: string
-  zakaz_addresses: {
-    street: string
-    house: string
+  zakaz_nodes: {
+    id: string
+    code: string
+    street: string | null
+    house: string | null
+    address: string
+    presence_type: string
   } | null
 }
 
@@ -145,8 +149,8 @@ export default function UserInfoModal({ userId, userName, onClose }: UserInfoMod
   }
 
   const formatAddress = (app: ApplicationItem) => {
-    if (app.zakaz_addresses) {
-      return `${app.zakaz_addresses.street}, ${app.zakaz_addresses.house}`
+    if (app.zakaz_nodes) {
+      return app.zakaz_nodes.address || `${app.zakaz_nodes.street}, ${app.zakaz_nodes.house}`
     }
     if (app.street_and_house) {
       return app.street_and_house
