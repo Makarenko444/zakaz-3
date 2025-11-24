@@ -217,6 +217,11 @@ export async function GET(request: Request) {
         local: localResults.length,
         external: externalResults.length,
         total: allResults.length
+      },
+      debug: {
+        query: query.trim(),
+        hasExactMatch,
+        triggeredExternalSearch: localResults.length < MIN_LOCAL_RESULTS || !hasExactMatch
       }
     })
   } catch (error) {
