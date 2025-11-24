@@ -42,9 +42,13 @@ export async function GET(
         street_and_house,
         address_details,
         created_at,
-        zakaz_addresses (
+        zakaz_nodes (
+          id,
+          code,
           street,
-          house
+          house,
+          address,
+          presence_type
         )
       `)
       .eq('created_by', userId)
@@ -67,9 +71,13 @@ export async function GET(
         street_and_house,
         address_details,
         created_at,
-        zakaz_addresses (
+        zakaz_nodes (
+          id,
+          code,
           street,
-          house
+          house,
+          address,
+          presence_type
         )
       `)
       .eq('assigned_to', userId)

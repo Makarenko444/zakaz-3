@@ -35,10 +35,13 @@ interface DashboardStats {
     urgency: string
     status: string
     created_at: string
-    zakaz_addresses: {
-      street: string
-      house: string
-      entrance: string | null
+    zakaz_nodes: {
+      id: string
+      code: string
+      street: string | null
+      house: string | null
+      address: string
+      presence_type: string
     } | null
   }>
 }
@@ -388,13 +391,10 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {app.zakaz_addresses
-                              ? `${app.zakaz_addresses.street}, ${app.zakaz_addresses.house}`
+                            {app.zakaz_nodes
+                              ? app.zakaz_nodes.address || `${app.zakaz_nodes.street}, ${app.zakaz_nodes.house}`
                               : 'Адрес не указан'}
                           </div>
-                          {app.zakaz_addresses?.entrance && (
-                            <div className="text-sm text-gray-500">Подъезд {app.zakaz_addresses.entrance}</div>
-                          )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           {serviceTypeLabels[app.service_type as keyof typeof serviceTypeLabels] || app.service_type}

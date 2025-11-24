@@ -12,18 +12,21 @@ export async function GET(request: NextRequest) {
 
     const supabase = createDirectClient()
 
-    // Получаем все адреса
+    // Получаем все узлы/адреса
     const addressesQuery = await supabase
-      .from('zakaz_addresses')
+      .from('zakaz_nodes')
       .select('*')
       .order('street', { ascending: true })
       .order('house', { ascending: true })
 
     const addresses = addressesQuery.data as Array<{
       id: string
-      street: string
-      house: string
+      code: string
+      street: string | null
+      house: string | null
+      address: string
       comment: string | null
+      presence_type: string
       created_at?: string
       updated_at?: string
     }> | null
@@ -34,13 +37,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Не удалось загрузить адреса' }, { status: 500 })
     }
 
-    // Получаем все заявки с address_id для подсчета
+    // Получаем все заявки с node_id для подсчета
     const applicationsQuery = await supabase
       .from('zakaz_applications')
-      .select('address_id')
-      .not('address_id', 'is', null)
+      .select('node_id')
+      .not('node_id', 'is', null)
 
-    const applications = applicationsQuery.data as { address_id: string }[] | null
+    const applications = applicationsQuery.data as { node_id: string }[] | null
     const appsError = applicationsQuery.error
 
     if (appsError) {
@@ -48,12 +51,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Не удалось загрузить счетчики' }, { status: 500 })
     }
 
-    // Подсчитываем количество заявок для каждого адреса
+    // Подсчитываем количество заявок для каждого узла/адреса
     const countMap = new Map<string, number>()
     if (applications) {
       for (const app of applications) {
-        const count = countMap.get(app.address_id) || 0
-        countMap.set(app.address_id, count + 1)
+        const count = countMap.get(app.node_id) || 0
+        countMap.set(app.node_id, count + 1)
       }
     }
 
@@ -79,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { street, house, comment } = body
+    const { street, house, comment, presence_type } = body
 
     if (!street || !house) {
       return NextResponse.json(
@@ -90,11 +93,18 @@ export async function POST(request: NextRequest) {
 
     const supabase = createDirectClient()
 
-    const table = supabase.from('zakaz_addresses') as unknown
+    // Генерируем уникальный код для узла
+    const code = `NODE-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+
+    const table = supabase.from('zakaz_nodes') as unknown
     const insertBuilder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert({
+      code,
       street,
       house,
+      address: `${street}, ${house}`,
       comment: comment || null,
+      presence_type: presence_type || 'has_node',
+      status: 'existing',
     }) as unknown
     const selectBuilder = (insertBuilder as { select: () => unknown }).select() as unknown
     const result = await (selectBuilder as { single: () => Promise<unknown> }).single()
