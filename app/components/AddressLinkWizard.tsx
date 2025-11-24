@@ -25,7 +25,7 @@ interface Address {
   comment: string | null
   similarity?: number
   full_address?: string
-  source?: 'local' | 'external' // Источник адреса
+  source?: AddressSource // Источник адреса
 }
 
 interface AddressLinkWizardProps {
@@ -66,6 +66,7 @@ export default function AddressLinkWizard({
 
     setIsSearching(true)
     setError('')
+    setOsmValidation(null)
 
     try {
       const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}`)
@@ -73,7 +74,18 @@ export default function AddressLinkWizard({
       const data = await response.json()
       setAddresses(data.addresses || [])
       setUsedFallback(data.fallback || false)
-      setSearchStats(data.stats || null)
+
+      // Гарантируем наличие числовых счётчиков для Яндекс/OSM,
+      // чтобы не было undefined при отображении бейджей
+      if (data.stats) {
+        setSearchStats({
+          ...data.stats,
+          yandex: data.stats.yandex ?? 0,
+          openstreet: data.stats.openstreet ?? 0
+        })
+      } else {
+        setSearchStats(null)
+      }
 
       // Отладочная информация
       if (data.debug) {
@@ -114,7 +126,7 @@ export default function AddressLinkWizard({
       let nodeId = address.id
 
       // Если адрес из внешнего источника - сначала сохраняем его в локальную БД
-      if (address.source === 'external') {
+      if (address.source && address.source !== 'local') {
         const saveResponse = await fetch('/api/addresses/save-external', {
           method: 'POST',
           headers: {
@@ -210,6 +222,56 @@ export default function AddressLinkWizard({
             )}
           </div>
 
+          {/* Проверка написания по OpenStreetMap */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3 0 2.25 3 5 3 5s3-2.75 3-5c0-1.657-1.343-3-3-3z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.5 11c0 5.5-6.5 9-8.5 9s-8.5-3.5-8.5-9a8.5 8.5 0 1117 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Проверка написания через OpenStreetMap</p>
+                <p className="text-xs text-gray-600">Используем OSM, чтобы убедиться, что адрес написан корректно.</p>
+              </div>
+            </div>
+
+            {isLoading && !osmValidation ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+                <span>Идет проверка по OpenStreetMap...</span>
+              </div>
+            ) : osmValidation?.status === 'match' ? (
+              <div className="p-3 rounded-lg border border-green-200 bg-green-50 flex items-start gap-2">
+                <svg className="w-5 h-5 text-green-700 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-green-800">Написание совпадает с данными OSM</p>
+                  {osmValidation.suggestion && (
+                    <p className="text-xs text-green-700 mt-1">{osmValidation.suggestion}</p>
+                  )}
+                </div>
+              </div>
+            ) : osmValidation?.status === 'suggestions' ? (
+              <div className="p-3 rounded-lg border border-amber-200 bg-amber-50">
+                <p className="text-sm font-medium text-amber-800">OSM предлагает уточнения для написания</p>
+                <p className="text-xs text-amber-700 mt-1">Проверьте варианты и выберите подходящий адрес.</p>
+                {osmValidation.suggestions && osmValidation.suggestions.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-xs text-amber-800 list-disc list-inside">
+                    {osmValidation.suggestions.map((item, index) => (
+                      <li key={index}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg border border-gray-200 bg-gray-50">
+                <p className="text-sm font-medium text-gray-800">Подходящих подсказок в OSM не найдено</p>
+                <p className="text-xs text-gray-600 mt-1">Адрес можно привязать вручную или воспользоваться подсказками других источников.</p>
+              </div>
+            )}
+          </div>
+
           {/* Поиск */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -253,8 +315,14 @@ export default function AddressLinkWizard({
             <>
               {/* Разделяем адреса на локальные и внешние */}
               {(() => {
-                const localAddresses = addresses.filter(addr => addr.source === 'local')
-                const externalAddresses = addresses.filter(addr => addr.source === 'external')
+                const localAddresses = addresses.filter(addr => !addr.source || addr.source === 'local')
+                const externalAddresses = addresses.filter(addr => addr.source && addr.source !== 'local')
+
+                const getSourceLabel = (source?: AddressSource) => {
+                  if (source === 'external_osm') return 'OpenStreetMap'
+                  if (source === 'external_yandex') return 'Яндекс'
+                  return 'Внешний источник'
+                }
 
                 return (
                   <div className="space-y-6">
@@ -309,48 +377,50 @@ export default function AddressLinkWizard({
                       </div>
                     )}
 
-                    {/* Внешние адреса из Яндекс API - показываем всегда для отладки */}
+                    {/* Внешние адреса из внешних API - показываем всегда для отладки */}
                     <div>
                       <div className="flex items-center gap-2 mb-3">
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <h3 className="text-sm font-semibold text-blue-700">
-                          Адреса из Яндекс API ({externalAddresses.length})
+                          Адреса из внешних источников ({externalAddresses.length})
                         </h3>
                         {searchStats && (
                           <span className="text-xs text-gray-500">
-                            • Всего найдено: {searchStats.total}
+                            • Всего: {searchStats.total}
+                            {typeof searchStats.yandex === 'number' && ` • Яндекс: ${searchStats.yandex}`}
+                            {typeof searchStats.openstreet === 'number' && ` • OSM: ${searchStats.openstreet}`}
                           </span>
                         )}
                       </div>
-                      {externalAddresses.length > 0 ? (
+                      {yandexAddresses.length > 0 ? (
                         <div className="space-y-2">
-                          {externalAddresses.map((address) => (
+                          {yandexAddresses.map((address) => (
                             <button
                               key={address.id}
                               onClick={() => handleLink(address)}
                               disabled={isLinking || isUnlinking}
                               className="w-full text-left p-4 rounded-lg border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900">
-                                      {address.street}, {address.house}
-                                    </p>
-                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                                      Яндекс
-                                    </span>
-                                  </div>
-                                  {address.comment && (
-                                    <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
-                                  )}
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium text-gray-900">
+                                        {address.street}, {address.house}
+                                      </p>
+                                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                                        {getSourceLabel(address.source)}
+                                      </span>
+                                    </div>
+                                    {address.comment && (
+                                      <p className="text-sm text-gray-600 mt-1">{address.comment}</p>
+                                    )}
                                   <p className="text-xs text-blue-600 mt-1">
                                     Будет сохранен в локальную базу при выборе
                                   </p>
                                 </div>
-                                <span className="ml-2 text-sm font-medium text-blue-600">
+                                <span className="ml-2 text-sm font-medium text-green-700">
                                   {currentNodeId ? 'Изменить →' : 'Выбрать →'}
                                 </span>
                               </div>
@@ -360,10 +430,10 @@ export default function AddressLinkWizard({
                       ) : (
                         <div className="p-4 bg-blue-50 border-2 border-blue-100 rounded-lg">
                           <p className="text-sm text-blue-700">
-                            {isSearching ? '⏳ Поиск в Яндекс API...' : '📭 Адреса не найдены в Яндекс API'}
+                            {isSearching ? '⏳ Поиск во внешних источниках...' : '📭 Адреса не найдены во внешних источниках'}
                           </p>
                           <p className="text-xs text-blue-600 mt-1">
-                            API запрашивается автоматически при отсутствии точного совпадения
+                            Внешние API запрашиваются автоматически при отсутствии точного совпадения
                           </p>
                           {searchStats && (
                             <p className="text-xs text-gray-500 mt-1">
@@ -375,7 +445,7 @@ export default function AddressLinkWizard({
                     </div>
 
                     {/* Если нет ни локальных, ни внешних адресов */}
-                    {localAddresses.length === 0 && externalAddresses.length === 0 && (
+                    {localAddresses.length === 0 && yandexAddresses.length === 0 && osmAddresses.length === 0 && (
                       <div className="text-center py-8">
                         <svg className="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
