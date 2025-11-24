@@ -12,6 +12,12 @@ type SearchStats = {
   openstreet: number
 }
 
+type OsmValidation = {
+  status: 'match' | 'suggestions' | 'no_match'
+  suggestion?: string
+  suggestions?: string[]
+}
+
 interface Address {
   id: string
   street: string
@@ -50,6 +56,7 @@ export default function AddressLinkWizard({
   const [error, setError] = useState('')
   const [usedFallback, setUsedFallback] = useState(false)
   const [searchStats, setSearchStats] = useState<SearchStats | null>(null)
+  const [osmValidation, setOsmValidation] = useState<OsmValidation | null>(null)
 
   const searchAddresses = useCallback(async (query: string) => {
     if (!query.trim()) {
