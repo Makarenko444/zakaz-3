@@ -81,6 +81,13 @@ export default function NodesPage() {
     node_type: 'prp',
     status: 'existing'
   })
+  const [osmValidation, setOsmValidation] = useState<{
+    status: 'match' | 'suggestions' | 'no_match'
+    message: string
+    suggestion?: string
+    suggestions?: string[]
+  } | null>(null)
+  const [isValidatingOsm, setIsValidatingOsm] = useState(false)
 
   useEffect(() => {
     void loadNodes()
@@ -255,6 +262,49 @@ export default function NodesPage() {
       node_type: 'prp',
       status: 'existing'
     })
+    setOsmValidation(null)
+  }
+
+  async function validateAddressFormat() {
+    if (!createFormData.street) {
+      setOsmValidation(null)
+      return
+    }
+
+    setIsValidatingOsm(true)
+    try {
+      const addressToValidate = createFormData.house
+        ? `${createFormData.street}, ${createFormData.house}`
+        : createFormData.street
+
+      const city = createFormData.city || 'Томск'
+      const fullAddress = `${city}, ${addressToValidate}`
+
+      const response = await fetch(`/api/addresses/validate-osm?address=${encodeURIComponent(fullAddress)}`)
+      const data = await response.json()
+      setOsmValidation(data)
+    } catch (error) {
+      console.error('Error validating address with OSM:', error)
+      setOsmValidation({
+        status: 'no_match',
+        message: 'Не удалось проверить адрес'
+      })
+    } finally {
+      setIsValidatingOsm(false)
+    }
+  }
+
+  function applyOsmSuggestion(suggestion: string) {
+    // Парсим предложение формата "улица, дом"
+    const parts = suggestion.split(',').map(p => p.trim())
+    if (parts.length >= 2) {
+      setCreateFormData({
+        ...createFormData,
+        street: parts[0],
+        house: parts[1]
+      })
+      setOsmValidation(null)
+    }
   }
 
   async function handleCreateNode() {
@@ -319,7 +369,7 @@ export default function NodesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Узлы подключения</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Адреса</h1>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm text-gray-600">
@@ -333,7 +383,7 @@ export default function NodesPage() {
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Создать узел
+                  Создать адрес
                 </button>
               )}
               <button
@@ -881,7 +931,7 @@ export default function NodesPage() {
           >
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">Создание нового узла</h3>
+                <h3 className="text-lg font-medium text-gray-900">Создание нового адреса</h3>
                 <button
                   onClick={handleCloseCreateModal}
                   className="text-gray-400 hover:text-gray-500"
@@ -975,6 +1025,74 @@ export default function NodesPage() {
                         placeholder="корп. 2"
                       />
                     </div>
+
+                    {/* Кнопка проверки адреса */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={validateAddressFormat}
+                        disabled={isValidatingOsm || !createFormData.street}
+                        className="w-full px-4 py-2 border border-indigo-300 text-sm font-medium rounded-md text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isValidatingOsm ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 inline" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Проверка адреса...
+                          </>
+                        ) : (
+                          '🌍 Проверить формат адреса по OpenStreetMap'
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Результаты OSM валидации */}
+                    {osmValidation && (
+                      <div className={`p-3 rounded-md border ${
+                        osmValidation.status === 'match'
+                          ? 'bg-green-50 border-green-200'
+                          : osmValidation.status === 'suggestions'
+                          ? 'bg-yellow-50 border-yellow-200'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}>
+                        <p className={`text-sm font-medium mb-2 ${
+                          osmValidation.status === 'match'
+                            ? 'text-green-800'
+                            : osmValidation.status === 'suggestions'
+                            ? 'text-yellow-800'
+                            : 'text-gray-800'
+                        }`}>
+                          {osmValidation.message}
+                        </p>
+
+                        {osmValidation.status === 'suggestions' && osmValidation.suggestions && (
+                          <div className="space-y-2">
+                            <p className="text-xs text-gray-600">Выберите правильный вариант написания:</p>
+                            {osmValidation.suggestions.map((suggestion, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => applyOsmSuggestion(suggestion)}
+                                className="w-full text-left px-3 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-indigo-50 hover:border-indigo-400 transition-colors"
+                              >
+                                📍 {suggestion}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {osmValidation.status === 'match' && (
+                          <div className="flex items-center text-sm text-green-700">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Адрес соответствует данным OSM
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -1022,10 +1140,13 @@ export default function NodesPage() {
                     </div>
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 space-y-1">
                     <p className="text-xs text-blue-800">
                       <strong>Тип узла</strong> будет автоматически определен по префиксу кода:
                       ПРП → узел связи, АО → абонентское окончание, СК → СКУД, другие → прочее
+                    </p>
+                    <p className="text-xs text-blue-800">
+                      Для адресов, где еще нет присутствия, можно указать код <strong>"Нет присутствия"</strong>
                     </p>
                   </div>
                 </div>
@@ -1046,7 +1167,7 @@ export default function NodesPage() {
                   disabled={isSaving}
                   className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {isSaving ? 'Создание...' : 'Создать узел'}
+                  {isSaving ? 'Создание...' : 'Создать адрес'}
                 </button>
               </div>
             </div>

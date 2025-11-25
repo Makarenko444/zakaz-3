@@ -78,20 +78,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Проверяем уникальность кода
-    const { data: existingNode } = await supabase
-      .from('zakaz_nodes')
-      .select('id')
-      .eq('code', body.code)
-      .single()
-
-    if (existingNode) {
-      return NextResponse.json(
-        { error: `Node with code ${body.code} already exists` },
-        { status: 409 }
-      )
-    }
-
     // Создаем узел
     // Поле address будет автоматически сформировано триггером в БД
     const table = supabase.from('zakaz_nodes') as unknown
