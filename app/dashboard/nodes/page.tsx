@@ -674,7 +674,7 @@ export default function NodesPage() {
                         )}
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Местоположение</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Расположение узла</th>
                     <th
                       className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                       onClick={() => handleSort('status')}
@@ -917,13 +917,14 @@ export default function NodesPage() {
                     )}
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Местоположение</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Расположение узла</label>
                       {isEditMode ? (
                         <textarea
                           value={editFormData.location_details || ''}
                           onChange={(e) => setEditFormData({ ...editFormData, location_details: e.target.value })}
                           rows={2}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          placeholder="Подробное описание расположения узла"
                         />
                       ) : (
                         <p className="text-sm text-gray-900">{selectedNode.location_details || '—'}</p>
@@ -1204,13 +1205,13 @@ export default function NodesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Местоположение</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Расположение узла</label>
                     <textarea
                       value={createFormData.location_details || ''}
                       onChange={(e) => setCreateFormData({ ...createFormData, location_details: e.target.value })}
                       rows={2}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      placeholder="Подробное описание местоположения"
+                      placeholder="Подробное описание расположения узла"
                     />
                   </div>
 

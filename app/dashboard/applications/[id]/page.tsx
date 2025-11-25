@@ -32,11 +32,13 @@ interface ApplicationWithAddress extends Application {
   zakaz_nodes: {
     id: string
     code: string
+    city: string | null
     street: string | null
     house: string | null
+    building: string | null
     address: string
-    comment: string | null
-    presence_type: string
+    location_details: string | null
+    status: string
   } | null
   assigned_user?: {
     id: string
@@ -442,8 +444,9 @@ export default function ApplicationDetailPage() {
   }
 
   const formatAddress = (node: ApplicationWithAddress['zakaz_nodes']) => {
-    if (!node || !node.street || !node.house) return 'Адрес не указан'
-    return `${node.street}, ${node.house}`
+    if (!node) return 'Адрес не указан'
+    // Используем полный адрес, автоматически сформированный триггером БД
+    return node.address || 'Адрес не указан'
   }
 
   const formatTitle = () => {
@@ -768,7 +771,7 @@ export default function ApplicationDetailPage() {
                         <>
                           <span className="text-xs text-gray-500">Формализованный адрес:</span>
                           <Link
-                            href={`/dashboard/applications?node_id=${application.node_id}&node_street=${encodeURIComponent(application.zakaz_nodes.street || '')}&node_house=${encodeURIComponent(application.zakaz_nodes.house || '')}`}
+                            href={`/dashboard/applications?node_id=${application.node_id}&node_address=${encodeURIComponent(application.zakaz_nodes.address)}`}
                             className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition"
                           >
                             <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
