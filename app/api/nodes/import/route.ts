@@ -91,7 +91,7 @@ function parseAddress(fullAddress: string): {
   normalized = normalized.replace(/^(г\.|гор\.|город)\s*/i, '')
 
   // Извлекаем город если он явно указан
-  const cityMatch = normalized.match(/^(Томск|Москва|Санкт-Петербург|Новосибирск|Екатеринбург)[,\s]/i)
+  const cityMatch = normalized.match(/^(Томск|Северск|Москва|Санкт-Петербург|Новосибирск|Екатеринбург)[,\s]/i)
   if (cityMatch) {
     result.city = cityMatch[1]
     normalized = normalized.substring(cityMatch[0].length).trim()
