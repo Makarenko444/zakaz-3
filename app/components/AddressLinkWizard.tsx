@@ -121,7 +121,8 @@ export default function AddressLinkWizard({
     // При открытии мастера сразу ищем по адресу из заявки
     if (streetAndHouse && streetAndHouse.trim()) {
       searchAddresses(streetAndHouse)
-      validateAddressWithOSM(streetAndHouse)
+      // OSM validation temporarily disabled
+      // validateAddressWithOSM(streetAndHouse)
     }
   }, [streetAndHouse, searchAddresses, validateAddressWithOSM])
 
@@ -200,12 +201,12 @@ export default function AddressLinkWizard({
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
-              {currentNodeId ? 'Изменить привязку к узлу' : 'Привязка адреса к узлу'}
+              {currentNodeId ? 'Изменить привязку заявки к адресу' : 'Привязка заявки к адресу'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
               {currentNodeId
                 ? 'Выберите другой адрес или отвяжите текущий'
-                : 'Найдите адрес в справочнике узлов или закройте окно для привязки позже'}
+                : 'Найдите адрес в справочнике адресов или закройте окно для привязки позже'}
             </p>
           </div>
           <button
@@ -240,7 +241,7 @@ export default function AddressLinkWizard({
             )}
           </div>
 
-          {/* Проверка написания по OpenStreetMap */}
+          {/* OSM validation temporarily disabled
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
               <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -298,6 +299,7 @@ export default function AddressLinkWizard({
               </div>
             )}
           </div>
+          */}
 
           {/* Поиск */}
           <div className="mb-4">
@@ -502,12 +504,12 @@ export default function AddressLinkWizard({
                   disabled={isUnlinking || isLinking}
                   className="px-4 py-2 border border-red-300 rounded-lg text-red-700 hover:bg-red-50 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isUnlinking ? 'Отвязка...' : 'Отвязать от узла'}
+                  {isUnlinking ? 'Отвязка...' : 'Отвязать адрес'}
                 </button>
               )}
               <p className="text-sm text-gray-600">
                 {currentNodeId
-                  ? 'Вы можете изменить привязку или отвязать заявку от узла'
+                  ? 'Вы можете изменить привязку или отвязать адрес от заявки'
                   : 'Если адреса нет в списке, вы можете привязать его позже'}
               </p>
             </div>

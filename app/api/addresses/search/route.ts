@@ -199,15 +199,53 @@ export async function GET(request: Request) {
     const supabase = createDirectClient()
 
     // Шаг 1: Поиск в zakaz_nodes через fuzzy search
-    // Используем простой ILIKE поиск по street и house
-    const { data: nodes, error: searchError } = await supabase
-      .from('zakaz_nodes')
-      .select('id, code, street, house, comment, presence_type, created_at, updated_at')
-      .or(`street.ilike.%${query}%,house.ilike.%${query}%,address.ilike.%${query}%`)
-      .order('street', { ascending: true })
-      .order('house', { ascending: true })
-      .limit(20)
-      .returns<NodeSearchResult[]>()
+    // Пытаемся определить, ищет ли пользователь "улица + дом"
+    const trimmedQuery = query.trim()
+
+    // Попробуем разделить запрос на улицу и номер дома
+    // Ищем паттерны вида "Кирова 555", "Кирова, 555", "Кирова,555"
+    const streetHousePattern = /^(.+?)[\s,]+(\d+[а-яА-Яa-zA-Z]*)$/
+    const match = trimmedQuery.match(streetHousePattern)
+
+    let nodes: NodeSearchResult[] = []
+    let searchError = null
+
+    if (match) {
+      // Запрос содержит и улицу и номер дома
+      const streetPart = match[1].trim()
+      const housePart = match[2].trim()
+
+      // Ищем по двум условиям: улица содержит первую часть И дом содержит вторую часть
+      const { data, error } = await supabase
+        .from('zakaz_nodes')
+        .select('id, code, street, house, comment, presence_type, created_at, updated_at')
+        .ilike('street', `%${streetPart}%`)
+        .ilike('house', `%${housePart}%`)
+        .order('street', { ascending: true })
+        .order('house', { ascending: true })
+        .limit(20)
+        .returns<NodeSearchResult[]>()
+
+      nodes = data || []
+      searchError = error
+
+      console.log(`Search with split query: street="${streetPart}" AND house="${housePart}" -> ${nodes.length} results`)
+    } else {
+      // Обычный поиск по всем полям
+      const { data, error } = await supabase
+        .from('zakaz_nodes')
+        .select('id, code, street, house, comment, presence_type, created_at, updated_at')
+        .or(`street.ilike.%${trimmedQuery}%,house.ilike.%${trimmedQuery}%,address.ilike.%${trimmedQuery}%`)
+        .order('street', { ascending: true })
+        .order('house', { ascending: true })
+        .limit(20)
+        .returns<NodeSearchResult[]>()
+
+      nodes = data || []
+      searchError = error
+
+      console.log(`Search with simple query: "${trimmedQuery}" -> ${nodes.length} results`)
+    }
 
     let localResults: SearchResult[] = []
 
