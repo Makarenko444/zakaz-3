@@ -62,6 +62,7 @@ export default function AddressLinkWizard({
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [newAddress, setNewAddress] = useState({
+    city: 'Томск',
     street: '',
     house: '',
     building: '',
@@ -205,6 +206,55 @@ export default function AddressLinkWizard({
     }
   }
 
+  // Функция для разбора адреса из заявки
+  function parseAddressFromApplication(addressStr: string): { street: string; house: string; building: string } {
+    // Адрес обычно в формате "Улица, Дом" или "Улица Дом" или "Улица д.Дом"
+    const trimmed = addressStr.trim()
+
+    // Пробуем разные варианты разбора
+    // Вариант 1: "Улица, Дом" или "Улица,Дом"
+    if (trimmed.includes(',')) {
+      const parts = trimmed.split(',').map(p => p.trim())
+      const street = parts[0] || ''
+      const houseWithBuilding = parts[1] || ''
+
+      // Пробуем найти корпус/строение
+      const buildingMatch = houseWithBuilding.match(/^(\d+[а-яА-Я]?)\s*(корп\.?\s*|к\.?\s*|стр\.?\s*)?(.*)$/i)
+      if (buildingMatch) {
+        return {
+          street,
+          house: buildingMatch[1],
+          building: buildingMatch[3] || ''
+        }
+      }
+
+      return { street, house: houseWithBuilding, building: '' }
+    }
+
+    // Вариант 2: "Улица д.123" или "Улица дом 123"
+    const housePatternMatch = trimmed.match(/^(.+?)\s+(?:д\.?|дом)\s*(\d+[а-яА-Я]?)(?:\s*(?:корп\.?|к\.?|стр\.?)\s*(.+))?$/i)
+    if (housePatternMatch) {
+      return {
+        street: housePatternMatch[1].trim(),
+        house: housePatternMatch[2],
+        building: housePatternMatch[3] || ''
+      }
+    }
+
+    // Вариант 3: "Улица 123" (последнее число - дом)
+    const simpleMatch = trimmed.match(/^(.+?)\s+(\d+[а-яА-Я]?)(?:\s+(.+))?$/)
+    if (simpleMatch) {
+      return {
+        street: simpleMatch[1].trim(),
+        house: simpleMatch[2],
+        building: simpleMatch[3] || ''
+      }
+    }
+
+    // Если не получилось разобрать, возвращаем всё как улицу
+    return { street: trimmed, house: '', building: '' }
+  }
+
   async function handleCreateAddress() {
     if (!newAddress.street.trim() || !newAddress.house.trim()) {
       setError('Заполните обязательные поля: улица и номер дома')
@@ -222,7 +272,7 @@ export default function AddressLinkWizard({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          city: 'Томск',
+          city: newAddress.city.trim(),
           street: newAddress.street.trim(),
           house: newAddress.house.trim(),
           building: newAddress.building.trim() || null,
@@ -243,7 +293,7 @@ export default function AddressLinkWizard({
 
       // Закрываем форму создания
       setShowCreateForm(false)
-      setNewAddress({ street: '', house: '', building: '' })
+      setNewAddress({ city: 'Томск', street: '', house: '', building: '' })
     } catch (error) {
       console.error('Error creating address:', error)
       setError(error instanceof Error ? error.message : 'Не удалось создать адрес')
@@ -384,7 +434,18 @@ export default function AddressLinkWizard({
           <div className="mb-6">
             {!showCreateForm ? (
               <button
-                onClick={() => setShowCreateForm(true)}
+                onClick={() => {
+                  // Предзаполняем данные из адреса заявки
+                  const parsed = parseAddressFromApplication(streetAndHouse)
+                  setNewAddress({
+                    city: 'Томск',
+                    street: parsed.street,
+                    house: parsed.house,
+                    building: parsed.building,
+                  })
+                  setShowCreateForm(true)
+                  setError('')
+                }}
                 className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition font-medium flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -399,7 +460,7 @@ export default function AddressLinkWizard({
                   <button
                     onClick={() => {
                       setShowCreateForm(false)
-                      setNewAddress({ street: '', house: '', building: '' })
+                      setNewAddress({ city: 'Томск', street: '', house: '', building: '' })
                       setError('')
                     }}
                     className="text-indigo-600 hover:text-indigo-800"
@@ -411,6 +472,19 @@ export default function AddressLinkWizard({
                 </div>
 
                 <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Город <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newAddress.city}
+                      onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                      placeholder="Томск"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-blue-50"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -462,7 +536,7 @@ export default function AddressLinkWizard({
                     <button
                       onClick={() => {
                         setShowCreateForm(false)
-                        setNewAddress({ street: '', house: '', building: '' })
+                        setNewAddress({ city: 'Томск', street: '', house: '', building: '' })
                         setError('')
                       }}
                       disabled={isCreating}
@@ -474,7 +548,7 @@ export default function AddressLinkWizard({
                 </div>
 
                 <p className="text-xs text-indigo-700 mt-3">
-                  💡 Город автоматически установлен: Томск
+                  💡 Данные автоматически заполнены из адреса заявки
                 </p>
               </div>
             )}
