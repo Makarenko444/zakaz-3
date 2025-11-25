@@ -276,7 +276,7 @@ export default function AddressLinkWizard({
           street: newAddress.street.trim(),
           house: newAddress.house.trim(),
           building: newAddress.building.trim() || null,
-          status: 'active',
+          status: 'existing',
           code: '', // Пустой код, можно генерировать на сервере
         }),
       })
