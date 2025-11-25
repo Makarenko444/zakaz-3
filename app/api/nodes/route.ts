@@ -14,12 +14,14 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
+    const sortField = searchParams.get('sort_field') || 'created_at'
+    const sortDirection = searchParams.get('sort_direction') || 'desc'
 
     // Базовый запрос
     let query = supabase
       .from('zakaz_nodes')
       .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
+      .order(sortField, { ascending: sortDirection === 'asc' })
 
     // Применяем фильтры
     if (status) {

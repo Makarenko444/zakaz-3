@@ -68,6 +68,10 @@ export default function NodesPage() {
   const [selectedStatus, setSelectedStatus] = useState<NodeStatus | ''>('')
   const [selectedNodeType, setSelectedNodeType] = useState<NodeType | ''>('')
 
+  // Сортировка
+  const [sortField, setSortField] = useState<string>('created_at')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+
   // Модальное окно и редактирование
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
@@ -94,24 +98,47 @@ export default function NodesPage() {
   const [isValidatingOsm, setIsValidatingOsm] = useState(false)
 
   useEffect(() => {
+    // Загружаем сортировку из localStorage
+    const savedSort = localStorage.getItem('nodes-sort')
+    if (savedSort) {
+      try {
+        const { field, direction } = JSON.parse(savedSort)
+        setSortField(field)
+        setSortDirection(direction)
+      } catch (e) {
+        console.error('Failed to parse saved sort', e)
+      }
+    }
+
     void loadNodes()
     void loadCurrentUser()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Закрытие модального окна по Esc (только в режиме просмотра)
+  // Автоприменение фильтров
+  useEffect(() => {
+    if (nodes.length > 0 || !isLoading) {
+      void loadNodes()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStatus, selectedNodeType, sortField, sortDirection])
+
+  // Закрытие модального окна по Esc (только в режиме просмотра, не в режиме редактирования/создания)
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape' && isModalOpen && !isEditMode) {
-        handleCloseModal()
+      if (event.key === 'Escape') {
+        // Закрываем только в режиме просмотра (не редактирования и не создания)
+        if (isModalOpen && !isEditMode) {
+          handleCloseModal()
+        }
       }
     }
 
-    if (isModalOpen) {
+    if (isModalOpen || isCreateModalOpen) {
       document.addEventListener('keydown', handleEscape)
       return () => document.removeEventListener('keydown', handleEscape)
     }
-  }, [isModalOpen, isEditMode])
+  }, [isModalOpen, isEditMode, isCreateModalOpen])
 
   // Автоматическая проверка OSM после ввода дома
   useEffect(() => {
@@ -138,6 +165,8 @@ export default function NodesPage() {
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
+        sort_field: sortField,
+        sort_direction: sortDirection,
       })
 
       if (selectedStatus) params.set('status', selectedStatus)
@@ -159,6 +188,15 @@ export default function NodesPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  function handleSort(field: string) {
+    const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc'
+    setSortField(field)
+    setSortDirection(newDirection)
+
+    // Сохраняем в localStorage
+    localStorage.setItem('nodes-sort', JSON.stringify({ field, direction: newDirection }))
   }
 
   async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -207,6 +245,7 @@ export default function NodesPage() {
     setSearchQuery('')
     setSelectedStatus('')
     setSelectedNodeType('')
+    // loadNodes будет вызван автоматически через useEffect
   }
 
   function handleNodeClick(node: Node) {
@@ -567,14 +606,16 @@ export default function NodesPage() {
               onClick={handleSearch}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              Применить фильтры
+              🔍 Поиск
             </button>
-            <button
-              onClick={handleClearFilters}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Сбросить
-            </button>
+            {(searchQuery || selectedStatus || selectedNodeType) && (
+              <button
+                onClick={handleClearFilters}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                ✕ Сбросить фильтры
+              </button>
+            )}
           </div>
         </div>
 
@@ -600,12 +641,62 @@ export default function NodesPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">№</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Код</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Тип</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Адрес</th>
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort('code')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Код
+                        {sortField === 'code' && (
+                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort('node_type')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Тип
+                        {sortField === 'node_type' && (
+                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort('address')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Адрес
+                        {sortField === 'address' && (
+                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                    </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Местоположение</th>
-                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Дата</th>
+                    <th
+                      className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        Статус
+                        {sortField === 'status' && (
+                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none hidden lg:table-cell"
+                      onClick={() => handleSort('node_created_date')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Дата
+                        {sortField === 'node_created_date' && (
+                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -720,7 +811,12 @@ export default function NodesPage() {
         {isModalOpen && selectedNode && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-500 bg-opacity-75"
-            onClick={() => !isEditMode && handleCloseModal()}
+            onClick={(e) => {
+              // Закрываем только в режиме просмотра
+              if (!isEditMode && e.target === e.currentTarget) {
+                handleCloseModal()
+              }
+            }}
           >
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -950,7 +1046,6 @@ export default function NodesPage() {
         {isCreateModalOpen && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-500 bg-opacity-75"
-            onClick={handleCloseCreateModal}
           >
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
