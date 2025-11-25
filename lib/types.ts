@@ -19,7 +19,7 @@ export type CustomerType = 'individual' | 'business'
 
 export type ServiceType = 'apartment' | 'office' | 'scs'
 
-export type NodeStatus = 'existing' | 'planned'
+export type NodeStatus = 'existing' | 'planned' | 'not_present'
 
 export type NodeType = 'prp' | 'ao' | 'sk' | 'other'
 
