@@ -229,13 +229,13 @@ export async function GET(request: Request) {
         source: 'local' as const
       }))
 
-    const normalize = (value: string) => value.trim().toLowerCase().replace(/,+/g, ' ').replace(/\s+/g, ' ')
+    const _normalize = (value: string) => value.trim().toLowerCase().replace(/,+/g, ' ').replace(/\s+/g, ' ')
 
     // Шаг 2: Умная логика - запрашиваем внешние API если:
     // 1. Найдено мало локальных результатов (< 3)
     // 2. ИЛИ нет точного совпадения с запросом
     let externalResults: SearchResult[] = []
-    let openStreetResults: SearchResult[] = []
+    let _openStreetResults: SearchResult[] = []
     const MIN_LOCAL_RESULTS = 3
 
     // Проверяем есть ли точное совпадение среди локальных результатов
@@ -264,7 +264,7 @@ export async function GET(request: Request) {
       ])
 
       externalResults = yandexResults
-      openStreetResults = osmResults
+      _openStreetResults = osmResults
     }
 
     // Объединяем результаты: сначала локальные, потом внешние
