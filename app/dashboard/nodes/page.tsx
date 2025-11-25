@@ -35,6 +35,7 @@ interface ImportResult {
 const statusLabels: Record<NodeStatus, string> = {
   existing: 'Существующий',
   planned: 'Проектируемый',
+  not_present: 'Не присутствуем',
 }
 
 const nodeTypeLabels: Record<NodeType, string> = {
@@ -47,6 +48,7 @@ const nodeTypeLabels: Record<NodeType, string> = {
 const statusColors: Record<NodeStatus, string> = {
   existing: 'bg-green-100 text-green-800',
   planned: 'bg-blue-100 text-blue-800',
+  not_present: 'bg-gray-100 text-gray-800',
 }
 
 export default function NodesPage() {
@@ -77,9 +79,11 @@ export default function NodesPage() {
   // Создание нового узла
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [createFormData, setCreateFormData] = useState<Partial<Node>>({
+    code: 'Адрес',
     city: 'Томск',
     node_type: 'prp',
-    status: 'existing'
+    status: 'not_present',
+    node_created_date: new Date().toISOString().split('T')[0]
   })
   const [osmValidation, setOsmValidation] = useState<{
     status: 'match' | 'suggestions' | 'no_match'
@@ -108,6 +112,19 @@ export default function NodesPage() {
       return () => document.removeEventListener('keydown', handleEscape)
     }
   }, [isModalOpen, isEditMode])
+
+  // Автоматическая проверка OSM после ввода дома
+  useEffect(() => {
+    if (isCreateModalOpen && createFormData.street && createFormData.house) {
+      // Задержка перед проверкой, чтобы не спамить API при быстром вводе
+      const timeoutId = setTimeout(() => {
+        void validateAddressFormat()
+      }, 800)
+
+      return () => clearTimeout(timeoutId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createFormData.street, createFormData.house, isCreateModalOpen])
 
   async function loadCurrentUser() {
     const user = await getCurrentUser()
@@ -248,9 +265,11 @@ export default function NodesPage() {
 
   function handleOpenCreateModal() {
     setCreateFormData({
+      code: 'Адрес',
       city: 'Томск',
       node_type: 'prp',
-      status: 'existing'
+      status: 'not_present',
+      node_created_date: new Date().toISOString().split('T')[0]
     })
     setIsCreateModalOpen(true)
   }
@@ -258,9 +277,11 @@ export default function NodesPage() {
   function handleCloseCreateModal() {
     setIsCreateModalOpen(false)
     setCreateFormData({
+      code: 'Адрес',
       city: 'Томск',
       node_type: 'prp',
-      status: 'existing'
+      status: 'not_present',
+      node_created_date: new Date().toISOString().split('T')[0]
     })
     setOsmValidation(null)
   }
@@ -520,6 +541,7 @@ export default function NodesPage() {
                 <option value="">Все</option>
                 <option value="existing">Существующий</option>
                 <option value="planned">Проектируемый</option>
+                <option value="not_present">Не присутствуем</option>
               </select>
             </div>
 
@@ -618,7 +640,7 @@ export default function NodesPage() {
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-center">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[node.status]}`}>
-                          {node.status === 'existing' ? 'Сущ.' : 'Проект.'}
+                          {node.status === 'existing' ? 'Сущ.' : node.status === 'planned' ? 'Проект.' : 'Не прис.'}
                         </span>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap hidden lg:table-cell">
@@ -837,6 +859,7 @@ export default function NodesPage() {
                           >
                             <option value="existing">Существующий</option>
                             <option value="planned">Проектируемый</option>
+                            <option value="not_present">Не присутствуем</option>
                           </select>
                         ) : (
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${statusColors[selectedNode.status]}`}>
@@ -962,10 +985,11 @@ export default function NodesPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
                       <select
-                        value={createFormData.status || 'existing'}
+                        value={createFormData.status || 'not_present'}
                         onChange={(e) => setCreateFormData({ ...createFormData, status: e.target.value as NodeStatus })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       >
+                        <option value="not_present">Не присутствуем</option>
                         <option value="existing">Существующий</option>
                         <option value="planned">Проектируемый</option>
                       </select>
@@ -1026,27 +1050,16 @@ export default function NodesPage() {
                       />
                     </div>
 
-                    {/* Кнопка проверки адреса */}
-                    <div>
-                      <button
-                        type="button"
-                        onClick={validateAddressFormat}
-                        disabled={isValidatingOsm || !createFormData.street}
-                        className="w-full px-4 py-2 border border-indigo-300 text-sm font-medium rounded-md text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isValidatingOsm ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 inline" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Проверка адреса...
-                          </>
-                        ) : (
-                          '🌍 Проверить формат адреса по OpenStreetMap'
-                        )}
-                      </button>
-                    </div>
+                    {/* Индикатор проверки адреса */}
+                    {isValidatingOsm && (
+                      <div className="flex items-center text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-md p-2">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Проверка адреса через OpenStreetMap...
+                      </div>
+                    )}
 
                     {/* Результаты OSM валидации */}
                     {osmValidation && (
