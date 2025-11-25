@@ -60,7 +60,7 @@ export async function GET() {
       }
 
       const addr = groupedStats.get(key)!
-      const count = parseInt(row.count) || 0
+      const count = row.count || 0
 
       addr.total_applications += count
 
