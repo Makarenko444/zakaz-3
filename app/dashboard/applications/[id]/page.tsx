@@ -765,46 +765,51 @@ export default function ApplicationDetailPage() {
                   </div>
 
                   {/* Привязка к формализованному адресу/узлу */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      {application.node_id && application.zakaz_nodes ? (
-                        <>
-                          <span className="text-xs text-gray-500">Формализованный адрес:</span>
-                          <Link
-                            href={`/dashboard/applications?node_id=${application.node_id}&node_address=${encodeURIComponent(application.zakaz_nodes.address)}`}
-                            className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition"
-                          >
-                            <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="text-xs font-medium text-green-700 hover:text-green-800">
-                              {formatAddress(application.zakaz_nodes)}
-                            </span>
-                          </Link>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-xs text-gray-500">Статус:</span>
-                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 px-2 py-1 bg-amber-50 border border-amber-200 rounded">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            Не привязан к формализованному адресу
+                  <div className="flex items-center gap-2">
+                    {application.node_id && application.zakaz_nodes ? (
+                      <>
+                        <span className="text-xs text-gray-500">Формализованный адрес:</span>
+                        <Link
+                          href={`/dashboard/applications?node_id=${application.node_id}&node_address=${encodeURIComponent(application.zakaz_nodes.address)}`}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition"
+                        >
+                          <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-xs font-medium text-green-700 hover:text-green-800">
+                            {formatAddress(application.zakaz_nodes)}
                           </span>
-                        </>
-                      )}
-                    </div>
-                    {application.street_and_house && (
-                      <button
-                        onClick={() => setShowAddressWizard(true)}
-                        className={`text-xs px-3 py-1.5 rounded transition font-medium ${
-                          application.node_id
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                        }`}
-                      >
-                        {application.node_id ? 'Изменить' : 'Привязать'}
-                      </button>
+                        </Link>
+                        {application.street_and_house && (
+                          <button
+                            onClick={() => setShowAddressWizard(true)}
+                            className="p-1 text-green-600 hover:text-green-800 hover:bg-green-100 rounded transition"
+                            title="Изменить привязку адреса"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-xs text-gray-500">Статус:</span>
+                        <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 px-2 py-1 bg-amber-50 border border-amber-200 rounded">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          Не привязан к формализованному адресу
+                        </span>
+                        {application.street_and_house && (
+                          <button
+                            onClick={() => setShowAddressWizard(true)}
+                            className="text-xs px-3 py-1.5 rounded transition font-medium bg-indigo-600 text-white hover:bg-indigo-700"
+                          >
+                            Привязать
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

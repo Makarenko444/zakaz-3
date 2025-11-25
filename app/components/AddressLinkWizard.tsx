@@ -58,6 +58,15 @@ export default function AddressLinkWizard({
   const [searchStats, setSearchStats] = useState<SearchStats | null>(null)
   const [osmValidation, setOsmValidation] = useState<OsmValidation | null>(null)
 
+  // State for creating new address
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [newAddress, setNewAddress] = useState({
+    street: '',
+    house: '',
+    building: '',
+  })
+
   const validateAddressWithOSM = useCallback(async (address: string) => {
     try {
       const response = await fetch(`/api/addresses/validate-osm?address=${encodeURIComponent(address)}`)
@@ -142,8 +151,9 @@ export default function AddressLinkWizard({
     setError('')
 
     try {
-      let nodeId = address.id
+      const nodeId = address.id
 
+      /* External sources temporarily disabled
       // Если адрес из внешнего источника - сначала сохраняем его в локальную БД
       if (address.source && address.source !== 'local') {
         const saveResponse = await fetch('/api/addresses/save-external', {
@@ -167,6 +177,7 @@ export default function AddressLinkWizard({
 
         console.log(`Saved external address to local DB: ${address.street}, ${address.house} -> ID: ${nodeId}`)
       }
+      */
 
       // Привязываем заявку к узлу/адресу
       await onLink(nodeId)
@@ -191,6 +202,53 @@ export default function AddressLinkWizard({
       setError(error instanceof Error ? error.message : 'Не удалось отвязать адрес')
     } finally {
       setIsUnlinking(false)
+    }
+  }
+
+  async function handleCreateAddress() {
+    if (!newAddress.street.trim() || !newAddress.house.trim()) {
+      setError('Заполните обязательные поля: улица и номер дома')
+      return
+    }
+
+    setIsCreating(true)
+    setError('')
+
+    try {
+      // Создаем новый адрес в базе данных
+      const response = await fetch('/api/nodes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          city: 'Томск',
+          street: newAddress.street.trim(),
+          house: newAddress.house.trim(),
+          building: newAddress.building.trim() || null,
+          status: 'active',
+          code: '', // Пустой код, можно генерировать на сервере
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Не удалось создать адрес')
+      }
+
+      const createdNode = await response.json()
+
+      // Сразу привязываем к заявке
+      await onLink(createdNode.id)
+
+      // Закрываем форму создания
+      setShowCreateForm(false)
+      setNewAddress({ street: '', house: '', building: '' })
+    } catch (error) {
+      console.error('Error creating address:', error)
+      setError(error instanceof Error ? error.message : 'Не удалось создать адрес')
+    } finally {
+      setIsCreating(false)
     }
   }
 
@@ -322,6 +380,106 @@ export default function AddressLinkWizard({
             </div>
           </div>
 
+          {/* Кнопка и форма создания нового адреса */}
+          <div className="mb-6">
+            {!showCreateForm ? (
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition font-medium flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Создать новый адрес
+              </button>
+            ) : (
+              <div className="p-4 bg-indigo-50 border-2 border-indigo-200 rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-indigo-900">Создание нового адреса</h3>
+                  <button
+                    onClick={() => {
+                      setShowCreateForm(false)
+                      setNewAddress({ street: '', house: '', building: '' })
+                      setError('')
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Улица <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newAddress.street}
+                        onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
+                        placeholder="Например: Кирова"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Номер дома <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newAddress.house}
+                        onChange={(e) => setNewAddress({ ...newAddress, house: e.target.value })}
+                        placeholder="Например: 123"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Корпус/строение (необязательно)
+                    </label>
+                    <input
+                      type="text"
+                      value={newAddress.building}
+                      onChange={(e) => setNewAddress({ ...newAddress, building: e.target.value })}
+                      placeholder="Например: А, 1, корп. 2"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={handleCreateAddress}
+                      disabled={isCreating || !newAddress.street.trim() || !newAddress.house.trim()}
+                      className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isCreating ? 'Создание...' : 'Создать и привязать'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowCreateForm(false)
+                        setNewAddress({ street: '', house: '', building: '' })
+                        setError('')
+                      }}
+                      disabled={isCreating}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium disabled:opacity-50"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-xs text-indigo-700 mt-3">
+                  💡 Город автоматически установлен: Томск
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Список адресов */}
           {isLoading ? (
             <div className="text-center py-8">
@@ -345,6 +503,7 @@ export default function AddressLinkWizard({
               {/* Разделяем адреса на локальные и внешние */}
               {(() => {
                 const localAddresses = addresses.filter(addr => !addr.source || addr.source === 'local')
+                /* External sources temporarily disabled
                 const externalAddresses = addresses.filter(addr => addr.source && addr.source !== 'local')
                 const yandexAddresses = addresses.filter(addr => addr.source === 'external_yandex')
                 const osmAddresses = addresses.filter(addr => addr.source === 'external_osm')
@@ -354,6 +513,7 @@ export default function AddressLinkWizard({
                   if (source === 'external_yandex') return 'Яндекс'
                   return 'Внешний источник'
                 }
+                */"
 
                 return (
                   <div className="space-y-6">
@@ -408,7 +568,7 @@ export default function AddressLinkWizard({
                       </div>
                     )}
 
-                    {/* Внешние адреса из внешних API - показываем всегда для отладки */}
+                    {/* External sources UI temporarily disabled
                     <div>
                       <div className="flex items-center gap-2 mb-3">
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -474,9 +634,10 @@ export default function AddressLinkWizard({
                         </div>
                       )}
                     </div>
+                    */}
 
-                    {/* Если нет ни локальных, ни внешних адресов */}
-                    {localAddresses.length === 0 && yandexAddresses.length === 0 && osmAddresses.length === 0 && (
+                    {/* Если нет локальных адресов */}
+                    {localAddresses.length === 0 && (
                       <div className="text-center py-8">
                         <svg className="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
