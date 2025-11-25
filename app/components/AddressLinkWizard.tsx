@@ -55,8 +55,8 @@ export default function AddressLinkWizard({
   const [isUnlinking, setIsUnlinking] = useState(false)
   const [error, setError] = useState('')
   const [usedFallback, setUsedFallback] = useState(false)
-  const [searchStats, setSearchStats] = useState<SearchStats | null>(null)
-  const [osmValidation, setOsmValidation] = useState<OsmValidation | null>(null)
+  const [_searchStats, _setSearchStats] = useState<SearchStats | null>(null)
+  const [_osmValidation, _setOsmValidation] = useState<OsmValidation | null>(null)
 
   // State for creating new address
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -71,14 +71,14 @@ export default function AddressLinkWizard({
     try {
       const response = await fetch(`/api/addresses/validate-osm?address=${encodeURIComponent(address)}`)
       if (!response.ok) {
-        setOsmValidation({ status: 'no_match' })
+        _setOsmValidation({ status: 'no_match' })
         return
       }
       const data = await response.json()
-      setOsmValidation(data)
+      _setOsmValidation(data)
     } catch (error) {
       console.error('Error validating address with OSM:', error)
-      setOsmValidation({ status: 'no_match' })
+      _setOsmValidation({ status: 'no_match' })
     }
   }, [])
 
@@ -90,7 +90,7 @@ export default function AddressLinkWizard({
 
     setIsSearching(true)
     setError('')
-    setOsmValidation(null)
+    _setOsmValidation(null)
 
     try {
       const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}`)
@@ -102,13 +102,13 @@ export default function AddressLinkWizard({
       // Гарантируем наличие числовых счётчиков для Яндекс/OSM,
       // чтобы не было undefined при отображении бейджей
       if (data.stats) {
-        setSearchStats({
+        _setSearchStats({
           ...data.stats,
           yandex: data.stats.yandex ?? 0,
           openstreet: data.stats.openstreet ?? 0
         })
       } else {
-        setSearchStats(null)
+        _setSearchStats(null)
       }
 
       // Отладочная информация
