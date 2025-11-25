@@ -73,11 +73,21 @@ export async function POST(request: NextRequest) {
     const session = await validateSession(request)
 
     // Валидация обязательных полей
-    if (!body.code || !body.street) {
+    if (!body.street) {
       return NextResponse.json(
-        { error: 'Code and street are required' },
+        { error: 'Street is required' },
         { status: 400 }
       )
+    }
+
+    // Генерируем code если не передан
+    let code = body.code
+    if (!code || code.trim() === '') {
+      // Генерируем код на основе адреса
+      const streetPart = body.street.substring(0, 3).toUpperCase()
+      const housePart = body.house ? body.house.replace(/\D/g, '').substring(0, 3) : '000'
+      const timestamp = Date.now().toString().slice(-4)
+      code = `${streetPart}${housePart}${timestamp}`
     }
 
     // Создаем узел
@@ -85,7 +95,7 @@ export async function POST(request: NextRequest) {
     const table = supabase.from('zakaz_nodes') as unknown
     const result = await (table as { insert: (data: unknown) => { select: () => { single: () => Promise<unknown> } } })
       .insert({
-        code: body.code,
+        code: code,
         city: body.city || 'Томск',
         street: body.street,
         house: body.house || null,
