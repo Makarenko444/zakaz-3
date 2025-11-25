@@ -6,9 +6,8 @@ import { getCurrentUser } from '@/lib/auth-client'
 import { User } from '@/lib/types'
 import UsersAdmin from '@/app/components/admin/UsersAdmin'
 import StatusesAdmin from '@/app/components/admin/StatusesAdmin'
-import AddressesAdmin from '@/app/components/admin/AddressesAdmin'
 
-type AdminTab = 'users' | 'statuses' | 'addresses'
+type AdminTab = 'users' | 'statuses'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -92,23 +91,6 @@ export default function AdminPage() {
                 Статусы заявок
               </div>
             </button>
-
-            <button
-              onClick={() => setActiveTab('addresses')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
-                activeTab === 'addresses'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Адреса
-              </div>
-            </button>
           </nav>
         </div>
       </div>
@@ -117,7 +99,6 @@ export default function AdminPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'users' && <UsersAdmin />}
         {activeTab === 'statuses' && <StatusesAdmin />}
-        {activeTab === 'addresses' && <AddressesAdmin />}
       </main>
     </>
   )

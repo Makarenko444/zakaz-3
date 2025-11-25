@@ -74,6 +74,14 @@ export default function NodesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [editFormData, setEditFormData] = useState<Partial<Node>>({})
 
+  // Создание нового узла
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [createFormData, setCreateFormData] = useState<Partial<Node>>({
+    city: 'Томск',
+    node_type: 'prp',
+    status: 'existing'
+  })
+
   useEffect(() => {
     void loadNodes()
     void loadCurrentUser()
@@ -231,6 +239,60 @@ export default function NodesPage() {
     }
   }
 
+  function handleOpenCreateModal() {
+    setCreateFormData({
+      city: 'Томск',
+      node_type: 'prp',
+      status: 'existing'
+    })
+    setIsCreateModalOpen(true)
+  }
+
+  function handleCloseCreateModal() {
+    setIsCreateModalOpen(false)
+    setCreateFormData({
+      city: 'Томск',
+      node_type: 'prp',
+      status: 'existing'
+    })
+  }
+
+  async function handleCreateNode() {
+    setIsSaving(true)
+    setError('')
+
+    try {
+      // Проверка обязательных полей
+      if (!createFormData.code || !createFormData.street) {
+        setError('Код и улица обязательны для заполнения')
+        setIsSaving(false)
+        return
+      }
+
+      const response = await fetch('/api/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createFormData),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to create node')
+      }
+
+      // Перезагружаем список узлов
+      await loadNodes()
+
+      // Закрываем модальное окно
+      handleCloseCreateModal()
+    } catch (err) {
+      console.error('Error creating node:', err)
+      setError(`Ошибка создания узла: ${err}`)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   if (isLoading && nodes.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -263,6 +325,17 @@ export default function NodesPage() {
               <div className="text-sm text-gray-600">
                 Всего: <span className="font-semibold">{pagination.total}</span>
               </div>
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={handleOpenCreateModal}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Создать узел
+                </button>
+              )}
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
@@ -795,6 +868,186 @@ export default function NodesPage() {
                     )}
                   </>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модальное окно создания узла */}
+        {isCreateModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-500 bg-opacity-75"
+            onClick={handleCloseCreateModal}
+          >
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Создание нового узла</h3>
+                <button
+                  onClick={handleCloseCreateModal}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="px-6 py-4">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Код <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={createFormData.code || ''}
+                        onChange={(e) => setCreateFormData({ ...createFormData, code: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder="ПРП-001"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
+                      <select
+                        value={createFormData.status || 'existing'}
+                        onChange={(e) => setCreateFormData({ ...createFormData, status: e.target.value as NodeStatus })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      >
+                        <option value="existing">Существующий</option>
+                        <option value="planned">Проектируемый</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Адрес */}
+                  <div className="space-y-3 border-t border-gray-200 pt-4">
+                    <h4 className="text-sm font-semibold text-gray-700">Адрес</h4>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
+                      <input
+                        type="text"
+                        value={createFormData.city || ''}
+                        onChange={(e) => setCreateFormData({ ...createFormData, city: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder="Томск"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Улица <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={createFormData.street || ''}
+                          onChange={(e) => setCreateFormData({ ...createFormData, street: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          placeholder="проспект Ленина"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Дом</label>
+                        <input
+                          type="text"
+                          value={createFormData.house || ''}
+                          onChange={(e) => setCreateFormData({ ...createFormData, house: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          placeholder="22"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Корпус/строение
+                      </label>
+                      <input
+                        type="text"
+                        value={createFormData.building || ''}
+                        onChange={(e) => setCreateFormData({ ...createFormData, building: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder="корп. 2"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Местоположение</label>
+                    <textarea
+                      value={createFormData.location_details || ''}
+                      onChange={(e) => setCreateFormData({ ...createFormData, location_details: e.target.value })}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="Подробное описание местоположения"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Коммутационная информация</label>
+                    <textarea
+                      value={createFormData.comm_info || ''}
+                      onChange={(e) => setCreateFormData({ ...createFormData, comm_info: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="Информация о коммутации"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Дата создания</label>
+                      <input
+                        type="date"
+                        value={createFormData.node_created_date || ''}
+                        onChange={(e) => setCreateFormData({ ...createFormData, node_created_date: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ссылка на договор</label>
+                      <input
+                        type="text"
+                        value={createFormData.contract_link || ''}
+                        onChange={(e) => setCreateFormData({ ...createFormData, contract_link: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <p className="text-xs text-blue-800">
+                      <strong>Тип узла</strong> будет автоматически определен по префиксу кода:
+                      ПРП → узел связи, АО → абонентское окончание, СК → СКУД, другие → прочее
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleCloseCreateModal}
+                  disabled={isSaving}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateNode}
+                  disabled={isSaving}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isSaving ? 'Создание...' : 'Создать узел'}
+                </button>
               </div>
             </div>
           </div>
