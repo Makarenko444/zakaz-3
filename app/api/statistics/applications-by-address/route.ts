@@ -23,7 +23,7 @@ export async function GET() {
     if (error) {
       console.error('Database error:', error)
       return NextResponse.json(
-        { error: 'Failed to load statistics', details: error.message },
+        { error: 'Failed to load statistics', details: error instanceof Error ? error.message : String(error) },
         { status: 500 }
       )
     }
