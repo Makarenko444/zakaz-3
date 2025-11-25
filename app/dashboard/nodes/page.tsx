@@ -1248,13 +1248,10 @@ export default function NodesPage() {
                     </div>
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 space-y-1">
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                     <p className="text-xs text-blue-800">
                       <strong>Тип узла</strong> будет автоматически определен по префиксу кода:
                       ПРП → узел связи, АО → абонентское окончание, СК → СКУД, другие → прочее
-                    </p>
-                    <p className="text-xs text-blue-800">
-                      Для адресов, где еще нет присутствия, можно указать код <strong>&ldquo;Нет присутствия&rdquo;</strong>
                     </p>
                   </div>
                 </div>
