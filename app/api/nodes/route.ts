@@ -71,9 +71,9 @@ export async function POST(request: NextRequest) {
     const session = await validateSession(request)
 
     // Валидация обязательных полей
-    if (!body.code || !body.address) {
+    if (!body.code || !body.street) {
       return NextResponse.json(
-        { error: 'Code and address are required' },
+        { error: 'Code and street are required' },
         { status: 400 }
       )
     }
@@ -93,11 +93,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Создаем узел
+    // Поле address будет автоматически сформировано триггером в БД
     const table = supabase.from('zakaz_nodes') as unknown
     const result = await (table as { insert: (data: unknown) => { select: () => { single: () => Promise<unknown> } } })
       .insert({
         code: body.code,
-        address: body.address,
+        city: body.city || 'Томск',
+        street: body.street,
+        house: body.house || null,
+        building: body.building || null,
         location_details: body.location_details || null,
         comm_info: body.comm_info || null,
         status: body.status || 'existing',
