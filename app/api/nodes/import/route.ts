@@ -87,30 +87,41 @@ function parseAddress(fullAddress: string): {
   // Убираем лишние пробелы и нормализуем
   let normalized = fullAddress.trim().replace(/\s+/g, ' ')
 
-  // Проверяем есть ли город в адресе (Томск, Москва и т.д.)
+  // Убираем префиксы городов (г., гор.)
+  normalized = normalized.replace(/^(г\.|гор\.|город)\s*/i, '')
+
+  // Извлекаем город если он явно указан
   const cityMatch = normalized.match(/^(Томск|Москва|Санкт-Петербург|Новосибирск|Екатеринбург)[,\s]/i)
   if (cityMatch) {
     result.city = cityMatch[1]
     normalized = normalized.substring(cityMatch[0].length).trim()
   }
 
+  // Убираем префиксы улиц (ул., улица, пр., проспект, пер., переулок)
+  normalized = normalized.replace(/^(ул\.|улица|пр\.|проспект|пер\.|переулок)\s*/i, '')
+
   // Ищем корпус/строение (корп. X, стр. X, к. X, с. X)
-  const buildingMatch = normalized.match(/,?\s*(корп\.?|к\.?|стр\.?|строение|с\.?)\s*(\d+[а-яА-Яa-zA-Z]?)/i)
+  const buildingMatch = normalized.match(/[,\s]+(корп\.?|к\.?|стр\.?|строение|с\.?)\s*(\d+[а-яА-Яa-zA-Z]?)/i)
   if (buildingMatch) {
     result.building = `${buildingMatch[1]} ${buildingMatch[2]}`.trim()
     // Убираем найденный корпус из строки
     normalized = normalized.replace(buildingMatch[0], '').trim()
   }
 
+  // Убираем префикс дома (д., дом)
+  normalized = normalized.replace(/[,\s]+(д\.|дом)\s*/i, ', ')
+
   // Теперь ищем улицу и дом
-  // Формат: "улица/проспект/переулок Название, номер" или просто "Название, номер"
-  const addressMatch = normalized.match(/^(.+?)[,\s]+(\d+[а-яА-Яa-zA-Z]?)(?:\s|$)/)
+  // Формат после очистки: "Название улицы, номер" или "Название улицы номер"
+  const addressMatch = normalized.match(/^(.+?)[,\s]+(\d+[а-яА-Яa-zA-Z\/\-]*)(?:\s|$)/)
   if (addressMatch) {
     result.street = addressMatch[1].trim()
-    result.house = addressMatch[2].trim()
+    if (addressMatch[2]) {
+      result.house = addressMatch[2].trim()
+    }
   } else {
     // Если не смогли распарсить, берем всю строку как улицу
-    result.street = normalized
+    result.street = normalized.trim()
   }
 
   return result
