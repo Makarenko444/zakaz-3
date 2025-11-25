@@ -513,7 +513,7 @@ export default function AddressLinkWizard({
                   if (source === 'external_yandex') return 'Яндекс'
                   return 'Внешний источник'
                 }
-                */"
+                */
 
                 return (
                   <div className="space-y-6">
