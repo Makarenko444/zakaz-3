@@ -113,16 +113,28 @@ function parseAddress(fullAddress: string): {
 
   // Теперь ищем улицу и дом
   // Формат после очистки: "Название улицы, номер" или "Название улицы номер"
-  const addressMatch = normalized.match(/^(.+?)[,\s]+(\d+[а-яА-Яa-zA-Z\/\-]*)(?:\s|$)/)
+  // Улучшенная регулярка для поддержки дробей (4/2), букв (10а), дефисов (10-12)
+  const addressMatch = normalized.match(/^(.+?)[,\s]+(\d+(?:[\/\-]\d+)?[а-яА-Яa-zA-Z]?)(?:\s|,|$)/)
   if (addressMatch) {
     result.street = addressMatch[1].trim()
     if (addressMatch[2]) {
       result.house = addressMatch[2].trim()
     }
   } else {
-    // Если не смогли распарсить, берем всю строку как улицу
-    result.street = normalized.trim()
+    // Пробуем альтернативный формат: улица без запятой перед номером
+    // Например: "Сергея Лазо 4/2" или "Лазо4/2"
+    const altMatch = normalized.match(/^(.+?)\s*(\d+(?:[\/\-]\d+)?[а-яА-Яa-zA-Z]?)$/)
+    if (altMatch && altMatch[2]) {
+      result.street = altMatch[1].trim()
+      result.house = altMatch[2].trim()
+    } else {
+      // Если не смогли распарсить, берем всю строку как улицу
+      result.street = normalized.trim()
+    }
   }
+
+  // Логирование для отладки
+  console.log(`Parsed address: "${fullAddress}" => Street: "${result.street}", House: "${result.house}", Building: "${result.building}"`)
 
   return result
 }
