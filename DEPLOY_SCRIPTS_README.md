@@ -40,11 +40,15 @@ PM2_PROCESS_NAME="zakaz-2"  # Замените на имя вашего проц
 ```bash
 # Добавьте алиасы
 echo "alias pr-zakaz3='cd ~/projects/zakaz-3 && ./pr-zakaz3.sh'" >> ~/.bashrc
-echo "alias pr-zakaz2='cd ~/projects/zakaz-3 && ./pr-zakaz2.sh'" >> ~/.bashrc
+echo "alias pr-zakaz2='cd ~/projects/zakaz-2 && ./pr-zakaz2.sh'" >> ~/.bashrc
 
 # Перезагрузите конфигурацию
 source ~/.bashrc
 ```
+
+**Важно:** Обратите внимание что алиасы используют разные директории:
+- `pr-zakaz3` → `~/projects/zakaz-3`
+- `pr-zakaz2` → `~/projects/zakaz-2`
 
 ## Использование
 
