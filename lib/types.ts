@@ -40,6 +40,7 @@ export interface User {
 
 export interface Application {
   id: string
+  address_id: string | null
   node_id: string | null
   street_and_house: string | null
   address_details: string | null
@@ -85,16 +86,23 @@ export interface FileAttachment {
   description: string | null
 }
 
-export interface Node {
+export interface Address {
   id: string
-  code: string
-  node_type: NodeType
-  city: string | null
+  city: string
   street: string | null
   house: string | null
   building: string | null
   address: string
   comment: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Node {
+  id: string
+  code: string
+  address_id: string
+  node_type: NodeType
   presence_type: PresenceType
   location_details: string | null
   comm_info: string | null
@@ -114,6 +122,11 @@ export interface Database {
         Row: User
         Insert: Omit<User, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>
+      }
+      zakaz_addresses: {
+        Row: Address
+        Insert: Omit<Address, 'id' | 'created_at' | 'updated_at' | 'address'>
+        Update: Partial<Omit<Address, 'id' | 'created_at' | 'updated_at' | 'address'>>
       }
       zakaz_applications: {
         Row: Application
