@@ -67,6 +67,10 @@ export default function AddressLinkWizard({
     house: '',
     building: '',
   })
+  const [streetValidation, setStreetValidation] = useState<{
+    isValid: boolean
+    message?: string
+  } | null>(null)
 
   const validateAddressWithOSM = useCallback(async (address: string) => {
     try {
@@ -206,6 +210,124 @@ export default function AddressLinkWizard({
     }
   }
 
+  // Валидация формата улицы
+  function validateStreetFormat(street: string): { isValid: boolean; message?: string } {
+    if (!street.trim()) {
+      return { isValid: false, message: 'Улица не может быть пустой' }
+    }
+
+    // Допустимые префиксы улиц
+    const validPrefixes = [
+      'улица',
+      'проспект',
+      'площадь',
+      'переулок',
+      'бульвар',
+      'шоссе',
+      'тракт',
+      'аллея',
+      'набережная',
+      'микрорайон',
+      'проезд',
+      'тупик',
+    ]
+
+    const trimmed = street.trim().toLowerCase()
+
+    // Проверяем, начинается ли улица с одного из допустимых префиксов
+    const hasValidPrefix = validPrefixes.some(prefix => trimmed.startsWith(prefix + ' '))
+
+    if (!hasValidPrefix) {
+      return {
+        isValid: false,
+        message: `Укажите тип улицы: ${validPrefixes.slice(0, 6).join(', ')} и т.д. Например: "улица Ленина"`,
+      }
+    }
+
+    // Проверяем, что после префикса есть название
+    const parts = trimmed.split(' ')
+    if (parts.length < 2 || !parts[1]) {
+      return {
+        isValid: false,
+        message: 'Укажите название улицы после типа. Например: "улица Ленина"',
+      }
+    }
+
+    return { isValid: true }
+  }
+
+  // Проверка на дубликаты
+  async function checkDuplicateAddress(
+    city: string,
+    street: string,
+    house: string,
+    building: string
+  ): Promise<{ exists: boolean; existingAddress?: Address }> {
+    try {
+      // Формируем поисковый запрос для точного совпадения
+      const searchQuery = building
+        ? `${street}, ${house}, ${building}`
+        : `${street}, ${house}`
+
+      const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(searchQuery)}`)
+      if (!response.ok) return { exists: false }
+
+      const data = await response.json()
+      const addresses = data.addresses || []
+
+      // Ищем точное совпадение по всем полям
+      const duplicate = addresses.find((addr: Address) => {
+        const streetMatch = addr.street?.toLowerCase() === street.toLowerCase()
+        const houseMatch = addr.house?.toLowerCase() === house.toLowerCase()
+        const buildingMatch = building
+          ? addr.comment?.toLowerCase() === building.toLowerCase()
+          : !addr.comment || addr.comment.trim() === ''
+
+        return streetMatch && houseMatch && buildingMatch
+      })
+
+      return {
+        exists: !!duplicate,
+        existingAddress: duplicate,
+      }
+    } catch (error) {
+      console.error('Error checking duplicate:', error)
+      return { exists: false }
+    }
+  }
+
+  // Функция для нормализации названия улицы (добавление типа если отсутствует)
+  function normalizeStreetName(streetName: string): string {
+    const trimmed = streetName.trim()
+    const lowerCased = trimmed.toLowerCase()
+
+    // Список допустимых префиксов
+    const validPrefixes = [
+      'улица',
+      'проспект',
+      'площадь',
+      'переулок',
+      'бульвар',
+      'шоссе',
+      'тракт',
+      'аллея',
+      'набережная',
+      'микрорайон',
+      'проезд',
+      'тупик',
+    ]
+
+    // Проверяем, есть ли уже префикс
+    const hasPrefix = validPrefixes.some(prefix => lowerCased.startsWith(prefix + ' '))
+
+    if (hasPrefix) {
+      return trimmed
+    }
+
+    // Если префикса нет, добавляем "улица" по умолчанию
+    return `улица ${trimmed}`
+  }
+
   // Функция для разбора адреса из заявки
   function parseAddressFromApplication(addressStr: string): { street: string; house: string; building: string } {
     // Адрес обычно в формате "Улица, Дом" или "Улица Дом" или "Улица д.Дом"
@@ -215,7 +337,7 @@ export default function AddressLinkWizard({
     // Вариант 1: "Улица, Дом" или "Улица,Дом"
     if (trimmed.includes(',')) {
       const parts = trimmed.split(',').map(p => p.trim())
-      const street = parts[0] || ''
+      const street = normalizeStreetName(parts[0] || '')
       const houseWithBuilding = parts[1] || ''
 
       // Пробуем найти корпус/строение
@@ -235,7 +357,7 @@ export default function AddressLinkWizard({
     const housePatternMatch = trimmed.match(/^(.+?)\s+(?:д\.?|дом)\s*(\d+[а-яА-Я]?)(?:\s*(?:корп\.?|к\.?|стр\.?)\s*(.+))?$/i)
     if (housePatternMatch) {
       return {
-        street: housePatternMatch[1].trim(),
+        street: normalizeStreetName(housePatternMatch[1].trim()),
         house: housePatternMatch[2],
         building: housePatternMatch[3] || ''
       }
@@ -245,14 +367,14 @@ export default function AddressLinkWizard({
     const simpleMatch = trimmed.match(/^(.+?)\s+(\d+[а-яА-Я]?)(?:\s+(.+))?$/)
     if (simpleMatch) {
       return {
-        street: simpleMatch[1].trim(),
+        street: normalizeStreetName(simpleMatch[1].trim()),
         house: simpleMatch[2],
         building: simpleMatch[3] || ''
       }
     }
 
     // Если не получилось разобрать, возвращаем всё как улицу
-    return { street: trimmed, house: '', building: '' }
+    return { street: normalizeStreetName(trimmed), house: '', building: '' }
   }
 
   async function handleCreateAddress() {
@@ -261,10 +383,41 @@ export default function AddressLinkWizard({
       return
     }
 
+    // Валидация формата улицы
+    const validation = validateStreetFormat(newAddress.street)
+    setStreetValidation(validation)
+    if (!validation.isValid) {
+      setError(validation.message || 'Неверный формат улицы')
+      return
+    }
+
     setIsCreating(true)
     setError('')
 
     try {
+      // Проверяем на дубликаты
+      const duplicateCheck = await checkDuplicateAddress(
+        newAddress.city.trim(),
+        newAddress.street.trim(),
+        newAddress.house.trim(),
+        newAddress.building.trim()
+      )
+
+      if (duplicateCheck.exists && duplicateCheck.existingAddress) {
+        setError(
+          `Адрес "${newAddress.street}, ${newAddress.house}${
+            newAddress.building ? ', ' + newAddress.building : ''
+          }" уже существует в базе данных. Используйте его из списка ниже.`
+        )
+        setIsCreating(false)
+        setShowCreateForm(false)
+        // Обновляем поиск, чтобы показать существующий адрес
+        searchAddresses(
+          `${newAddress.street}, ${newAddress.house}${newAddress.building ? ', ' + newAddress.building : ''}`
+        )
+        return
+      }
+
       // Создаем новый адрес в базе данных
       const response = await fetch('/api/nodes', {
         method: 'POST',
@@ -294,6 +447,7 @@ export default function AddressLinkWizard({
       // Закрываем форму создания
       setShowCreateForm(false)
       setNewAddress({ city: 'Томск', street: '', house: '', building: '' })
+      setStreetValidation(null)
     } catch (error) {
       console.error('Error creating address:', error)
       setError(error instanceof Error ? error.message : 'Не удалось создать адрес')
@@ -461,6 +615,7 @@ export default function AddressLinkWizard({
                     onClick={() => {
                       setShowCreateForm(false)
                       setNewAddress({ city: 'Томск', street: '', house: '', building: '' })
+                      setStreetValidation(null)
                       setError('')
                     }}
                     className="text-indigo-600 hover:text-indigo-800"
@@ -493,10 +648,33 @@ export default function AddressLinkWizard({
                       <input
                         type="text"
                         value={newAddress.street}
-                        onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
-                        placeholder="Например: Кирова"
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        onChange={(e) => {
+                          setNewAddress({ ...newAddress, street: e.target.value })
+                          // Сбрасываем валидацию при изменении
+                          if (streetValidation) setStreetValidation(null)
+                        }}
+                        onBlur={() => {
+                          // Проверяем формат при потере фокуса
+                          if (newAddress.street.trim()) {
+                            const validation = validateStreetFormat(newAddress.street)
+                            setStreetValidation(validation)
+                          }
+                        }}
+                        placeholder="улица Кирова"
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                          streetValidation && !streetValidation.isValid
+                            ? 'border-red-300 bg-red-50'
+                            : 'border-gray-300'
+                        }`}
                       />
+                      {streetValidation && !streetValidation.isValid && (
+                        <p className="text-xs text-red-600 mt-1">{streetValidation.message}</p>
+                      )}
+                      {(!streetValidation || streetValidation.isValid) && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Формат: "улица Название", "проспект Название" и т.д.
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -537,6 +715,7 @@ export default function AddressLinkWizard({
                       onClick={() => {
                         setShowCreateForm(false)
                         setNewAddress({ city: 'Томск', street: '', house: '', building: '' })
+                        setStreetValidation(null)
                         setError('')
                       }}
                       disabled={isCreating}
