@@ -672,7 +672,7 @@ export default function AddressLinkWizard({
                       )}
                       {(!streetValidation || streetValidation.isValid) && (
                         <p className="text-xs text-gray-500 mt-1">
-                          Формат: "улица Название", "проспект Название" и т.д.
+                          Формат: &quot;улица Название&quot;, &quot;проспект Название&quot; и т.д.
                         </p>
                       )}
                     </div>
