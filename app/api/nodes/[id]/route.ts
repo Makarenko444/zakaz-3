@@ -47,7 +47,6 @@ export async function PUT(
       } else {
         // Создаем новый адрес
         const { data: newAddress, error: addressError } = await (
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           supabase
           .from('zakaz_addresses')
           .insert({
@@ -56,6 +55,7 @@ export async function PUT(
             house,
             building,
             comment,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           }) as any)
           .select('id')
           .single<{ id: string }>()
