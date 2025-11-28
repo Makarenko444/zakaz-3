@@ -33,21 +33,22 @@ export async function PUT(
       const comment = body.comment || null
 
       // Пытаемся найти существующий адрес
-      const { data: existingAddress } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingAddress } = await (supabase
         .from('zakaz_addresses')
         .select('id')
         .eq('city', city)
         .eq('street', street || '')
         .eq('house', house || '')
         .eq('building', building || '')
-        .maybeSingle()
+        .maybeSingle() as any)
 
       if (existingAddress) {
         addressId = existingAddress.id
       } else {
         // Создаем новый адрес
-        const { data: newAddress, error: addressError } = await (
-          supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: newAddress, error: addressError } = await (supabase
           .from('zakaz_addresses')
           .insert({
             city,
@@ -55,10 +56,9 @@ export async function PUT(
             house,
             building,
             comment,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }) as any)
+          })
           .select('id')
-          .single()
+          .single() as any)
 
         if (addressError || !newAddress) {
           console.error('Error creating address:', addressError)
