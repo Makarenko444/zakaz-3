@@ -19,9 +19,25 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
 
     // Базовый запрос
+    // После миграции 028: адреса теперь в zakaz_addresses
     let query = supabase
       .from('zakaz_applications')
-      .select('*, zakaz_nodes(id, code, street, house, address, presence_type)', { count: 'exact' })
+      .select(`
+        *,
+        zakaz_nodes(
+          id,
+          code,
+          presence_type,
+          address:zakaz_addresses!address_id(
+            id,
+            city,
+            street,
+            house,
+            building,
+            address
+          )
+        )
+      `, { count: 'exact' })
       .order('created_at', { ascending: false })
 
     // Применяем фильтры
