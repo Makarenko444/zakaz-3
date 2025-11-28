@@ -40,7 +40,7 @@ export async function PUT(
         .eq('street', street || '')
         .eq('house', house || '')
         .eq('building', building || '')
-        .maybeSingle<{ id: string }>()
+        .maybeSingle()
 
       if (existingAddress) {
         addressId = existingAddress.id
@@ -58,7 +58,7 @@ export async function PUT(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           }) as any)
           .select('id')
-          .single<{ id: string }>()
+          .single()
 
         if (addressError || !newAddress) {
           console.error('Error creating address:', addressError)
