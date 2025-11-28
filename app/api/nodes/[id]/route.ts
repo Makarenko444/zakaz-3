@@ -22,25 +22,61 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
-    // Обновляем узел
-    // Поле address будет автоматически обновлено триггером в БД на основе city, street, house, building
-    const table = supabase.from('zakaz_nodes') as unknown
-    const result = await (table as {
-      update: (data: unknown) => {
-        eq: (column: string, value: unknown) => {
-          select: () => {
-            single: () => Promise<unknown>
-          }
+    // Если изменяются поля адреса, обновляем address_id
+    let addressId = body.address_id
+
+    if (body.city || body.street || body.house || body.building !== undefined) {
+      const city = body.city || 'Томск'
+      const street = body.street || null
+      const house = body.house || null
+      const building = body.building || null
+      const comment = body.comment || null
+
+      // Пытаемся найти существующий адрес
+      const { data: existingAddress } = await supabase
+        .from('zakaz_addresses')
+        .select('id')
+        .eq('city', city)
+        .eq('street', street || '')
+        .eq('house', house || '')
+        .eq('building', building || '')
+        .maybeSingle()
+
+      if (existingAddress) {
+        addressId = existingAddress.id
+      } else {
+        // Создаем новый адрес
+        const { data: newAddress, error: addressError } = await supabase
+          .from('zakaz_addresses')
+          .insert({
+            city,
+            street,
+            house,
+            building,
+            comment,
+          })
+          .select('id')
+          .single()
+
+        if (addressError || !newAddress) {
+          console.error('Error creating address:', addressError)
+          return NextResponse.json(
+            { error: addressError?.message || 'Failed to create address' },
+            { status: 500 }
+          )
         }
+
+        addressId = newAddress.id
       }
-    })
+    }
+
+    // Обновляем узел
+    const { data, error } = await supabase
+      .from('zakaz_nodes')
       .update({
         code: body.code,
         node_type: body.node_type,
-        city: body.city,
-        street: body.street,
-        house: body.house,
-        building: body.building || null,
+        address_id: addressId,
         location_details: body.location_details,
         comm_info: body.comm_info,
         status: body.status,
@@ -51,8 +87,6 @@ export async function PUT(
       .eq('id', id)
       .select()
       .single()
-
-    const { data, error } = result as { data: unknown; error: { message: string } | null }
 
     if (error) {
       console.error('Error updating node:', error)
