@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       .eq('street', street || '')
       .eq('house', house || '')
       .eq('building', building || '')
-      .maybeSingle<{ id: string }>()
+      .maybeSingle()
 
     if (existingAddress) {
       // Адрес уже существует
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any)
         .select('id')
-        .single<{ id: string }>()
+        .single()
 
       if (addressError || !newAddress) {
         console.error('Error creating address:', addressError)
