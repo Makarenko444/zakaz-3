@@ -71,8 +71,8 @@ export async function PUT(
     }
 
     // Обновляем узел
-    const { data, error } = await supabase
-      .from('zakaz_nodes')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from('zakaz_nodes') as any)
       .update({
         code: body.code,
         node_type: body.node_type,
