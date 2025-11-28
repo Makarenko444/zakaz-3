@@ -101,7 +101,16 @@ export interface Address {
 export interface Node {
   id: string
   code: string
-  address_id: string
+  // Новая структура (после миграции 028) - опциональное для обратной совместимости
+  address_id?: string
+  // Старая структура (до миграции 028) - опциональные для обратной совместимости
+  city?: string | null
+  street?: string | null
+  house?: string | null
+  building?: string | null
+  address?: string
+  comment?: string | null
+  // Остальные поля
   node_type: NodeType
   presence_type: PresenceType
   location_details: string | null
