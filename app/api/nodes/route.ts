@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       addressId = existingAddress.id
     } else {
       // Создаем новый адрес
-      const { data: newAddress, error: addressError } = await supabase
+      const { data: newAddress, error: addressError } = await (supabase
         .from('zakaz_addresses')
         .insert({
           city,
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
           house,
           building,
           comment,
-        })
+        }) as any)
         .select('id')
         .single<{ id: string }>()
 

@@ -46,7 +46,7 @@ export async function PUT(
         addressId = existingAddress.id
       } else {
         // Создаем новый адрес
-        const { data: newAddress, error: addressError } = await supabase
+        const { data: newAddress, error: addressError } = await (supabase
           .from('zakaz_addresses')
           .insert({
             city,
@@ -54,7 +54,7 @@ export async function PUT(
             house,
             building,
             comment,
-          })
+          }) as any)
           .select('id')
           .single<{ id: string }>()
 
