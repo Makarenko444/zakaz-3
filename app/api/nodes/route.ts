@@ -17,10 +17,22 @@ export async function GET(request: NextRequest) {
     const sortField = searchParams.get('sort_field') || 'created_at'
     const sortDirection = searchParams.get('sort_direction') || 'desc'
 
-    // Базовый запрос
+    // Базовый запрос с JOIN на zakaz_addresses
+    // Используем left join т.к. address_id может быть опциональным во время миграции
     let query = supabase
       .from('zakaz_nodes')
-      .select('*', { count: 'exact' })
+      .select(`
+        *,
+        address:zakaz_addresses!address_id(
+          id,
+          city,
+          street,
+          house,
+          building,
+          address,
+          comment
+        )
+      `, { count: 'exact' })
       .order(sortField, { ascending: sortDirection === 'asc' })
 
     // Применяем фильтры
@@ -33,8 +45,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Поиск по коду, адресу или описанию
+    // После миграции 028 поиск по адресу нужно делать через JOIN
     if (search) {
-      query = query.or(`code.ilike.%${search}%,address.ilike.%${search}%,location_details.ilike.%${search}%`)
+      // Для поиска по адресу нужен более сложный запрос, но пока используем только code и location_details
+      query = query.or(`code.ilike.%${search}%,location_details.ilike.%${search}%`)
     }
 
     // Пагинация
@@ -48,8 +62,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Преобразуем данные - расплющиваем объект address в корневой уровень для обратной совместимости
+    const transformedData = data?.map((node: any) => ({
+      ...node,
+      // Если есть вложенный address, добавляем его поля в корень для обратной совместимости
+      ...(node.address && {
+        city: node.address.city,
+        street: node.address.street,
+        house: node.address.house,
+        building: node.address.building,
+        address: node.address.address,
+        comment: node.address.comment,
+      }),
+    })) || []
+
     return NextResponse.json({
-      data,
+      data: transformedData,
       pagination: {
         page,
         limit,
@@ -80,26 +108,69 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const city = body.city || 'Томск'
+    const street = body.street
+    const house = body.house || null
+    const building = body.building || null
+    const comment = body.comment || null
+
+    // Шаг 1: Создаем или находим адрес в zakaz_addresses
+    let addressId: string | null = null
+
+    // Пытаемся найти существующий адрес
+    const { data: existingAddress } = await supabase
+      .from('zakaz_addresses')
+      .select('id')
+      .eq('city', city)
+      .eq('street', street || '')
+      .eq('house', house || '')
+      .eq('building', building || '')
+      .maybeSingle()
+
+    if (existingAddress) {
+      // Адрес уже существует
+      addressId = existingAddress.id
+    } else {
+      // Создаем новый адрес
+      const { data: newAddress, error: addressError } = await supabase
+        .from('zakaz_addresses')
+        .insert({
+          city,
+          street,
+          house,
+          building,
+          comment,
+        })
+        .select('id')
+        .single()
+
+      if (addressError || !newAddress) {
+        console.error('Error creating address:', addressError)
+        return NextResponse.json(
+          { error: addressError?.message || 'Failed to create address' },
+          { status: 500 }
+        )
+      }
+
+      addressId = newAddress.id
+    }
+
     // Генерируем code если не передан
     let code = body.code
     if (!code || code.trim() === '') {
       // Генерируем код на основе адреса
-      const streetPart = body.street.substring(0, 3).toUpperCase()
-      const housePart = body.house ? body.house.replace(/\D/g, '').substring(0, 3) : '000'
+      const streetPart = street.substring(0, 3).toUpperCase()
+      const housePart = house ? house.replace(/\D/g, '').substring(0, 3) : '000'
       const timestamp = Date.now().toString().slice(-4)
       code = `${streetPart}${housePart}${timestamp}`
     }
 
-    // Создаем узел
-    // Поле address будет автоматически сформировано триггером в БД
-    const table = supabase.from('zakaz_nodes') as unknown
-    const result = await (table as { insert: (data: unknown) => { select: () => { single: () => Promise<unknown> } } })
+    // Шаг 2: Создаем узел с ссылкой на адрес
+    const { data, error } = await supabase
+      .from('zakaz_nodes')
       .insert({
         code: code,
-        city: body.city || 'Томск',
-        street: body.street,
-        house: body.house || null,
-        building: body.building || null,
+        address_id: addressId,
         location_details: body.location_details || null,
         comm_info: body.comm_info || null,
         status: body.status || 'existing',
@@ -109,7 +180,6 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single()
-    const { data, error } = result as { data: { id: string; code: string } | null; error: { message: string } | null }
 
     if (error || !data) {
       console.error('Error creating node:', error)
