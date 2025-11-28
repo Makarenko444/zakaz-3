@@ -2,6 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 import { validateSession } from '@/lib/session'
+import type { Address } from '@/lib/types'
+
+interface NodeWithAddress {
+  id: string
+  code: string
+  address_id?: string
+  node_type: string
+  presence_type: string
+  location_details: string | null
+  comm_info: string | null
+  status: string
+  contract_link: string | null
+  node_created_date: string | null
+  created_by: string | null
+  created_at: string
+  updated_by: string | null
+  updated_at: string
+  address?: Address | null
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,7 +82,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Преобразуем данные - расплющиваем объект address в корневой уровень для обратной совместимости
-    const transformedData = data?.map((node: any) => ({
+    const transformedData = data?.map((node: NodeWithAddress) => ({
       ...node,
       // Если есть вложенный address, добавляем его поля в корень для обратной совместимости
       ...(node.address && {
