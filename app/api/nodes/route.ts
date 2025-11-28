@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     let addressId: string | null = null
 
     // Пытаемся найти существующий адрес
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     const { data: existingAddress } = await (supabase
       .from('zakaz_addresses')
       .select('id')
@@ -146,13 +146,14 @@ export async function POST(request: NextRequest) {
       .eq('house', house || '')
       .eq('building', building || '')
       .maybeSingle() as any)
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     if (existingAddress) {
       // Адрес уже существует
       addressId = existingAddress.id
     } else {
       // Создаем новый адрес
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       const { data: newAddress, error: addressError } = await (supabase
         .from('zakaz_addresses')
         .insert({
@@ -164,6 +165,7 @@ export async function POST(request: NextRequest) {
         })
         .select('id')
         .single() as any)
+      /* eslint-enable @typescript-eslint/no-explicit-any */
 
       if (addressError || !newAddress) {
         console.error('Error creating address:', addressError)
