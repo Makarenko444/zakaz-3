@@ -151,6 +151,7 @@ export async function POST(request: NextRequest) {
       addressId = existingAddress.id
     } else {
       // Создаем новый адрес
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: newAddress, error: addressError } = await (supabase
         .from('zakaz_addresses')
         .insert({
