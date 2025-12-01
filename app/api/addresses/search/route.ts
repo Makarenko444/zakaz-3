@@ -198,7 +198,7 @@ export async function GET(request: Request) {
 
     const supabase = createDirectClient()
 
-    // Шаг 1: Поиск в zakaz_nodes через fuzzy search
+    // Шаг 1: Поиск в zakaz_addresses через fuzzy search
     // Пытаемся определить, ищет ли пользователь "улица + дом"
     const trimmedQuery = query.trim()
 
@@ -216,15 +216,14 @@ export async function GET(request: Request) {
       const housePart = match[2].trim()
 
       // Ищем по двум условиям: улица содержит первую часть И дом содержит вторую часть
-      const { data, error } = await supabase
-        .from('zakaz_nodes')
-        .select('id, code, street, house, comment, presence_type, created_at, updated_at')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('zakaz_addresses') as any)
+        .select('id, city, street, house, building, address, comment, created_at, updated_at')
         .ilike('street', `%${streetPart}%`)
         .ilike('house', `%${housePart}%`)
         .order('street', { ascending: true })
         .order('house', { ascending: true })
         .limit(20)
-        .returns<NodeSearchResult[]>()
 
       nodes = data || []
       searchError = error
@@ -232,14 +231,13 @@ export async function GET(request: Request) {
       console.log(`Search with split query: street="${streetPart}" AND house="${housePart}" -> ${nodes.length} results`)
     } else {
       // Обычный поиск по всем полям
-      const { data, error } = await supabase
-        .from('zakaz_nodes')
-        .select('id, code, street, house, comment, presence_type, created_at, updated_at')
-        .or(`street.ilike.%${trimmedQuery}%,house.ilike.%${trimmedQuery}%,address.ilike.%${trimmedQuery}%`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('zakaz_addresses') as any)
+        .select('id, city, street, house, building, address, comment, created_at, updated_at')
+        .or(`city.ilike.%${trimmedQuery}%,street.ilike.%${trimmedQuery}%,house.ilike.%${trimmedQuery}%,address.ilike.%${trimmedQuery}%`)
         .order('street', { ascending: true })
         .order('house', { ascending: true })
         .limit(20)
-        .returns<NodeSearchResult[]>()
 
       nodes = data || []
       searchError = error
@@ -257,15 +255,32 @@ export async function GET(request: Request) {
       )
     }
 
-    // Форматируем результаты
-    localResults = (nodes || [])
-      .filter(node => node.street && node.house) // Только узлы с заполненными street и house
-      .map(node => ({
-        ...node,
-        similarity: 0.5,
-        full_address: `${node.street}, ${node.house}`,
-        source: 'local' as const
-      }))
+    // Форматируем результаты и находим узлы для каждого адреса
+    const addressesWithNodes = await Promise.all(
+      (nodes || [])
+        .filter(node => node.street && node.house) // Только адреса с заполненными street и house
+        .map(async (address) => {
+          // Для каждого адреса находим первый узел (если есть)
+          const { data: nodeData } = await supabase
+            .from('zakaz_nodes')
+            .select('id')
+            .eq('address_id', address.id)
+            .limit(1)
+
+          // nodeData будет массивом или null
+          const firstNode = (nodeData && Array.isArray(nodeData) && nodeData.length > 0 ? nodeData[0] : null) as { id: string } | null
+
+          return {
+            ...address,
+            node_id: firstNode ? firstNode.id : null, // ID узла, если он существует
+            similarity: 0.5,
+            full_address: `${address.street}, ${address.house}`,
+            source: 'local' as const
+          }
+        })
+    )
+
+    localResults = addressesWithNodes
 
     const _normalize = (value: string) => value.trim().toLowerCase().replace(/,+/g, ' ').replace(/\s+/g, ' ')
 

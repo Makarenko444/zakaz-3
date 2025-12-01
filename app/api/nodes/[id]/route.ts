@@ -40,15 +40,17 @@ export async function GET(
     }
 
     // Преобразуем данные - расплющиваем address
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nodeData = data as any
     const transformedNode = {
-      ...data,
-      ...(data.address && {
-        city: data.address.city,
-        street: data.address.street,
-        house: data.address.house,
-        building: data.address.building,
-        address: data.address.address,
-        comment: data.address.comment,
+      ...nodeData,
+      ...(nodeData.address && {
+        city: nodeData.address.city,
+        street: nodeData.address.street,
+        house: nodeData.address.house,
+        building: nodeData.address.building,
+        address: nodeData.address.address,
+        comment: nodeData.address.comment,
       }),
     }
 
