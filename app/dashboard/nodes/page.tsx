@@ -88,6 +88,7 @@ export default function NodesPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editFormData, setEditFormData] = useState<Partial<Node>>({})
+  const [isChangingAddress, setIsChangingAddress] = useState(false)
 
   // Создание нового узла
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -119,6 +120,13 @@ export default function NodesPage() {
     void loadNodes()
     void loadCurrentUser()
     void loadAddresses()
+
+    // Проверяем URL параметры для открытия конкретного узла
+    const searchParams = new URLSearchParams(window.location.search)
+    const nodeId = searchParams.get('node_id')
+    if (nodeId) {
+      void loadAndOpenNode(nodeId)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -167,6 +175,26 @@ export default function NodesPage() {
       setAddresses([])
     } finally {
       setIsLoadingAddresses(false)
+    }
+  }
+
+  async function loadAndOpenNode(nodeId: string) {
+    try {
+      const response = await fetch(`/api/nodes/${nodeId}`)
+      if (!response.ok) {
+        throw new Error('Failed to load node')
+      }
+      const data = await response.json()
+      if (data) {
+        handleNodeClick(data)
+        // Убираем node_id из URL
+        const url = new URL(window.location.href)
+        url.searchParams.delete('node_id')
+        window.history.replaceState({}, '', url.toString())
+      }
+    } catch (error) {
+      console.error('Error loading node:', error)
+      setError('Не удалось загрузить узел')
     }
   }
 
@@ -272,10 +300,12 @@ export default function NodesPage() {
     setSelectedNode(null)
     setIsEditMode(false)
     setEditFormData({})
+    setIsChangingAddress(false)
   }
 
   function handleEditToggle() {
     setIsEditMode(!isEditMode)
+    setIsChangingAddress(false)
     if (!isEditMode && selectedNode) {
       setEditFormData(selectedNode)
     }
@@ -826,35 +856,52 @@ export default function NodesPage() {
                     </div>
 
                     {/* Адрес */}
-                    {isEditMode ? (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Адрес *</label>
-                        {isLoadingAddresses ? (
-                          <div className="text-center py-2">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto"></div>
-                          </div>
-                        ) : (
-                          <select
-                            value={editFormData.address_id || ''}
-                            onChange={(e) => setEditFormData({ ...editFormData, address_id: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            required
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Адрес</label>
+                      {isEditMode && isChangingAddress ? (
+                        <div className="space-y-2">
+                          {isLoadingAddresses ? (
+                            <div className="text-center py-2">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto"></div>
+                            </div>
+                          ) : (
+                            <select
+                              value={editFormData.address_id || ''}
+                              onChange={(e) => setEditFormData({ ...editFormData, address_id: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              required
+                            >
+                              <option value="">Выберите адрес</option>
+                              {addresses.map((addr) => (
+                                <option key={addr.id} value={addr.id}>
+                                  {addr.address}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setIsChangingAddress(false)}
+                            className="text-sm text-gray-600 hover:text-gray-800"
                           >
-                            <option value="">Выберите адрес</option>
-                            {addresses.map((addr) => (
-                              <option key={addr.id} value={addr.id}>
-                                {addr.address}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    ) : (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Адрес</label>
-                        <p className="text-sm text-gray-900">{selectedNode.address}</p>
-                      </div>
-                    )}
+                            Отменить изменение привязки
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-gray-900 flex-1">{selectedNode.address}</p>
+                          {isEditMode && currentUser?.role === 'admin' && (
+                            <button
+                              type="button"
+                              onClick={() => setIsChangingAddress(true)}
+                              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                            >
+                              Изменить привязку
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Расположение узла</label>

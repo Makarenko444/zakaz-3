@@ -3,6 +3,67 @@ import { createDirectClient } from '@/lib/supabase-direct'
 import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 import { validateSession } from '@/lib/session'
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = createDirectClient()
+    const { id } = await params
+
+    const { data, error } = await supabase
+      .from('zakaz_nodes')
+      .select(`
+        *,
+        address:zakaz_addresses!address_id(
+          id,
+          city,
+          street,
+          house,
+          building,
+          address,
+          comment
+        )
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Node not found' },
+          { status: 404 }
+        )
+      }
+      console.error('Error fetching node:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Преобразуем данные - расплющиваем address
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nodeData = data as any
+    const transformedNode = {
+      ...nodeData,
+      ...(nodeData.address && {
+        city: nodeData.address.city,
+        street: nodeData.address.street,
+        house: nodeData.address.house,
+        building: nodeData.address.building,
+        address: nodeData.address.address,
+        comment: nodeData.address.comment,
+      }),
+    }
+
+    return NextResponse.json(transformedNode)
+  } catch (error) {
+    console.error('Error in GET /api/nodes/[id]:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

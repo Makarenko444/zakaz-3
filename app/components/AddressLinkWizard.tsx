@@ -22,10 +22,13 @@ interface Address {
   id: string
   street: string
   house: string
+  building?: string | null
+  city?: string | null
   comment: string | null
   similarity?: number
   full_address?: string
   source?: AddressSource // Источник адреса
+  node_id?: string | null // ID узла, если он существует для этого адреса
 }
 
 interface AddressLinkWizardProps {
@@ -156,7 +159,34 @@ export default function AddressLinkWizard({
     setError('')
 
     try {
-      const nodeId = address.id
+      let nodeId = address.node_id
+
+      // Если у адреса нет привязанного узла, создаём новый узел для этого адреса
+      if (!nodeId) {
+        console.log(`Creating new node for address: ${address.street}, ${address.house}`)
+
+        const createResponse = await fetch('/api/nodes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            address_id: address.id,
+            code: '', // Пустой код, можно генерировать на сервере
+            status: 'existing',
+          }),
+        })
+
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json()
+          throw new Error(errorData.error || 'Не удалось создать узел для адреса')
+        }
+
+        const createdNode = await createResponse.json()
+        nodeId = createdNode.id
+
+        console.log(`Created new node ${nodeId} for address ${address.id}`)
+      }
 
       /* External sources temporarily disabled
       // Если адрес из внешнего источника - сначала сохраняем его в локальную БД
@@ -184,7 +214,10 @@ export default function AddressLinkWizard({
       }
       */
 
-      // Привязываем заявку к узлу/адресу
+      // Привязываем заявку к узлу
+      if (!nodeId) {
+        throw new Error('Не удалось получить ID узла для привязки')
+      }
       await onLink(nodeId)
     } catch (error) {
       console.error('Error linking address:', error)
