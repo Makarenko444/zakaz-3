@@ -27,18 +27,16 @@ interface InstallerProfile {
   activeAssignments: number
 }
 
-// Расширенный тип для заявки с узлом/адресом
+// Расширенный тип для заявки с адресом
 interface ApplicationWithAddress extends Application {
-  zakaz_nodes: {
+  zakaz_addresses: {
     id: string
-    code: string
-    city: string | null
-    street: string | null
-    house: string | null
+    city: string
+    street: string
+    house: string
     building: string | null
     address: string
-    location_details: string | null
-    status: string
+    comment: string | null
   } | null
   assigned_user?: {
     id: string
@@ -372,7 +370,7 @@ export default function ApplicationDetailPage() {
     }
   }
 
-  async function handleLinkAddress(nodeId: string) {
+  async function handleLinkAddress(addressId: string) {
     if (!application) return
 
     try {
@@ -383,7 +381,7 @@ export default function ApplicationDetailPage() {
         },
         body: JSON.stringify({
           ...application,
-          node_id: nodeId,
+          address_id: addressId,
           address_match_status: 'manual_matched',
           updated_by: currentUserId,
         }),
@@ -413,7 +411,7 @@ export default function ApplicationDetailPage() {
         },
         body: JSON.stringify({
           ...application,
-          node_id: null,
+          address_id: null,
           address_match_status: 'unmatched',
           updated_by: currentUserId,
         }),
@@ -443,10 +441,10 @@ export default function ApplicationDetailPage() {
     })
   }
 
-  const formatAddress = (node: ApplicationWithAddress['zakaz_nodes']) => {
-    if (!node) return 'Адрес не указан'
+  const formatAddress = (address: ApplicationWithAddress['zakaz_addresses']) => {
+    if (!address) return 'Адрес не указан'
     // Используем полный адрес, автоматически сформированный триггером БД
-    return node.address || 'Адрес не указан'
+    return address.address || 'Адрес не указан'
   }
 
   const formatTitle = () => {
@@ -764,20 +762,20 @@ export default function ApplicationDetailPage() {
                     </div>
                   </div>
 
-                  {/* Привязка к формализованному адресу/узлу */}
+                  {/* Привязка к формализованному адресу */}
                   <div className="flex items-center gap-2">
-                    {application.node_id && application.zakaz_nodes ? (
+                    {application.address_id && application.zakaz_addresses ? (
                       <>
                         <span className="text-xs text-gray-500">Формализованный адрес:</span>
                         <Link
-                          href={`/dashboard/applications?node_id=${application.node_id}&node_address=${encodeURIComponent(application.zakaz_nodes.address)}`}
+                          href={`/dashboard/applications?address_id=${application.address_id}&address=${encodeURIComponent(application.zakaz_addresses.address)}`}
                           className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition"
                         >
                           <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           <span className="text-xs font-medium text-green-700 hover:text-green-800">
-                            {formatAddress(application.zakaz_nodes)}
+                            {formatAddress(application.zakaz_addresses)}
                           </span>
                         </Link>
                         {application.street_and_house && (
@@ -1089,8 +1087,8 @@ export default function ApplicationDetailPage() {
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">Объект</p>
                   <p className="text-base font-semibold text-gray-900">{formatTitle()}</p>
-                  {application?.zakaz_nodes && (
-                    <p className="text-xs text-gray-600">Узел: {application.zakaz_nodes.code}</p>
+                  {application?.zakaz_addresses && (
+                    <p className="text-xs text-gray-600">Адрес: {application.zakaz_addresses.address}</p>
                   )}
                 </div>
                 <div className="space-y-2">

@@ -10,22 +10,18 @@ export async function GET(
     const supabase = createDirectClient()
     const { id } = await params
 
-    const { data, error } = await supabase
+    const { data, error} = await supabase
       .from('zakaz_applications')
       .select(`
         *,
-        zakaz_nodes(
+        zakaz_addresses!address_id(
           id,
-          code,
-          presence_type,
-          address:zakaz_addresses!address_id(
-            id,
-            city,
-            street,
-            house,
-            building,
-            address
-          )
+          city,
+          street,
+          house,
+          building,
+          address,
+          comment
         ),
         assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
         created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
@@ -48,24 +44,7 @@ export async function GET(
       )
     }
 
-    // Трансформируем данные - расплющиваем address в zakaz_nodes
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const applicationData = data as any
-    if (applicationData.zakaz_nodes && applicationData.zakaz_nodes.address) {
-      const addressData = applicationData.zakaz_nodes.address
-      applicationData.zakaz_nodes = {
-        ...applicationData.zakaz_nodes,
-        city: addressData.city,
-        street: addressData.street,
-        house: addressData.house,
-        building: addressData.building,
-        address: addressData.address,
-        location_details: applicationData.zakaz_nodes.location_details,
-        status: applicationData.zakaz_nodes.status,
-      }
-    }
-
-    return NextResponse.json({ application: applicationData })
+    return NextResponse.json({ application: data })
   } catch (error) {
     console.error('Unexpected error:', error)
     return NextResponse.json(
@@ -132,7 +111,7 @@ export async function PATCH(
 
     // Подготовка данных для обновления
     const updateData: Record<string, unknown> = {
-      node_id: body.node_id || null,
+      address_id: body.address_id !== undefined ? body.address_id : null,
       street_and_house: body.street_and_house || null,
       address_details: body.address_details || null,
       customer_type: body.customer_type,
@@ -158,18 +137,14 @@ export async function PATCH(
     const filtered = (builder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
     const selector = (filtered as { select: (cols: string) => unknown }).select(`
       *,
-      zakaz_nodes(
+      zakaz_addresses!address_id(
         id,
-        code,
-        presence_type,
-        address:zakaz_addresses!address_id(
-          id,
-          city,
-          street,
-          house,
-          building,
-          address
-        )
+        city,
+        street,
+        house,
+        building,
+        address,
+        comment
       ),
       assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
       created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
@@ -215,25 +190,8 @@ export async function PATCH(
       userAgent: getUserAgent(request),
     })
 
-    // Трансформируем данные - расплющиваем address в zakaz_nodes
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const applicationData = data as any
-    if (applicationData.zakaz_nodes && applicationData.zakaz_nodes.address) {
-      const addressData = applicationData.zakaz_nodes.address
-      applicationData.zakaz_nodes = {
-        ...applicationData.zakaz_nodes,
-        city: addressData.city,
-        street: addressData.street,
-        house: addressData.house,
-        building: addressData.building,
-        address: addressData.address,
-        location_details: applicationData.zakaz_nodes.location_details,
-        status: applicationData.zakaz_nodes.status,
-      }
-    }
-
     return NextResponse.json(
-      { application: applicationData, message: 'Application updated successfully' },
+      { application: data, message: 'Application updated successfully' },
       { status: 200 }
     )
   } catch (error) {

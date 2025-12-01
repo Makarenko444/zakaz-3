@@ -28,7 +28,7 @@ interface Address {
   similarity?: number
   full_address?: string
   source?: AddressSource // Источник адреса
-  node_id?: string | null // ID узла, если он существует для этого адреса
+  node_id?: string | null // ID узла (не используется для привязки заявок)
 }
 
 interface AddressLinkWizardProps {
@@ -159,43 +159,8 @@ export default function AddressLinkWizard({
     setError('')
 
     try {
-      const nodeId = address.node_id
-
-      // Если у адреса нет привязанного узла, не можем привязать заявку
-      if (!nodeId) {
-        setError(`На адресе "${address.street}, ${address.house}" нет узлов. Сначала создайте узел на этом адресе в разделе "Узлы".`)
-        setIsLinking(false)
-        return
-      }
-
-      /* External sources temporarily disabled
-      // Если адрес из внешнего источника - сначала сохраняем его в локальную БД
-      if (address.source && address.source !== 'local') {
-        const saveResponse = await fetch('/api/addresses/save-external', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            street: address.street,
-            house: address.house,
-            comment: address.comment
-          })
-        })
-
-        if (!saveResponse.ok) {
-          throw new Error('Не удалось сохранить адрес из внешнего источника')
-        }
-
-        const savedNode = await saveResponse.json()
-        nodeId = savedNode.id
-
-        console.log(`Saved external address to local DB: ${address.street}, ${address.house} -> ID: ${nodeId}`)
-      }
-      */
-
-      // Привязываем заявку к узлу
-      await onLink(nodeId)
+      // Привязываем заявку напрямую к адресу (не к узлу!)
+      await onLink(address.id)
     } catch (error) {
       console.error('Error linking address:', error)
       setError(error instanceof Error ? error.message : 'Не удалось привязать адрес')
