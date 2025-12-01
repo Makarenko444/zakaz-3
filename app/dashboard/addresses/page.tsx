@@ -95,6 +95,10 @@ export default function AddressesPage() {
     comment: '',
   })
 
+  // Удаление адреса
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
   useEffect(() => {
     // Загружаем сортировку из localStorage
     const savedSort = localStorage.getItem('addresses-sort')
@@ -297,6 +301,37 @@ export default function AddressesPage() {
       setError(`Ошибка создания адреса: ${err}`)
     } finally {
       setIsCreating(false)
+    }
+  }
+
+  async function handleDeleteAddress() {
+    if (!selectedAddress) return
+
+    setIsDeleting(true)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/addresses/${selectedAddress.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete address')
+      }
+
+      // Перезагружаем список адресов
+      await loadAddresses()
+
+      // Закрываем модальное окно
+      handleCloseModal()
+      setShowDeleteConfirm(false)
+    } catch (err) {
+      console.error('Error deleting address:', err)
+      setError(`Ошибка удаления: ${err}`)
+      setShowDeleteConfirm(false)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -785,13 +820,24 @@ export default function AddressesPage() {
                       Закрыть
                     </button>
                     {currentUser?.role === 'admin' && (
-                      <button
-                        type="button"
-                        onClick={handleEditToggle}
-                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-                      >
-                        Редактировать
-                      </button>
+                      <>
+                        {addressNodes.length === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                          >
+                            Удалить
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleEditToggle}
+                          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+                        >
+                          Редактировать
+                        </button>
+                      </>
                     )}
                   </>
                 )}
@@ -928,6 +974,39 @@ export default function AddressesPage() {
                   className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
                 >
                   {isCreating ? 'Создание...' : 'Создать'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модальное окно подтверждения удаления */}
+        {showDeleteConfirm && selectedAddress && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Подтверждение удаления</h3>
+              <p className="text-gray-700 mb-6">
+                Вы уверены, что хотите удалить адрес <strong>{selectedAddress.address}</strong>?
+                {addressNodes.length > 0 && (
+                  <span className="block mt-2 text-red-600 text-sm">
+                    На этом адресе есть {addressNodes.length} узлов. Сначала удалите все узлы.
+                  </span>
+                )}
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleDeleteAddress}
+                  disabled={isDeleting || addressNodes.length > 0}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeleting ? 'Удаление...' : 'Удалить'}
                 </button>
               </div>
             </div>

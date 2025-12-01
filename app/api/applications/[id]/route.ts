@@ -48,7 +48,24 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ application: data })
+    // Трансформируем данные - расплющиваем address в zakaz_nodes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const applicationData = data as any
+    if (applicationData.zakaz_nodes && applicationData.zakaz_nodes.address) {
+      const addressData = applicationData.zakaz_nodes.address
+      applicationData.zakaz_nodes = {
+        ...applicationData.zakaz_nodes,
+        city: addressData.city,
+        street: addressData.street,
+        house: addressData.house,
+        building: addressData.building,
+        address: addressData.address,
+        location_details: applicationData.zakaz_nodes.location_details,
+        status: applicationData.zakaz_nodes.status,
+      }
+    }
+
+    return NextResponse.json({ application: applicationData })
   } catch (error) {
     console.error('Unexpected error:', error)
     return NextResponse.json(
@@ -198,8 +215,25 @@ export async function PATCH(
       userAgent: getUserAgent(request),
     })
 
+    // Трансформируем данные - расплющиваем address в zakaz_nodes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const applicationData = data as any
+    if (applicationData.zakaz_nodes && applicationData.zakaz_nodes.address) {
+      const addressData = applicationData.zakaz_nodes.address
+      applicationData.zakaz_nodes = {
+        ...applicationData.zakaz_nodes,
+        city: addressData.city,
+        street: addressData.street,
+        house: addressData.house,
+        building: addressData.building,
+        address: addressData.address,
+        location_details: applicationData.zakaz_nodes.location_details,
+        status: applicationData.zakaz_nodes.status,
+      }
+    }
+
     return NextResponse.json(
-      { application: data, message: 'Application updated successfully' },
+      { application: applicationData, message: 'Application updated successfully' },
       { status: 200 }
     )
   } catch (error) {
