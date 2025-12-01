@@ -177,3 +177,79 @@ export async function PUT(
     )
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = createDirectClient()
+    const session = await validateSession(request)
+
+    // Только админы могут удалять узлы
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Only admins can delete nodes' },
+        { status: 403 }
+      )
+    }
+
+    const { id } = await params
+
+    // Проверяем, есть ли заявки, привязанные к этому узлу
+    const { data: applications } = await supabase
+      .from('zakaz_applications')
+      .select('id')
+      .eq('node_id', id)
+      .limit(1)
+
+    if (applications && applications.length > 0) {
+      return NextResponse.json(
+        { error: 'Cannot delete node with existing applications. Unlink applications first.' },
+        { status: 400 }
+      )
+    }
+
+    // Получаем данные узла для логирования
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: nodeData } = await (supabase.from('zakaz_nodes') as any)
+      .select('code')
+      .eq('id', id)
+      .single()
+
+    // Удаляем узел
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from('zakaz_nodes') as any)
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting node:', error)
+      return NextResponse.json(
+        { error: error.message || 'Failed to delete node' },
+        { status: 500 }
+      )
+    }
+
+    // Логируем удаление
+    await logAudit({
+      userId: session.user.id,
+      userEmail: session.user.email,
+      userName: session.user.full_name,
+      actionType: 'delete',
+      entityType: 'other',
+      entityId: id,
+      description: `Deleted node ${nodeData?.code || id}`,
+      ipAddress: getClientIP(request),
+      userAgent: getUserAgent(request),
+    })
+
+    return NextResponse.json({ message: 'Node deleted successfully' })
+  } catch (error) {
+    console.error('Error in DELETE /api/nodes/[id]:', error)
+    return NextResponse.json(
+      { error: 'Internal server error', details: String(error) },
+      { status: 500 }
+    )
+  }
+}
