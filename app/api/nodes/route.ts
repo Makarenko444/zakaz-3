@@ -68,9 +68,22 @@ export async function GET(request: NextRequest) {
       query = query.eq('address_id', addressId)
     }
 
-    // Поиск по коду или описанию
+    // Поиск по коду, описанию или адресу
     if (search) {
-      query = query.or(`code.ilike.%${search}%,location_details.ilike.%${search}%`)
+      // Сначала находим адреса, соответствующие поисковому запросу
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: matchingAddresses } = await (supabase.from('zakaz_addresses') as any)
+        .select('id')
+        .or(`city.ilike.%${search}%,street.ilike.%${search}%,house.ilike.%${search}%,address.ilike.%${search}%`)
+
+      const addressIds = matchingAddresses?.map((addr: { id: string }) => addr.id) || []
+
+      // Ищем узлы либо по коду/описанию, либо по найденным адресам
+      if (addressIds.length > 0) {
+        query = query.or(`code.ilike.%${search}%,location_details.ilike.%${search}%,address_id.in.(${addressIds.join(',')})`)
+      } else {
+        query = query.or(`code.ilike.%${search}%,location_details.ilike.%${search}%`)
+      }
     }
 
     // Пагинация
