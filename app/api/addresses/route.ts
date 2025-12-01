@@ -1,70 +1,190 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { Node } from '@/lib/types'
+import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
+import { validateSession } from '@/lib/session'
 
-interface Application {
-  id: string
-  status: string
-  application_number: number
-}
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = createDirectClient()
+    const searchParams = request.nextUrl.searchParams
 
-    // Получаем все адреса/узлы из zakaz_nodes
-    const { data: nodes, error: nodesError } = await supabase
-      .from('zakaz_nodes')
-      .select('*')
-      .order('street', { ascending: true })
-      .order('house', { ascending: true })
-      .returns<Node[]>()
+    // Получаем параметры фильтрации
+    const search = searchParams.get('search')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const sortField = searchParams.get('sort_field') || 'created_at'
+    const sortDirection = searchParams.get('sort_direction') || 'desc'
 
-    if (nodesError) {
-      console.error('Database error:', nodesError)
+    // Базовый запрос для получения адресов с узлами
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase.from('zakaz_addresses') as any)
+      .select(`
+        *,
+        zakaz_nodes(
+          id,
+          code,
+          presence_type,
+          status,
+          node_type
+        )
+      `, { count: 'exact' })
+      .order(sortField, { ascending: sortDirection === 'asc' })
+
+    // Поиск по адресу
+    if (search) {
+      query = query.or(`city.ilike.%${search}%,street.ilike.%${search}%,house.ilike.%${search}%,address.ilike.%${search}%`)
+    }
+
+    // Пагинация
+    const offset = (page - 1) * limit
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+
+    if (error) {
+      console.error('Error fetching addresses:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Обрабатываем данные - добавляем статистику по узлам
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const transformedData = data?.map((address: any) => {
+      const nodes = address.zakaz_nodes || []
+
+      // Подсчитываем присутствие
+      const presenceTypes = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        has_node: nodes.filter((n: any) => n.presence_type === 'has_node').length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        has_ao: nodes.filter((n: any) => n.presence_type === 'has_ao').length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        has_transit_cable: nodes.filter((n: any) => n.presence_type === 'has_transit_cable').length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        not_present: nodes.filter((n: any) => n.presence_type === 'not_present').length,
+      }
+
+      // Определяем общий статус присутствия
+      let presenceStatus = 'not_present'
+      if (presenceTypes.has_node > 0) {
+        presenceStatus = 'has_node'
+      } else if (presenceTypes.has_ao > 0) {
+        presenceStatus = 'has_ao'
+      } else if (presenceTypes.has_transit_cable > 0) {
+        presenceStatus = 'has_transit_cable'
+      }
+
+      return {
+        ...address,
+        node_count: nodes.length,
+        presence_types: presenceTypes,
+        presence_status: presenceStatus,
+        // Убираем вложенный массив узлов из ответа для краткости
+        zakaz_nodes: undefined,
+      }
+    }) || []
+
+    return NextResponse.json({
+      data: transformedData,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit),
+      },
+    })
+  } catch (error) {
+    console.error('Error in GET /api/addresses:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = createDirectClient()
+    const body = await request.json()
+    const session = await validateSession(request)
+
+    // Только админы могут создавать адреса
+    if (!session || session.user.role !== 'admin') {
       return NextResponse.json(
-        { error: 'Failed to fetch addresses', details: nodesError.message },
+        { error: 'Only admins can create addresses' },
+        { status: 403 }
+      )
+    }
+
+    // Валидация обязательных полей
+    if (!body.street) {
+      return NextResponse.json(
+        { error: 'Street is required' },
+        { status: 400 }
+      )
+    }
+
+    const city = body.city || 'Томск'
+    const street = body.street
+    const house = body.house || null
+    const building = body.building || null
+    const comment = body.comment || null
+
+    // Проверяем, не существует ли уже такой адрес
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingAddress } = await (supabase.from('zakaz_addresses') as any)
+      .select('id')
+      .eq('city', city)
+      .eq('street', street || '')
+      .eq('house', house || '')
+      .eq('building', building || '')
+      .maybeSingle()
+
+    if (existingAddress) {
+      return NextResponse.json(
+        { error: 'Address already exists' },
+        { status: 400 }
+      )
+    }
+
+    // Создаем новый адрес
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from('zakaz_addresses') as any)
+      .insert({
+        city,
+        street,
+        house,
+        building,
+        comment,
+      })
+      .select()
+      .single()
+
+    if (error || !data) {
+      console.error('Error creating address:', error)
+      return NextResponse.json(
+        { error: error?.message || 'Failed to create address' },
         { status: 500 }
       )
     }
 
-    // Для каждого адреса получаем статистику по заявкам
-    const nodesWithStats = await Promise.all(
-      (nodes || []).map(async (node) => {
-        const { data: applications, error: applicationsError } = await supabase
-          .from('zakaz_applications')
-          .select('id, status, application_number')
-          .eq('node_id', node.id)
-          .returns<Application[]>()
-
-        if (applicationsError) {
-          console.error('Error fetching applications for node:', applicationsError)
-          return {
-            ...node,
-            total_applications: 0,
-            status_counts: {},
-            applications: []
-          }
-        }
-
-        // Подсчитываем количество заявок по статусам
-        const statusCounts: Record<string, number> = {}
-        applications?.forEach(app => {
-          statusCounts[app.status] = (statusCounts[app.status] || 0) + 1
-        })
-
-        return {
-          ...node,
-          total_applications: applications?.length || 0,
-          status_counts: statusCounts,
-          applications: applications || []
-        }
+    // Логируем создание
+    if (session?.user) {
+      await logAudit({
+        userId: session.user.id,
+        userEmail: session.user.email,
+        userName: session.user.full_name,
+        actionType: 'create',
+        entityType: 'other',
+        entityId: data.id,
+        description: `Created address ${data.address}`,
+        ipAddress: getClientIP(request),
+        userAgent: getUserAgent(request),
       })
-    )
+    }
 
-    return NextResponse.json({ addresses: nodesWithStats })
+    return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    console.error('Unexpected error:', error)
+    console.error('Error in POST /api/addresses:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
