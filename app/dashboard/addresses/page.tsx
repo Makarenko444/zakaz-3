@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import type { User } from '@/lib/types'
+import { getCurrentUser } from '@/lib/auth-client'
 
 interface Address {
   id: string
@@ -20,6 +22,14 @@ interface Address {
   }
   presence_status: string
   created_at: string
+}
+
+interface Node {
+  id: string
+  code: string
+  node_type: string
+  presence_type: string
+  status: string
 }
 
 interface AddressesResponse {
@@ -64,6 +74,16 @@ export default function AddressesPage() {
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
+  // Режим редактирования
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editFormData, setEditFormData] = useState<Partial<Address>>({})
+  const [isSaving, setIsSaving] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+
+  // Узлы на адресе
+  const [addressNodes, setAddressNodes] = useState<Node[]>([])
+  const [isLoadingNodes, setIsLoadingNodes] = useState(false)
+
   useEffect(() => {
     // Загружаем сортировку из localStorage
     const savedSort = localStorage.getItem('addresses-sort')
@@ -78,6 +98,7 @@ export default function AddressesPage() {
     }
 
     void loadAddresses()
+    void loadCurrentUser()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -92,7 +113,7 @@ export default function AddressesPage() {
   // Закрытие модального окна по Esc
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape' && isModalOpen) {
+      if (event.key === 'Escape' && isModalOpen && !isEditMode) {
         handleCloseModal()
       }
     }
@@ -101,7 +122,29 @@ export default function AddressesPage() {
       document.addEventListener('keydown', handleEscape)
       return () => document.removeEventListener('keydown', handleEscape)
     }
-  }, [isModalOpen])
+  }, [isModalOpen, isEditMode])
+
+  async function loadCurrentUser() {
+    const user = await getCurrentUser()
+    setCurrentUser(user)
+  }
+
+  async function loadAddressNodes(addressId: string) {
+    setIsLoadingNodes(true)
+    try {
+      const response = await fetch(`/api/nodes?address_id=${addressId}&limit=1000`)
+      if (!response.ok) {
+        throw new Error('Failed to load nodes')
+      }
+      const data = await response.json()
+      setAddressNodes(data.data || [])
+    } catch (error) {
+      console.error('Error loading nodes:', error)
+      setAddressNodes([])
+    } finally {
+      setIsLoadingNodes(false)
+    }
+  }
 
   async function loadAddresses() {
     setIsLoading(true)
@@ -153,12 +196,58 @@ export default function AddressesPage() {
 
   function handleAddressClick(address: Address) {
     setSelectedAddress(address)
+    setEditFormData(address)
+    setIsEditMode(false)
     setIsModalOpen(true)
+    void loadAddressNodes(address.id)
   }
 
   function handleCloseModal() {
     setIsModalOpen(false)
     setSelectedAddress(null)
+    setIsEditMode(false)
+    setEditFormData({})
+    setAddressNodes([])
+  }
+
+  function handleEditToggle() {
+    setIsEditMode(!isEditMode)
+    if (!isEditMode && selectedAddress) {
+      setEditFormData(selectedAddress)
+    }
+  }
+
+  async function handleSaveAddress() {
+    if (!selectedAddress || !editFormData) return
+
+    setIsSaving(true)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/addresses/${selectedAddress.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to update address')
+      }
+
+      const updatedAddress = await response.json()
+
+      // Обновляем список адресов
+      setAddresses(addresses.map(a => a.id === updatedAddress.id ? updatedAddress : a))
+
+      // Закрываем модальное окно
+      handleCloseModal()
+    } catch (err) {
+      console.error('Error saving address:', err)
+      setError(`Ошибка сохранения: ${err}`)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   if (isLoading && addresses.length === 0) {
@@ -412,20 +501,20 @@ export default function AddressesPage() {
           </div>
         )}
 
-        {/* Модальное окно просмотра адреса */}
+        {/* Модальное окно просмотра/редактирования адреса */}
         {isModalOpen && selectedAddress && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-500 bg-opacity-75"
             onClick={(e) => {
-              if (e.target === e.currentTarget) {
+              if (e.target === e.currentTarget && !isEditMode) {
                 handleCloseModal()
               }
             }}
           >
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
-                  Информация об адресе
+                  {isEditMode ? 'Редактирование адреса' : 'Информация об адресе'}
                 </h3>
                 <button
                   onClick={handleCloseModal}
@@ -441,37 +530,89 @@ export default function AddressesPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Полный адрес</label>
-                    <p className="text-sm text-gray-900">{selectedAddress.address}</p>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editFormData.address || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-900">{selectedAddress.address}</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
-                      <p className="text-sm text-gray-900">{selectedAddress.city}</p>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.city || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedAddress.city}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Улица</label>
-                      <p className="text-sm text-gray-900">{selectedAddress.street}</p>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.street || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, street: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedAddress.street}</p>
+                      )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Дом</label>
-                      <p className="text-sm text-gray-900">{selectedAddress.house || '—'}</p>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.house || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, house: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedAddress.house || '—'}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Корпус</label>
-                      <p className="text-sm text-gray-900">{selectedAddress.building || '—'}</p>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.building || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, building: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedAddress.building || '—'}</p>
+                      )}
                     </div>
                   </div>
 
-                  {selectedAddress.comment && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Комментарий</label>
-                      <p className="text-sm text-gray-900">{selectedAddress.comment}</p>
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Комментарий</label>
+                    {isEditMode ? (
+                      <textarea
+                        value={editFormData.comment || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, comment: e.target.value })}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-900">{selectedAddress.comment || '—'}</p>
+                    )}
+                  </div>
 
                   <div className="border-t border-gray-200 pt-4">
                     <h4 className="text-sm font-semibold text-gray-700 mb-3">Статистика по узлам</h4>
@@ -510,24 +651,89 @@ export default function AddressesPage() {
                       {presenceLabels[selectedAddress.presence_status]}
                     </span>
                   </div>
+
+                  {/* Список узлов */}
+                  {!isEditMode && (
+                    <div className="border-t border-gray-200 pt-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                        Узлы на адресе ({addressNodes.length})
+                      </h4>
+                      {isLoadingNodes ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                        </div>
+                      ) : addressNodes.length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-4">Нет узлов на этом адресе</p>
+                      ) : (
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {addressNodes.map((node) => (
+                            <button
+                              key={node.id}
+                              onClick={() => router.push(`/dashboard/nodes?node_id=${node.id}`)}
+                              className="w-full text-left px-3 py-2 border border-gray-200 rounded-md hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="font-medium text-gray-900">{node.code}</span>
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    {node.node_type === 'prp' ? 'ПРП' :
+                                     node.node_type === 'ao' ? 'АО' :
+                                     node.node_type === 'sk' ? 'СК' : 'Др.'}
+                                  </span>
+                                </div>
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-3 flex justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => router.push(`/dashboard/nodes?address_id=${selectedAddress.id}`)}
-                  className="px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-md hover:bg-indigo-200"
-                >
-                  Показать узлы
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Закрыть
-                </button>
+              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-3 flex justify-end gap-2">
+                {isEditMode ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleEditToggle}
+                      disabled={isSaving}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveAddress}
+                      disabled={isSaving}
+                      className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {isSaving ? 'Сохранение...' : 'Сохранить'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      Закрыть
+                    </button>
+                    {currentUser?.role === 'admin' && (
+                      <button
+                        type="button"
+                        onClick={handleEditToggle}
+                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+                      >
+                        Редактировать
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>
