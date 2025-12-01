@@ -84,6 +84,17 @@ export default function AddressesPage() {
   const [addressNodes, setAddressNodes] = useState<Node[]>([])
   const [isLoadingNodes, setIsLoadingNodes] = useState(false)
 
+  // Создание нового адреса
+  const [isCreating, setIsCreating] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newAddressData, setNewAddressData] = useState({
+    city: 'Томск',
+    street: '',
+    house: '',
+    building: '',
+    comment: '',
+  })
+
   useEffect(() => {
     // Загружаем сортировку из localStorage
     const savedSort = localStorage.getItem('addresses-sort')
@@ -248,6 +259,47 @@ export default function AddressesPage() {
     }
   }
 
+  async function handleCreateAddress() {
+    if (!newAddressData.street.trim() || !newAddressData.house.trim()) {
+      setError('Заполните обязательные поля: улица и номер дома')
+      return
+    }
+
+    setIsCreating(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/addresses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAddressData),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to create address')
+      }
+
+      // Перезагружаем список адресов
+      await loadAddresses()
+
+      // Закрываем форму и очищаем данные
+      setShowCreateForm(false)
+      setNewAddressData({
+        city: 'Томск',
+        street: '',
+        house: '',
+        building: '',
+        comment: '',
+      })
+    } catch (err) {
+      console.error('Error creating address:', err)
+      setError(`Ошибка создания адреса: ${err}`)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   if (isLoading && addresses.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -280,6 +332,17 @@ export default function AddressesPage() {
               <div className="text-sm text-gray-600">
                 Всего адресов: <span className="font-semibold">{pagination.total}</span>
               </div>
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Новый адрес
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -732,6 +795,140 @@ export default function AddressesPage() {
                     )}
                   </>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модальное окно создания нового адреса */}
+        {showCreateForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+              {/* Заголовок */}
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Создать новый адрес</h2>
+                <button
+                  onClick={() => {
+                    setShowCreateForm(false)
+                    setNewAddressData({
+                      city: 'Томск',
+                      street: '',
+                      house: '',
+                      building: '',
+                      comment: '',
+                    })
+                    setError('')
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Контент */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="space-y-4">
+                  {/* Город */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Город <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newAddressData.city}
+                      onChange={(e) => setNewAddressData({ ...newAddressData, city: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Улица */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Улица <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newAddressData.street}
+                      onChange={(e) => setNewAddressData({ ...newAddressData, street: e.target.value })}
+                      placeholder="улица Ленина"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Номер дома */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Номер дома <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newAddressData.house}
+                      onChange={(e) => setNewAddressData({ ...newAddressData, house: e.target.value })}
+                      placeholder="123"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Корпус/строение */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Корпус/строение
+                    </label>
+                    <input
+                      type="text"
+                      value={newAddressData.building}
+                      onChange={(e) => setNewAddressData({ ...newAddressData, building: e.target.value })}
+                      placeholder="А, 1, корп. 2"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Комментарий */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Комментарий
+                    </label>
+                    <textarea
+                      value={newAddressData.comment}
+                      onChange={(e) => setNewAddressData({ ...newAddressData, comment: e.target.value })}
+                      rows={3}
+                      placeholder="Дополнительная информация об адресе"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Футер */}
+              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateForm(false)
+                    setNewAddressData({
+                      city: 'Томск',
+                      street: '',
+                      house: '',
+                      building: '',
+                      comment: '',
+                    })
+                    setError('')
+                  }}
+                  disabled={isCreating}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateAddress}
+                  disabled={isCreating || !newAddressData.street.trim() || !newAddressData.house.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isCreating ? 'Создание...' : 'Создать'}
+                </button>
               </div>
             </div>
           </div>

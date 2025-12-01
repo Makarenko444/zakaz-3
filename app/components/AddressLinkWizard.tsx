@@ -159,33 +159,13 @@ export default function AddressLinkWizard({
     setError('')
 
     try {
-      let nodeId = address.node_id
+      const nodeId = address.node_id
 
-      // Если у адреса нет привязанного узла, создаём новый узел для этого адреса
+      // Если у адреса нет привязанного узла, не можем привязать заявку
       if (!nodeId) {
-        console.log(`Creating new node for address: ${address.street}, ${address.house}`)
-
-        const createResponse = await fetch('/api/nodes', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            address_id: address.id,
-            code: '', // Пустой код, можно генерировать на сервере
-            status: 'existing',
-          }),
-        })
-
-        if (!createResponse.ok) {
-          const errorData = await createResponse.json()
-          throw new Error(errorData.error || 'Не удалось создать узел для адреса')
-        }
-
-        const createdNode = await createResponse.json()
-        nodeId = createdNode.id
-
-        console.log(`Created new node ${nodeId} for address ${address.id}`)
+        setError(`На адресе "${address.street}, ${address.house}" нет узлов. Сначала создайте узел на этом адресе в разделе "Узлы".`)
+        setIsLinking(false)
+        return
       }
 
       /* External sources temporarily disabled
@@ -215,9 +195,6 @@ export default function AddressLinkWizard({
       */
 
       // Привязываем заявку к узлу
-      if (!nodeId) {
-        throw new Error('Не удалось получить ID узла для привязки')
-      }
       await onLink(nodeId)
     } catch (error) {
       console.error('Error linking address:', error)
@@ -451,8 +428,8 @@ export default function AddressLinkWizard({
         return
       }
 
-      // Создаем новый адрес в базе данных
-      const response = await fetch('/api/nodes', {
+      // Создаем новый адрес в базе данных (без создания узла)
+      const response = await fetch('/api/addresses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -462,8 +439,7 @@ export default function AddressLinkWizard({
           street: newAddress.street.trim(),
           house: newAddress.house.trim(),
           building: newAddress.building.trim() || null,
-          status: 'existing',
-          code: '', // Пустой код, можно генерировать на сервере
+          comment: null,
         }),
       })
 
@@ -472,15 +448,15 @@ export default function AddressLinkWizard({
         throw new Error(errorData.error || 'Не удалось создать адрес')
       }
 
-      const createdNode = await response.json()
-
-      // Сразу привязываем к заявке
-      await onLink(createdNode.id)
-
-      // Закрываем форму создания
+      // Адрес создан, но для привязки к заявке нужен узел
+      setError('')
       setShowCreateForm(false)
       setNewAddress({ city: 'Томск', street: '', house: '', building: '' })
       setStreetValidation(null)
+
+      // Показываем сообщение пользователю
+      alert('Адрес успешно создан! Для привязки заявки к этому адресу, сначала создайте узел на этом адресе в разделе "Узлы".')
+      onClose()
     } catch (error) {
       console.error('Error creating address:', error)
       setError(error instanceof Error ? error.message : 'Не удалось создать адрес')
