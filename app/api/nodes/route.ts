@@ -185,8 +185,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Шаг 2: Создаем узел с ссылкой на адрес
-    const { data, error } = await supabase
-      .from('zakaz_nodes')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from('zakaz_nodes') as any)
       .insert({
         code: code,
         address_id: addressId,
