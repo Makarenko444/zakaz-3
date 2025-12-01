@@ -32,6 +32,15 @@ interface ImportResult {
   }
 }
 
+interface Address {
+  id: string
+  address: string
+  city: string
+  street: string
+  house: string | null
+  building: string | null
+}
+
 const statusLabels: Record<NodeStatus, string> = {
   existing: 'Существующий',
   planned: 'Проектируемый',
@@ -84,18 +93,15 @@ export default function NodesPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [createFormData, setCreateFormData] = useState<Partial<Node>>({
     code: 'Адрес',
-    city: 'Томск',
     node_type: 'prp',
     status: 'not_present',
-    node_created_date: new Date().toISOString().split('T')[0]
+    node_created_date: new Date().toISOString().split('T')[0],
+    address_id: undefined
   })
-  const [osmValidation, setOsmValidation] = useState<{
-    status: 'match' | 'suggestions' | 'no_match'
-    message: string
-    suggestion?: string
-    suggestions?: string[]
-  } | null>(null)
-  const [isValidatingOsm, setIsValidatingOsm] = useState(false)
+
+  // Список адресов для селектора
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false)
 
   useEffect(() => {
     // Загружаем сортировку из localStorage
@@ -112,6 +118,7 @@ export default function NodesPage() {
 
     void loadNodes()
     void loadCurrentUser()
+    void loadAddresses()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -140,22 +147,27 @@ export default function NodesPage() {
     }
   }, [isModalOpen, isEditMode, isCreateModalOpen])
 
-  // Автоматическая проверка OSM после ввода дома
-  useEffect(() => {
-    if (isCreateModalOpen && createFormData.street && createFormData.house) {
-      // Задержка перед проверкой, чтобы не спамить API при быстром вводе
-      const timeoutId = setTimeout(() => {
-        void validateAddressFormat()
-      }, 800)
-
-      return () => clearTimeout(timeoutId)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createFormData.street, createFormData.house, isCreateModalOpen])
 
   async function loadCurrentUser() {
     const user = await getCurrentUser()
     setCurrentUser(user)
+  }
+
+  async function loadAddresses() {
+    setIsLoadingAddresses(true)
+    try {
+      const response = await fetch('/api/addresses?limit=1000')
+      if (!response.ok) {
+        throw new Error('Failed to load addresses')
+      }
+      const data = await response.json()
+      setAddresses(data.data || [])
+    } catch (error) {
+      console.error('Error loading addresses:', error)
+      setAddresses([])
+    } finally {
+      setIsLoadingAddresses(false)
+    }
   }
 
   async function loadNodes() {
@@ -305,10 +317,10 @@ export default function NodesPage() {
   function handleOpenCreateModal() {
     setCreateFormData({
       code: 'Адрес',
-      city: 'Томск',
       node_type: 'prp',
       status: 'not_present',
-      node_created_date: new Date().toISOString().split('T')[0]
+      node_created_date: new Date().toISOString().split('T')[0],
+      address_id: undefined
     })
     setIsCreateModalOpen(true)
   }
@@ -317,54 +329,11 @@ export default function NodesPage() {
     setIsCreateModalOpen(false)
     setCreateFormData({
       code: 'Адрес',
-      city: 'Томск',
       node_type: 'prp',
       status: 'not_present',
-      node_created_date: new Date().toISOString().split('T')[0]
+      node_created_date: new Date().toISOString().split('T')[0],
+      address_id: undefined
     })
-    setOsmValidation(null)
-  }
-
-  async function validateAddressFormat() {
-    if (!createFormData.street) {
-      setOsmValidation(null)
-      return
-    }
-
-    setIsValidatingOsm(true)
-    try {
-      const addressToValidate = createFormData.house
-        ? `${createFormData.street}, ${createFormData.house}`
-        : createFormData.street
-
-      const city = createFormData.city || 'Томск'
-      const fullAddress = `${city}, ${addressToValidate}`
-
-      const response = await fetch(`/api/addresses/validate-osm?address=${encodeURIComponent(fullAddress)}`)
-      const data = await response.json()
-      setOsmValidation(data)
-    } catch (error) {
-      console.error('Error validating address with OSM:', error)
-      setOsmValidation({
-        status: 'no_match',
-        message: 'Не удалось проверить адрес'
-      })
-    } finally {
-      setIsValidatingOsm(false)
-    }
-  }
-
-  function applyOsmSuggestion(suggestion: string) {
-    // Парсим предложение формата "улица, дом"
-    const parts = suggestion.split(',').map(p => p.trim())
-    if (parts.length >= 2) {
-      setCreateFormData({
-        ...createFormData,
-        street: parts[0],
-        house: parts[1]
-      })
-      setOsmValidation(null)
-    }
   }
 
   async function handleCreateNode() {
@@ -373,8 +342,8 @@ export default function NodesPage() {
 
     try {
       // Проверка обязательных полей
-      if (!createFormData.code || !createFormData.street) {
-        setError('Код и улица обязательны для заполнения')
+      if (!createFormData.code || !createFormData.address_id) {
+        setError('Код и адрес обязательны для заполнения')
         setIsSaving(false)
         return
       }
@@ -429,7 +398,7 @@ export default function NodesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Адреса</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Узлы</h1>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm text-gray-600">
@@ -443,7 +412,7 @@ export default function NodesPage() {
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Создать адрес
+                  Создать узел
                 </button>
               )}
               <button
@@ -858,61 +827,32 @@ export default function NodesPage() {
 
                     {/* Адрес */}
                     {isEditMode ? (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
-                          <input
-                            type="text"
-                            value={editFormData.city || ''}
-                            onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            placeholder="Томск"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Улица *</label>
-                            <input
-                              type="text"
-                              value={editFormData.street || ''}
-                              onChange={(e) => setEditFormData({ ...editFormData, street: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              placeholder="проспект Ленина"
-                              required
-                            />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Адрес *</label>
+                        {isLoadingAddresses ? (
+                          <div className="text-center py-2">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto"></div>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Дом</label>
-                            <input
-                              type="text"
-                              value={editFormData.house || ''}
-                              onChange={(e) => setEditFormData({ ...editFormData, house: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              placeholder="22"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Корпус/строение (необязательно)</label>
-                          <input
-                            type="text"
-                            value={editFormData.building || ''}
-                            onChange={(e) => setEditFormData({ ...editFormData, building: e.target.value })}
+                        ) : (
+                          <select
+                            value={editFormData.address_id || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, address_id: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            placeholder="корп. 2"
-                          />
-                        </div>
+                            required
+                          >
+                            <option value="">Выберите адрес</option>
+                            {addresses.map((addr) => (
+                              <option key={addr.id} value={addr.id}>
+                                {addr.address}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                     ) : (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Адрес</label>
                         <p className="text-sm text-gray-900">{selectedNode.address}</p>
-                        <div className="mt-2 text-xs text-gray-600 space-y-1">
-                          {selectedNode.city && <div>Город: {selectedNode.city}</div>}
-                          {selectedNode.street && <div>Улица: {selectedNode.street}</div>}
-                          {selectedNode.house && <div>Дом: {selectedNode.house}</div>}
-                          {selectedNode.building && <div>Корпус: {selectedNode.building}</div>}
-                        </div>
                       </div>
                     )}
 
@@ -1050,7 +990,7 @@ export default function NodesPage() {
           >
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">Создание нового адреса</h3>
+                <h3 className="text-lg font-medium text-gray-900">Создание нового узла</h3>
                 <button
                   onClick={handleCloseCreateModal}
                   className="text-gray-400 hover:text-gray-500"
@@ -1093,115 +1033,32 @@ export default function NodesPage() {
                   </div>
 
                   {/* Адрес */}
-                  <div className="space-y-3 border-t border-gray-200 pt-4">
-                    <h4 className="text-sm font-semibold text-gray-700">Адрес</h4>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
-                      <input
-                        type="text"
-                        value={createFormData.city || ''}
-                        onChange={(e) => setCreateFormData({ ...createFormData, city: e.target.value })}
+                  <div className="border-t border-gray-200 pt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Адрес <span className="text-red-500">*</span>
+                    </label>
+                    {isLoadingAddresses ? (
+                      <div className="text-center py-2">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto"></div>
+                      </div>
+                    ) : (
+                      <select
+                        value={createFormData.address_id || ''}
+                        onChange={(e) => setCreateFormData({ ...createFormData, address_id: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        placeholder="Томск"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Улица <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={createFormData.street || ''}
-                          onChange={(e) => setCreateFormData({ ...createFormData, street: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          placeholder="проспект Ленина"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Дом</label>
-                        <input
-                          type="text"
-                          value={createFormData.house || ''}
-                          onChange={(e) => setCreateFormData({ ...createFormData, house: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          placeholder="22"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Корпус/строение
-                      </label>
-                      <input
-                        type="text"
-                        value={createFormData.building || ''}
-                        onChange={(e) => setCreateFormData({ ...createFormData, building: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        placeholder="корп. 2"
-                      />
-                    </div>
-
-                    {/* Индикатор проверки адреса */}
-                    {isValidatingOsm && (
-                      <div className="flex items-center text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-md p-2">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Проверка адреса через OpenStreetMap...
-                      </div>
+                        required
+                      >
+                        <option value="">Выберите адрес</option>
+                        {addresses.map((addr) => (
+                          <option key={addr.id} value={addr.id}>
+                            {addr.address}
+                          </option>
+                        ))}
+                      </select>
                     )}
-
-                    {/* Результаты OSM валидации */}
-                    {osmValidation && (
-                      <div className={`p-3 rounded-md border ${
-                        osmValidation.status === 'match'
-                          ? 'bg-green-50 border-green-200'
-                          : osmValidation.status === 'suggestions'
-                          ? 'bg-yellow-50 border-yellow-200'
-                          : 'bg-gray-50 border-gray-200'
-                      }`}>
-                        <p className={`text-sm font-medium mb-2 ${
-                          osmValidation.status === 'match'
-                            ? 'text-green-800'
-                            : osmValidation.status === 'suggestions'
-                            ? 'text-yellow-800'
-                            : 'text-gray-800'
-                        }`}>
-                          {osmValidation.message}
-                        </p>
-
-                        {osmValidation.status === 'suggestions' && osmValidation.suggestions && (
-                          <div className="space-y-2">
-                            <p className="text-xs text-gray-600">Выберите правильный вариант написания:</p>
-                            {osmValidation.suggestions.map((suggestion, index) => (
-                              <button
-                                key={index}
-                                type="button"
-                                onClick={() => applyOsmSuggestion(suggestion)}
-                                className="w-full text-left px-3 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-indigo-50 hover:border-indigo-400 transition-colors"
-                              >
-                                📍 {suggestion}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {osmValidation.status === 'match' && (
-                          <div className="flex items-center text-sm text-green-700">
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Адрес соответствует данным OSM
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <p className="mt-2 text-xs text-gray-500">
+                      Если нужного адреса нет в списке, создайте его на странице <a href="/dashboard/addresses" className="text-indigo-600 hover:text-indigo-700">Адреса</a>
+                    </p>
                   </div>
 
                   <div>
@@ -1273,7 +1130,7 @@ export default function NodesPage() {
                   disabled={isSaving}
                   className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {isSaving ? 'Создание...' : 'Создать адрес'}
+                  {isSaving ? 'Создание...' : 'Создать узел'}
                 </button>
               </div>
             </div>
