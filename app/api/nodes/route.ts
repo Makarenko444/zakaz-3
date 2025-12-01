@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const nodeType = searchParams.get('node_type')
     const search = searchParams.get('search')
+    const addressId = searchParams.get('address_id')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const sortField = searchParams.get('sort_field') || 'created_at'
@@ -63,10 +64,12 @@ export async function GET(request: NextRequest) {
       query = query.eq('node_type', nodeType)
     }
 
-    // Поиск по коду, адресу или описанию
-    // После миграции 028 поиск по адресу нужно делать через JOIN
+    if (addressId) {
+      query = query.eq('address_id', addressId)
+    }
+
+    // Поиск по коду или описанию
     if (search) {
-      // Для поиска по адресу нужен более сложный запрос, но пока используем только code и location_details
       query = query.or(`code.ilike.%${search}%,location_details.ilike.%${search}%`)
     }
 

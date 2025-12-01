@@ -235,10 +235,8 @@ export default function AddressesPage() {
         throw new Error(data.error || 'Failed to update address')
       }
 
-      const updatedAddress = await response.json()
-
-      // Обновляем список адресов
-      setAddresses(addresses.map(a => a.id === updatedAddress.id ? updatedAddress : a))
+      // Перезагружаем список адресов, чтобы получить актуальные данные
+      await loadAddresses()
 
       // Закрываем модальное окно
       handleCloseModal()

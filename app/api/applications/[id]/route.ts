@@ -14,7 +14,19 @@ export async function GET(
       .from('zakaz_applications')
       .select(`
         *,
-        zakaz_nodes(id, code, street, house, address, presence_type),
+        zakaz_nodes(
+          id,
+          code,
+          presence_type,
+          address:zakaz_addresses!address_id(
+            id,
+            city,
+            street,
+            house,
+            building,
+            address
+          )
+        ),
         assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
         created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
         updated_by_user:zakaz_users!zakaz_applications_updated_by_fkey(id, full_name, email, role)
@@ -129,7 +141,19 @@ export async function PATCH(
     const filtered = (builder as { eq: (col: string, val: string) => unknown }).eq('id', id) as unknown
     const selector = (filtered as { select: (cols: string) => unknown }).select(`
       *,
-      zakaz_nodes(id, code, street, house, address, presence_type),
+      zakaz_nodes(
+        id,
+        code,
+        presence_type,
+        address:zakaz_addresses!address_id(
+          id,
+          city,
+          street,
+          house,
+          building,
+          address
+        )
+      ),
       assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
       created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
       updated_by_user:zakaz_users!zakaz_applications_updated_by_fkey(id, full_name, email, role)
