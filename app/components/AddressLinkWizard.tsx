@@ -770,7 +770,7 @@ export default function AddressLinkWizard({
                       <p className="text-sm text-gray-600 mt-1">{currentAddress.comment}</p>
                     )}
                     <p className="text-xs text-gray-500 mt-2">
-                      Выберите другой адрес ниже для изменения привязки или нажмите "Отвязать адрес"
+                      Выберите другой адрес ниже для изменения привязки или нажмите кнопку Отвязать
                     </p>
                   </div>
                   {onUnlink && (
