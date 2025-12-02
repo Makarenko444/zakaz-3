@@ -70,19 +70,45 @@ export async function GET(request: NextRequest) {
 
     // Поиск по коду, описанию или адресу
     if (search) {
-      // Сначала находим адреса, соответствующие поисковому запросу
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: matchingAddresses } = await (supabase.from('zakaz_addresses') as any)
-        .select('id')
-        .or(`city.ilike.%${search}%,street.ilike.%${search}%,house.ilike.%${search}%,address.ilike.%${search}%`)
+      const searchTerm = search.trim()
+      if (searchTerm) {
+        // Разбиваем поисковый запрос на слова
+        const words = searchTerm.split(/\s+/).filter(w => w.length > 0)
 
-      const addressIds = matchingAddresses?.map((addr: { id: string }) => addr.id) || []
+        // Сначала находим адреса, соответствующие поисковому запросу
+        let addressQuery = (supabase.from('zakaz_addresses') as any).select('id')
 
-      // Ищем узлы либо по коду/описанию, либо по найденным адресам
-      if (addressIds.length > 0) {
-        query = query.or(`code.ilike.%${search}%,location_details.ilike.%${search}%,address_id.in.(${addressIds.join(',')})`)
-      } else {
-        query = query.or(`code.ilike.%${search}%,location_details.ilike.%${search}%`)
+        if (words.length === 1) {
+          // Одно слово - ищем по всем полям адреса
+          addressQuery = addressQuery.or(`city.ilike.%${words[0]}%,street.ilike.%${words[0]}%,house.ilike.%${words[0]}%,address.ilike.%${words[0]}%`)
+        } else {
+          // Несколько слов - ищем чтобы все слова были в полном адресе
+          words.forEach(word => {
+            addressQuery = addressQuery.ilike('address', `%${word}%`)
+          })
+        }
+
+        const { data: matchingAddresses } = await addressQuery
+        const addressIds = matchingAddresses?.map((addr: { id: string }) => addr.id) || []
+
+        // Ищем узлы либо по коду/описанию, либо по найденным адресам
+        if (words.length === 1) {
+          // Одно слово - ищем по коду, описанию и найденным адресам
+          if (addressIds.length > 0) {
+            query = query.or(`code.ilike.%${words[0]}%,location_details.ilike.%${words[0]}%,address_id.in.(${addressIds.join(',')})`)
+          } else {
+            query = query.or(`code.ilike.%${words[0]}%,location_details.ilike.%${words[0]}%`)
+          }
+        } else {
+          // Несколько слов - ищем только по найденным адресам
+          // (предполагаем что ищут адрес, а не код узла)
+          if (addressIds.length > 0) {
+            query = query.in('address_id', addressIds)
+          } else {
+            // Если адреса не найдены, все равно попробуем найти по коду
+            query = query.or(`code.ilike.%${searchTerm}%,location_details.ilike.%${searchTerm}%`)
+          }
+        }
       }
     }
 

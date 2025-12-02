@@ -204,7 +204,8 @@ export default function AddressesPage() {
 
   function handleClearFilters() {
     setSearchQuery('')
-    // loadAddresses будет вызван автоматически через useEffect
+    // Перезагружаем адреса с пустым поиском
+    setTimeout(() => loadAddresses(), 0)
   }
 
   function handleAddressClick(address: Address) {

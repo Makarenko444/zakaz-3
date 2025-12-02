@@ -285,7 +285,8 @@ export default function NodesPage() {
     setSearchQuery('')
     setSelectedStatus('')
     setSelectedNodeType('')
-    // loadNodes будет вызван автоматически через useEffect
+    // Перезагружаем узлы с пустыми фильтрами
+    setTimeout(() => loadNodes(), 0)
   }
 
   function handleNodeClick(node: Node) {
