@@ -1187,7 +1187,7 @@ export default function ApplicationDetailPage() {
           applicationId={id}
           streetAndHouse={application.street_and_house}
           addressDetails={application.address_details}
-          currentNodeId={application.node_id}
+          currentAddressId={application.address_id}
           onClose={() => setShowAddressWizard(false)}
           onLink={handleLinkAddress}
           onUnlink={handleUnlinkAddress}
