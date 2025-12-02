@@ -213,7 +213,7 @@ export default function ApplicationDetailPage() {
 
   // Автоматически открываем мастера привязки, если адрес не привязан к справочнику
   useEffect(() => {
-    if (application && !application.node_id && (application.street_and_house)) {
+    if (application && !application.address_id && (application.street_and_house)) {
       setShowAddressWizard(true)
     }
   }, [application])
