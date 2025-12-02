@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
         const words = searchTerm.split(/\s+/).filter(w => w.length > 0)
 
         // Сначала находим адреса, соответствующие поисковому запросу
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let addressQuery = (supabase.from('zakaz_addresses') as any).select('id')
 
         if (words.length === 1) {
