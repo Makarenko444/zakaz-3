@@ -51,6 +51,7 @@ export default function AddressLinkWizard({
   onUnlink,
 }: AddressLinkWizardProps) {
   const [addresses, setAddresses] = useState<Address[]>([])
+  const [currentAddress, setCurrentAddress] = useState<Address | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSearching, setIsSearching] = useState(false)
@@ -153,6 +154,42 @@ export default function AddressLinkWizard({
 
     return () => clearTimeout(timeoutId)
   }, [searchQuery, searchAddresses])
+
+  // Загружаем информацию о текущем адресе, если он задан
+  useEffect(() => {
+    async function loadCurrentAddress() {
+      if (!currentAddressId) {
+        setCurrentAddress(null)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/addresses?id=${currentAddressId}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch current address')
+        }
+
+        const data = await response.json()
+        if (data.data && data.data.length > 0) {
+          const addr = data.data[0]
+          setCurrentAddress({
+            id: addr.id,
+            street: addr.street || '',
+            house: addr.house || '',
+            building: addr.building,
+            city: addr.city,
+            comment: addr.comment,
+            full_address: addr.address,
+            source: 'local'
+          })
+        }
+      } catch (error) {
+        console.error('Error loading current address:', error)
+      }
+    }
+
+    loadCurrentAddress()
+  }, [currentAddressId])
 
   async function handleLink(address: Address) {
     setIsLinking(true)
@@ -707,6 +744,49 @@ export default function AddressLinkWizard({
             )}
           </div>
 
+          {/* Текущая привязка */}
+          {currentAddress && (
+            <div className="mb-6">
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-500 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-1">
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-sm font-bold text-green-900">Текущая привязка</h3>
+                      <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-semibold rounded-full">
+                        Активна
+                      </span>
+                    </div>
+                    <p className="text-base font-semibold text-gray-900">
+                      {currentAddress.city ? `${currentAddress.city}, ` : ''}
+                      {currentAddress.street}, {currentAddress.house}
+                      {currentAddress.building ? `, ${currentAddress.building}` : ''}
+                    </p>
+                    {currentAddress.comment && (
+                      <p className="text-sm text-gray-600 mt-1">{currentAddress.comment}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">
+                      Выберите другой адрес ниже для изменения привязки или нажмите "Отвязать адрес"
+                    </p>
+                  </div>
+                  {onUnlink && (
+                    <button
+                      onClick={handleUnlink}
+                      disabled={isUnlinking || isLinking}
+                      className="flex-shrink-0 px-3 py-1.5 border border-red-300 rounded-lg text-red-700 hover:bg-red-50 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isUnlinking ? 'Отвязка...' : 'Отвязать'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Список адресов */}
           {isLoading ? (
             <div className="text-center py-8">
@@ -729,7 +809,9 @@ export default function AddressLinkWizard({
             <>
               {/* Разделяем адреса на локальные и внешние */}
               {(() => {
-                const localAddresses = addresses.filter(addr => !addr.source || addr.source === 'local')
+                const localAddresses = addresses.filter(addr =>
+                  (!addr.source || addr.source === 'local') && addr.id !== currentAddressId
+                )
                 /* External sources temporarily disabled
                 const externalAddresses = addresses.filter(addr => addr.source && addr.source !== 'local')
                 const yandexAddresses = addresses.filter(addr => addr.source === 'external_yandex')
@@ -752,7 +834,7 @@ export default function AddressLinkWizard({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
                           </svg>
                           <h3 className="text-sm font-semibold text-gray-700">
-                            Адреса из базы данных ({localAddresses.length})
+                            {currentAddress ? 'Другие адреса из базы данных' : 'Адреса из базы данных'} ({localAddresses.length})
                           </h3>
                         </div>
                         <div className="space-y-2">
@@ -885,22 +967,11 @@ export default function AddressLinkWizard({
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              {currentAddressId && onUnlink && (
-                <button
-                  onClick={handleUnlink}
-                  disabled={isUnlinking || isLinking}
-                  className="px-4 py-2 border border-red-300 rounded-lg text-red-700 hover:bg-red-50 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUnlinking ? 'Отвязка...' : 'Отвязать адрес'}
-                </button>
-              )}
-              <p className="text-sm text-gray-600">
-                {currentAddressId
-                  ? 'Вы можете изменить привязку или отвязать адрес от заявки'
-                  : 'Если адреса нет в списке, вы можете привязать его позже'}
-              </p>
-            </div>
+            <p className="text-sm text-gray-600">
+              {currentAddressId
+                ? 'Выберите другой адрес для изменения привязки'
+                : 'Если адреса нет в списке, вы можете привязать его позже'}
+            </p>
             <button
               onClick={onClose}
               className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition font-medium"
