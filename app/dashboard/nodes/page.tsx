@@ -138,14 +138,6 @@ export default function NodesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStatus, selectedNodeType, sortField, sortDirection])
 
-  // Перезагрузка при изменении страницы пагинации
-  useEffect(() => {
-    if (pagination.page > 1 || (pagination.page === 1 && nodes.length > 0)) {
-      void loadNodes()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page])
-
   // Закрытие модального окна по Esc (только в режиме просмотра, не в режиме редактирования/создания)
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
@@ -206,7 +198,7 @@ export default function NodesPage() {
     }
   }
 
-  async function loadNodes() {
+  async function loadNodes(overrides?: { search?: string; status?: string; nodeType?: string }) {
     setIsLoading(true)
     setError('')
     try {
@@ -217,9 +209,13 @@ export default function NodesPage() {
         sort_direction: sortDirection,
       })
 
-      if (selectedStatus) params.set('status', selectedStatus)
-      if (selectedNodeType) params.set('node_type', selectedNodeType)
-      if (searchQuery) params.set('search', searchQuery)
+      const searchValue = overrides?.search !== undefined ? overrides.search : searchQuery
+      const statusValue = overrides?.status !== undefined ? overrides.status : selectedStatus
+      const nodeTypeValue = overrides?.nodeType !== undefined ? overrides.nodeType : selectedNodeType
+
+      if (statusValue) params.set('status', statusValue)
+      if (nodeTypeValue) params.set('node_type', nodeTypeValue)
+      if (searchValue) params.set('search', searchValue)
 
       const response = await fetch(`/api/nodes?${params}`)
 
@@ -293,14 +289,8 @@ export default function NodesPage() {
     setSearchQuery('')
     setSelectedStatus('')
     setSelectedNodeType('')
-    // Если уже на первой странице, принудительно перезагружаем
-    if (pagination.page === 1) {
-      // Используем setTimeout чтобы дать React время обновить состояние
-      setTimeout(() => loadNodes(), 0)
-    } else {
-      // Иначе меняем страницу на 1, что триггернет useEffect
-      setPagination({ ...pagination, page: 1 })
-    }
+    // Передаем пустые значения явно, чтобы не зависеть от состояния
+    loadNodes({ search: '', status: '', nodeType: '' })
   }
 
   function handleNodeClick(node: Node) {
