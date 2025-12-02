@@ -34,7 +34,19 @@ export async function GET(request: NextRequest) {
     if (search) {
       const searchTerm = search.trim()
       if (searchTerm) {
-        query = query.or(`city.ilike.%${searchTerm}%,street.ilike.%${searchTerm}%,house.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`)
+        // Разбиваем поисковый запрос на слова для более точного поиска
+        const words = searchTerm.split(/\s+/).filter(w => w.length > 0)
+
+        if (words.length === 1) {
+          // Одно слово - ищем по всем полям через OR
+          query = query.or(`city.ilike.%${words[0]}%,street.ilike.%${words[0]}%,house.ilike.%${words[0]}%,address.ilike.%${words[0]}%`)
+        } else {
+          // Несколько слов - ищем чтобы все слова присутствовали в полном адресе
+          // Например: "Ленина 92" найдет "Томск, улица Ленина, 92"
+          words.forEach(word => {
+            query = query.ilike('address', `%${word}%`)
+          })
+        }
       }
     }
 
