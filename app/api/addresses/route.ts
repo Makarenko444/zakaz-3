@@ -46,38 +46,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Обрабатываем данные - добавляем статистику по узлам
+    // Обрабатываем данные - добавляем количество узлов
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transformedData = data?.map((address: any) => {
       const nodes = address.zakaz_nodes || []
 
-      // Подсчитываем присутствие
-      const presenceTypes = {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        has_node: nodes.filter((n: any) => n.presence_type === 'has_node').length,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        has_ao: nodes.filter((n: any) => n.presence_type === 'has_ao').length,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        has_transit_cable: nodes.filter((n: any) => n.presence_type === 'has_transit_cable').length,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        not_present: nodes.filter((n: any) => n.presence_type === 'not_present').length,
-      }
-
-      // Определяем общий статус присутствия
-      let presenceStatus = 'not_present'
-      if (presenceTypes.has_node > 0) {
-        presenceStatus = 'has_node'
-      } else if (presenceTypes.has_ao > 0) {
-        presenceStatus = 'has_ao'
-      } else if (presenceTypes.has_transit_cable > 0) {
-        presenceStatus = 'has_transit_cable'
-      }
-
       return {
         ...address,
         node_count: nodes.length,
-        presence_types: presenceTypes,
-        presence_status: presenceStatus,
+        // presence_status уже есть в адресе из БД
         // Убираем вложенный массив узлов из ответа для краткости
         zakaz_nodes: undefined,
       }
@@ -128,6 +105,16 @@ export async function POST(request: NextRequest) {
     const house = body.house || null
     const building = body.building || null
     const comment = body.comment || null
+    const presenceStatus = body.presence_status || 'not_present' // По умолчанию - не присутствуем
+
+    // Валидация presence_status
+    const validPresenceStatuses = ['has_node', 'has_ao', 'has_transit_cable', 'collecting_collective', 'not_present']
+    if (!validPresenceStatuses.includes(presenceStatus)) {
+      return NextResponse.json(
+        { error: 'Invalid presence_status' },
+        { status: 400 }
+      )
+    }
 
     // Проверяем, не существует ли уже такой адрес
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,6 +142,7 @@ export async function POST(request: NextRequest) {
         house,
         building,
         comment,
+        presence_status: presenceStatus,
       })
       .select()
       .single()

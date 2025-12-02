@@ -34,7 +34,17 @@ export async function PUT(
     const house = body.house || null
     const building = body.building || null
     const comment = body.comment || null
+    const presenceStatus = body.presence_status || 'not_present'
     const address = body.address || `${city}, ${street}${house ? ', ' + house : ''}${building ? ', ' + building : ''}`
+
+    // Валидация presence_status
+    const validPresenceStatuses = ['has_node', 'has_ao', 'has_transit_cable', 'collecting_collective', 'not_present']
+    if (!validPresenceStatuses.includes(presenceStatus)) {
+      return NextResponse.json(
+        { error: 'Invalid presence_status' },
+        { status: 400 }
+      )
+    }
 
     // Обновляем адрес
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,6 +56,7 @@ export async function PUT(
         building,
         address,
         comment,
+        presence_status: presenceStatus,
       })
       .eq('id', id)
       .select()

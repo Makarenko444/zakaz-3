@@ -14,14 +14,9 @@ interface Address {
   address: string
   comment: string | null
   node_count: number
-  presence_types: {
-    has_node: number
-    has_ao: number
-    has_transit_cable: number
-    not_present: number
-  }
   presence_status: string
   created_at: string
+  updated_at: string
 }
 
 interface Node {
@@ -46,6 +41,7 @@ const presenceLabels: Record<string, string> = {
   has_node: 'Есть узел',
   has_ao: 'Есть АО',
   has_transit_cable: 'Транзитный кабель',
+  collecting_collective: 'Собираем коллективную заявку',
   not_present: 'Не присутствуем',
 }
 
@@ -53,6 +49,7 @@ const presenceColors: Record<string, string> = {
   has_node: 'bg-green-100 text-green-800',
   has_ao: 'bg-blue-100 text-blue-800',
   has_transit_cable: 'bg-yellow-100 text-yellow-800',
+  collecting_collective: 'bg-purple-100 text-purple-800',
   not_present: 'bg-gray-100 text-gray-800',
 }
 
@@ -514,19 +511,8 @@ export default function AddressesPage() {
                         </span>
                       </td>
                       <td className="px-3 py-3 hidden lg:table-cell">
-                        <div className="text-xs text-gray-600 space-y-1">
-                          {address.presence_types.has_node > 0 && (
-                            <div>Узлов: {address.presence_types.has_node}</div>
-                          )}
-                          {address.presence_types.has_ao > 0 && (
-                            <div>АО: {address.presence_types.has_ao}</div>
-                          )}
-                          {address.presence_types.has_transit_cable > 0 && (
-                            <div>Транзит: {address.presence_types.has_transit_cable}</div>
-                          )}
-                          {address.presence_types.not_present > 0 && (
-                            <div>Не прис.: {address.presence_types.not_present}</div>
-                          )}
+                        <div className="text-sm text-gray-900">
+                          {address.node_count}
                         </div>
                       </td>
                     </tr>
@@ -711,41 +697,32 @@ export default function AddressesPage() {
                   </div>
 
                   <div className="border-t border-gray-200 pt-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Статистика по узлам</h4>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-indigo-50 rounded-lg p-3">
-                        <div className="text-xs text-indigo-600 font-medium">Всего узлов</div>
-                        <div className="text-2xl font-bold text-indigo-900">{selectedAddress.node_count}</div>
-                      </div>
-
-                      <div className="bg-green-50 rounded-lg p-3">
-                        <div className="text-xs text-green-600 font-medium">Узлы связи</div>
-                        <div className="text-2xl font-bold text-green-900">{selectedAddress.presence_types.has_node}</div>
-                      </div>
-
-                      <div className="bg-blue-50 rounded-lg p-3">
-                        <div className="text-xs text-blue-600 font-medium">АО</div>
-                        <div className="text-2xl font-bold text-blue-900">{selectedAddress.presence_types.has_ao}</div>
-                      </div>
-
-                      <div className="bg-yellow-50 rounded-lg p-3">
-                        <div className="text-xs text-yellow-600 font-medium">Транзитный кабель</div>
-                        <div className="text-2xl font-bold text-yellow-900">{selectedAddress.presence_types.has_transit_cable}</div>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-lg p-3 col-span-2">
-                        <div className="text-xs text-gray-600 font-medium">Не присутствуем</div>
-                        <div className="text-2xl font-bold text-gray-900">{selectedAddress.presence_types.not_present}</div>
-                      </div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Статистика</h4>
+                    <div className="bg-indigo-50 rounded-lg p-3">
+                      <div className="text-xs text-indigo-600 font-medium">Всего узлов на адресе</div>
+                      <div className="text-2xl font-bold text-indigo-900">{selectedAddress.node_count}</div>
                     </div>
                   </div>
 
                   <div className="border-t border-gray-200 pt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Общий статус присутствия</label>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${presenceColors[selectedAddress.presence_status]}`}>
-                      {presenceLabels[selectedAddress.presence_status]}
-                    </span>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Статус присутствия на адресе</label>
+                    {isEditMode ? (
+                      <select
+                        value={editFormData.presence_status || 'not_present'}
+                        onChange={(e) => setEditFormData({ ...editFormData, presence_status: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      >
+                        <option value="has_node">Есть узел</option>
+                        <option value="has_ao">Есть АО</option>
+                        <option value="has_transit_cable">Транзитный кабель</option>
+                        <option value="collecting_collective">Собираем коллективную заявку</option>
+                        <option value="not_present">Не присутствуем</option>
+                      </select>
+                    ) : (
+                      <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${presenceColors[selectedAddress.presence_status]}`}>
+                        {presenceLabels[selectedAddress.presence_status]}
+                      </span>
+                    )}
                   </div>
 
                   {/* Список узлов */}

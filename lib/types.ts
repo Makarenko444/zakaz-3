@@ -25,6 +25,8 @@ export type NodeType = 'prp' | 'ao' | 'sk' | 'other'
 
 export type PresenceType = 'has_node' | 'has_ao' | 'has_transit_cable' | 'not_present'
 
+export type AddressPresenceStatus = 'has_node' | 'has_ao' | 'has_transit_cable' | 'collecting_collective' | 'not_present'
+
 export type AddressMatchStatus = 'unmatched' | 'auto_matched' | 'manual_matched'
 
 export interface User {
@@ -94,6 +96,7 @@ export interface Address {
   building: string | null
   address: string
   comment: string | null
+  presence_status: AddressPresenceStatus
   created_at: string
   updated_at: string
 }
