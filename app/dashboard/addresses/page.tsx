@@ -122,14 +122,6 @@ export default function AddressesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortField, sortDirection])
 
-  // Перезагрузка при изменении страницы пагинации
-  useEffect(() => {
-    if (pagination.page > 1 || (pagination.page === 1 && addresses.length > 0)) {
-      void loadAddresses()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page])
-
   // Закрытие модального окна по Esc
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
@@ -166,7 +158,7 @@ export default function AddressesPage() {
     }
   }
 
-  async function loadAddresses() {
+  async function loadAddresses(searchOverride?: string) {
     setIsLoading(true)
     setError('')
     try {
@@ -177,7 +169,8 @@ export default function AddressesPage() {
         sort_direction: sortDirection,
       })
 
-      const trimmedSearch = searchQuery.trim()
+      const searchValue = searchOverride !== undefined ? searchOverride : searchQuery
+      const trimmedSearch = searchValue.trim()
       if (trimmedSearch) params.set('search', trimmedSearch)
 
       const response = await fetch(`/api/addresses?${params}`)
@@ -212,14 +205,8 @@ export default function AddressesPage() {
 
   function handleClearFilters() {
     setSearchQuery('')
-    // Если уже на первой странице, принудительно перезагружаем
-    if (pagination.page === 1) {
-      // Используем setTimeout чтобы дать React время обновить searchQuery
-      setTimeout(() => loadAddresses(), 0)
-    } else {
-      // Иначе меняем страницу на 1, что триггернет useEffect
-      setPagination({ ...pagination, page: 1 })
-    }
+    // Передаем пустую строку явно, чтобы не зависеть от состояния
+    loadAddresses('')
   }
 
   function handleAddressClick(address: Address) {
