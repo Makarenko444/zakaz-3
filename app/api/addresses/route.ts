@@ -32,7 +32,10 @@ export async function GET(request: NextRequest) {
 
     // Поиск по адресу
     if (search) {
-      query = query.or(`city.ilike.%${search}%,street.ilike.%${search}%,house.ilike.%${search}%,address.ilike.%${search}%`)
+      const searchTerm = search.trim()
+      if (searchTerm) {
+        query = query.or(`city.ilike.%${searchTerm}%,street.ilike.%${searchTerm}%,house.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`)
+      }
     }
 
     // Пагинация

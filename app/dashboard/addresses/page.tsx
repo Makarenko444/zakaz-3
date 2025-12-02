@@ -169,7 +169,8 @@ export default function AddressesPage() {
         sort_direction: sortDirection,
       })
 
-      if (searchQuery) params.set('search', searchQuery)
+      const trimmedSearch = searchQuery.trim()
+      if (trimmedSearch) params.set('search', trimmedSearch)
 
       const response = await fetch(`/api/addresses?${params}`)
 
