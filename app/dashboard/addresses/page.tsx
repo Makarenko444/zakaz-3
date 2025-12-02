@@ -122,6 +122,14 @@ export default function AddressesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortField, sortDirection])
 
+  // Перезагрузка при изменении страницы пагинации
+  useEffect(() => {
+    if (pagination.page > 1 || (pagination.page === 1 && addresses.length > 0)) {
+      void loadAddresses()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.page])
+
   // Закрытие модального окна по Esc
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
@@ -204,8 +212,14 @@ export default function AddressesPage() {
 
   function handleClearFilters() {
     setSearchQuery('')
-    // Перезагружаем адреса с пустым поиском
-    setTimeout(() => loadAddresses(), 0)
+    // Если уже на первой странице, принудительно перезагружаем
+    if (pagination.page === 1) {
+      // Используем setTimeout чтобы дать React время обновить searchQuery
+      setTimeout(() => loadAddresses(), 0)
+    } else {
+      // Иначе меняем страницу на 1, что триггернет useEffect
+      setPagination({ ...pagination, page: 1 })
+    }
   }
 
   function handleAddressClick(address: Address) {
