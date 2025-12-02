@@ -138,6 +138,14 @@ export default function NodesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStatus, selectedNodeType, sortField, sortDirection])
 
+  // Перезагрузка при изменении страницы пагинации
+  useEffect(() => {
+    if (pagination.page > 1 || (pagination.page === 1 && nodes.length > 0)) {
+      void loadNodes()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.page])
+
   // Закрытие модального окна по Esc (только в режиме просмотра, не в режиме редактирования/создания)
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
@@ -285,8 +293,14 @@ export default function NodesPage() {
     setSearchQuery('')
     setSelectedStatus('')
     setSelectedNodeType('')
-    // Перезагружаем узлы с пустыми фильтрами
-    setTimeout(() => loadNodes(), 0)
+    // Если уже на первой странице, принудительно перезагружаем
+    if (pagination.page === 1) {
+      // Используем setTimeout чтобы дать React время обновить состояние
+      setTimeout(() => loadNodes(), 0)
+    } else {
+      // Иначе меняем страницу на 1, что триггернет useEffect
+      setPagination({ ...pagination, page: 1 })
+    }
   }
 
   function handleNodeClick(node: Node) {
