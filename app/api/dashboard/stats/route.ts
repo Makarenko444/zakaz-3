@@ -18,6 +18,8 @@ export async function GET(_request: NextRequest) {
       serviceTypeResult,
       customerTypeResult,
       recentApplicationsResult,
+      managersResult,
+      statusesResult,
     ] = await Promise.all([
       // Общее количество заявок
       supabase
@@ -34,7 +36,7 @@ export async function GET(_request: NextRequest) {
       supabase
         .from('zakaz_applications')
         .select('*', { count: 'exact', head: true })
-        .in('status', ['thinking', 'estimation', 'waiting_payment', 'contract', 'queue_install', 'install']),
+        .in('status', ['thinking', 'estimation', 'waiting_payment', 'contract', 'design', 'approval', 'queue_install', 'install']),
 
       // Завершено (status = 'installed')
       supabase
@@ -48,20 +50,23 @@ export async function GET(_request: NextRequest) {
         .select('*', { count: 'exact', head: true })
         .in('status', ['rejected', 'no_tech']),
 
-      // Статистика по срочности
+      // Статистика по срочности (только активные заявки)
       supabase
         .from('zakaz_applications')
-        .select('urgency'),
+        .select('urgency')
+        .not('status', 'in', '(rejected,no_tech,installed)'),
 
-      // Статистика по типам услуг
+      // Статистика по типам услуг (только активные заявки)
       supabase
         .from('zakaz_applications')
-        .select('service_type'),
+        .select('service_type')
+        .not('status', 'in', '(rejected,no_tech,installed)'),
 
-      // Статистика по типам клиентов
+      // Статистика по типам клиентов (только активные заявки)
       supabase
         .from('zakaz_applications')
-        .select('customer_type'),
+        .select('customer_type')
+        .not('status', 'in', '(rejected,no_tech,installed)'),
 
       // Последние 10 заявок
       supabase
@@ -69,6 +74,16 @@ export async function GET(_request: NextRequest) {
         .select('id, application_number, customer_fullname, customer_phone, service_type, urgency, status, created_at, zakaz_nodes(id, code, street, house, address, presence_type)')
         .order('created_at', { ascending: false })
         .limit(10),
+
+      // Статистика по менеджерам
+      supabase
+        .from('zakaz_applications')
+        .select('assigned_to, zakaz_users(id, full_name)'),
+
+      // Статистика по всем статусам
+      supabase
+        .from('zakaz_applications')
+        .select('status'),
     ])
 
     // Проверка на ошибки
@@ -107,6 +122,14 @@ export async function GET(_request: NextRequest) {
     if (recentApplicationsResult.error) {
       console.error('[Dashboard Stats API] Ошибка recentApplicationsResult:', recentApplicationsResult.error)
       throw recentApplicationsResult.error
+    }
+    if (managersResult.error) {
+      console.error('[Dashboard Stats API] Ошибка managersResult:', managersResult.error)
+      throw managersResult.error
+    }
+    if (statusesResult.error) {
+      console.error('[Dashboard Stats API] Ошибка statusesResult:', statusesResult.error)
+      throw statusesResult.error
     }
 
     // Подсчитываем статистику по срочности
@@ -148,6 +171,80 @@ export async function GET(_request: NextRequest) {
       }
     })
 
+    // Подсчитываем статистику по менеджерам
+    interface ManagerData {
+      assigned_to: string | null
+      zakaz_users: {
+        id: string
+        full_name: string
+      } | null
+    }
+
+    const managerStatsMap = new Map<string, { name: string; count: number }>()
+    let unassignedCount = 0
+
+    managersResult.data?.forEach((item: ManagerData) => {
+      if (!item.assigned_to) {
+        unassignedCount++
+      } else {
+        const existing = managerStatsMap.get(item.assigned_to)
+        if (existing) {
+          existing.count++
+        } else {
+          managerStatsMap.set(item.assigned_to, {
+            name: item.zakaz_users?.full_name || 'Неизвестный менеджер',
+            count: 1,
+          })
+        }
+      }
+    })
+
+    const managerStats = Array.from(managerStatsMap.entries()).map(([id, data]) => ({
+      id,
+      name: data.name,
+      count: data.count,
+    }))
+
+    // Добавляем неназначенные заявки
+    if (unassignedCount > 0) {
+      managerStats.push({
+        id: 'unassigned',
+        name: 'Менеджер не назначен',
+        count: unassignedCount,
+      })
+    }
+
+    // Подсчитываем статистику по статусам
+    const statusStatsMap = new Map<string, number>()
+
+    statusesResult.data?.forEach((item: { status: string }) => {
+      const count = statusStatsMap.get(item.status) || 0
+      statusStatsMap.set(item.status, count + 1)
+    })
+
+    const statusLabels: Record<string, string> = {
+      new: 'Новая',
+      thinking: 'Думает',
+      estimation: 'Расчёт',
+      waiting_payment: 'Ожидание оплаты',
+      contract: 'Договор и оплата',
+      design: 'Проектирование',
+      approval: 'Согласование',
+      queue_install: 'Очередь на монтаж',
+      install: 'Монтаж',
+      installed: 'Выполнено',
+      rejected: 'Отказ',
+      no_tech: 'Нет возможности',
+    }
+
+    const statusStats = Array.from(statusStatsMap.entries())
+      .map(([status, count]) => ({
+        status,
+        label: statusLabels[status] || status,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count)
+
     // Формируем ответ
     const stats = {
       total: totalResult.count || 0,
@@ -158,6 +255,8 @@ export async function GET(_request: NextRequest) {
       urgency: urgencyStats,
       serviceType: serviceTypeStats,
       customerType: customerTypeStats,
+      managers: managerStats,
+      statuses: statusStats,
       recentApplications: recentApplicationsResult.data || [],
     }
 
