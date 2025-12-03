@@ -52,12 +52,6 @@ interface DashboardStats {
     status: string
     created_at: string
     street_and_house: string | null
-    zakaz_addresses: {
-      id: string
-      address: string
-      street: string | null
-      house: string | null
-    } | null
   }>
 }
 
@@ -451,7 +445,7 @@ export default function DashboardPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
                             <div className="text-sm text-gray-900 max-w-xs truncate">
-                              {app.zakaz_addresses?.address || app.street_and_house || 'Адрес не указан'}
+                              {app.street_and_house || 'Адрес не указан'}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
