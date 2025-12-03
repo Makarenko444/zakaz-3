@@ -24,10 +24,15 @@ interface ApplicationItem {
   zakaz_nodes: {
     id: string
     code: string
+    presence_type: string
+  } | null
+  zakaz_addresses: {
+    id: string
+    city: string | null
     street: string | null
     house: string | null
+    building: string | null
     address: string
-    presence_type: string
   } | null
 }
 
@@ -149,11 +154,12 @@ export default function UserInfoModal({ userId, userName, onClose }: UserInfoMod
   }
 
   const formatAddress = (app: ApplicationItem) => {
-    if (app.zakaz_nodes) {
-      return app.zakaz_nodes.address || `${app.zakaz_nodes.street}, ${app.zakaz_nodes.house}`
-    }
+    // Приоритет: адрес из заявки, затем формализованный адрес
     if (app.street_and_house) {
       return app.street_and_house
+    }
+    if (app.zakaz_addresses) {
+      return app.zakaz_addresses.address || `${app.zakaz_addresses.street}, ${app.zakaz_addresses.house}`
     }
     return 'Адрес не указан'
   }

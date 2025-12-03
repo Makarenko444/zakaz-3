@@ -45,10 +45,15 @@ export async function GET(
         zakaz_nodes (
           id,
           code,
+          presence_type
+        ),
+        zakaz_addresses (
+          id,
+          city,
           street,
           house,
-          address,
-          presence_type
+          building,
+          address
         )
       `)
       .eq('created_by', userId)
@@ -74,10 +79,15 @@ export async function GET(
         zakaz_nodes (
           id,
           code,
+          presence_type
+        ),
+        zakaz_addresses (
+          id,
+          city,
           street,
           house,
-          address,
-          presence_type
+          building,
+          address
         )
       `)
       .eq('assigned_to', userId)
