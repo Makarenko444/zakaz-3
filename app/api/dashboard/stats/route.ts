@@ -14,6 +14,12 @@ interface ApplicationRow {
   assigned_to: string | null
 }
 
+interface UserRow {
+  id: string
+  full_name: string
+  role?: string
+}
+
 export async function GET(_request: NextRequest) {
   try {
     const supabase = createDirectClient()
@@ -96,8 +102,9 @@ export async function GET(_request: NextRequest) {
         .in('id', managerIds)
 
       if (!managersError && managersData) {
+        const typedManagersData = managersData as UserRow[]
         managers = managerIds.map(id => {
-          const managerInfo = managersData.find((u: { id: string; full_name: string }) => u.id === id)
+          const managerInfo = typedManagersData.find(u => u.id === id)
           return {
             id,
             name: managerInfo?.full_name || 'Неизвестный менеджер',
@@ -126,10 +133,11 @@ export async function GET(_request: NextRequest) {
     let users: Array<{ id: string; name: string; role: string; count: number }> = []
 
     if (!usersError && usersData) {
-      users = usersData.map((user: { id: string; full_name: string; role: string }) => ({
+      const typedUsersData = usersData as UserRow[]
+      users = typedUsersData.map(user => ({
         id: user.id,
         name: user.full_name,
-        role: user.role,
+        role: user.role || 'user',
         count: managerStatsMap.get(user.id) || 0,
       }))
     }
