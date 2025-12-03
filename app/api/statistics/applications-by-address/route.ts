@@ -55,7 +55,22 @@ export async function GET() {
       .from('zakaz_statuses')
       .select('code, name_ru') as { data: StatusRow[] | null }
 
-    const statusNames: Record<string, string> = {}
+    // Fallback русские названия статусов
+    const statusNames: Record<string, string> = {
+      new: 'Новая',
+      thinking: 'Думает',
+      estimation: 'Расчёт',
+      contract: 'Договор и оплата',
+      design: 'Проектирование',
+      approval: 'Согласование',
+      queue_install: 'Очередь на монтаж',
+      install: 'Монтаж',
+      installed: 'Выполнено',
+      rejected: 'Отказ',
+      no_tech: 'Нет возможности',
+    }
+
+    // Дополняем из БД, если есть
     for (const s of statuses || []) {
       statusNames[s.code] = s.name_ru
     }
