@@ -865,6 +865,7 @@ export default function ApplicationDetailPage() {
                 currentUserEmail={currentUserEmail || undefined}
                 currentUserRole={currentUserRole || undefined}
                 onFileUploaded={() => setFileRefreshTrigger(prev => prev + 1)}
+                onFileDeleted={() => setFileRefreshTrigger(prev => prev + 1)}
                 onUserClick={(userId, userName) => {
                   setSelectedUserId(userId)
                   setSelectedUserName(userName)
