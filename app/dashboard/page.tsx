@@ -26,6 +26,16 @@ interface DashboardStats {
     individual: number
     business: number
   }
+  managers: Array<{
+    id: string
+    name: string
+    count: number
+  }>
+  statuses: Array<{
+    status: string
+    label: string
+    count: number
+  }>
   recentApplications: Array<{
     id: string
     application_number: string
@@ -241,53 +251,77 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Быстрые действия</h3>
-          <div className={`grid grid-cols-1 ${user.role === 'admin' ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
-            <button
-              onClick={() => router.push('/dashboard/applications/new')}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Создать заявку
-            </button>
-            <button
-              onClick={() => router.push('/dashboard/applications')}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              Все заявки
-            </button>
-            <button
-              onClick={() => router.push('/dashboard/nodes')}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              Узлы
-            </button>
-            <button className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              Бригады
-            </button>
-            {user.role === 'admin' && (
-              <button
-                onClick={() => router.push('/dashboard/admin')}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Администрирование
-              </button>
-            )}
+        {/* Заявки по менеджерам */}
+        {stats && stats.managers && stats.managers.length > 0 && (
+          <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Заявки по менеджерам</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {stats.managers.map((manager) => (
+                <button
+                  key={manager.id}
+                  onClick={() => {
+                    if (manager.id === 'unassigned') {
+                      router.push('/dashboard/applications?assigned_to=unassigned')
+                    } else {
+                      router.push(`/dashboard/applications?assigned_to=${manager.id}`)
+                    }
+                  }}
+                  className="flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition cursor-pointer group">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                      manager.id === 'unassigned' ? 'bg-gray-400' : 'bg-indigo-600'
+                    }`}>
+                      {manager.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-medium text-gray-900 group-hover:text-indigo-700">
+                      {manager.name}
+                    </span>
+                  </div>
+                  <span className="text-lg font-bold text-gray-900 group-hover:text-indigo-700">
+                    {manager.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Заявки по статусам */}
+        {stats && stats.statuses && stats.statuses.length > 0 && (
+          <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Заявки по статусам</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {stats.statuses.map((statusItem) => {
+                const statusColors: Record<string, string> = {
+                  new: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
+                  thinking: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
+                  estimation: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200',
+                  waiting_payment: 'bg-amber-100 text-amber-800 hover:bg-amber-200',
+                  contract: 'bg-cyan-100 text-cyan-800 hover:bg-cyan-200',
+                  design: 'bg-teal-100 text-teal-800 hover:bg-teal-200',
+                  approval: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
+                  queue_install: 'bg-purple-100 text-purple-800 hover:bg-purple-200',
+                  install: 'bg-violet-100 text-violet-800 hover:bg-violet-200',
+                  installed: 'bg-green-100 text-green-800 hover:bg-green-200',
+                  rejected: 'bg-red-100 text-red-800 hover:bg-red-200',
+                  no_tech: 'bg-orange-100 text-orange-800 hover:bg-orange-200',
+                }
+
+                return (
+                  <button
+                    key={statusItem.status}
+                    onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
+                    className={`flex items-center justify-between px-4 py-3 rounded-lg transition cursor-pointer ${
+                      statusColors[statusItem.status] || 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    }`}>
+                    <span className="text-sm font-medium">{statusItem.label}</span>
+                    <span className="text-lg font-bold">{statusItem.count}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Последние заявки */}
         {stats && stats.recentApplications && stats.recentApplications.length > 0 && (
