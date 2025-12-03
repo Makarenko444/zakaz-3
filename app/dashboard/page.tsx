@@ -204,7 +204,7 @@ export default function DashboardPage() {
         {stats && stats.statuses && stats.statuses.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Заявки по статусам</h2>
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               {/* Рабочие статусы */}
               <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
                 {stats.statuses
