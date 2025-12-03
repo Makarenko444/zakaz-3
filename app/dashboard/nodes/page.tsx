@@ -646,58 +646,58 @@ export default function NodesPage() {
                   <tr>
                     <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">№</th>
                     <th
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
                       onClick={() => handleSort('code')}
                     >
                       <div className="flex items-center gap-1">
                         Код
                         {sortField === 'code' && (
-                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
                         )}
                       </div>
                     </th>
                     <th
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
                       onClick={() => handleSort('node_type')}
                     >
                       <div className="flex items-center gap-1">
                         Тип
                         {sortField === 'node_type' && (
-                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
                         )}
                       </div>
                     </th>
                     <th
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
                       onClick={() => handleSort('address')}
                     >
                       <div className="flex items-center gap-1">
                         Адрес
                         {sortField === 'address' && (
-                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
                         )}
                       </div>
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Расположение узла</th>
                     <th
-                      className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
                       onClick={() => handleSort('status')}
                     >
                       <div className="flex items-center justify-center gap-1">
                         Статус
                         {sortField === 'status' && (
-                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
                         )}
                       </div>
                     </th>
                     <th
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none hidden lg:table-cell"
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition hidden lg:table-cell"
                       onClick={() => handleSort('node_created_date')}
                     >
                       <div className="flex items-center gap-1">
                         Дата
                         {sortField === 'node_created_date' && (
-                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
                         )}
                       </div>
                     </th>

@@ -466,24 +466,48 @@ export default function AddressesPage() {
                   <tr>
                     <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">№</th>
                     <th
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
                       onClick={() => handleSort('address')}
                     >
                       <div className="flex items-center gap-1">
                         Адрес
                         {sortField === 'address' && (
-                          <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
                         )}
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Узлов
+                    <th
+                      className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
+                      onClick={() => handleSort('node_count')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        Узлов
+                        {sortField === 'node_count' && (
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Присутствие
+                    <th
+                      className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
+                      onClick={() => handleSort('presence_status')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        Присутствие
+                        {sortField === 'presence_status' && (
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
-                      Детали
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition hidden lg:table-cell"
+                      onClick={() => handleSort('created_at')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Создан
+                        {sortField === 'created_at' && (
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
                     </th>
                   </tr>
                 </thead>
@@ -514,8 +538,12 @@ export default function AddressesPage() {
                         </span>
                       </td>
                       <td className="px-3 py-3 hidden lg:table-cell">
-                        <div className="text-sm text-gray-900">
-                          {address.node_count}
+                        <div className="text-sm text-gray-500">
+                          {new Date(address.created_at).toLocaleDateString('ru-RU', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                          })}
                         </div>
                       </td>
                     </tr>
