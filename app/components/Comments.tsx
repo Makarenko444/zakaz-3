@@ -27,6 +27,7 @@ interface CommentsProps {
   currentUserEmail?: string
   currentUserRole?: string
   onFileUploaded?: () => void  // Callback для обновления главного списка файлов
+  onFileDeleted?: () => void  // Callback при удалении файла из комментария
   onUserClick?: (userId: string, userName: string) => void  // Callback для клика на пользователя
 }
 
@@ -37,6 +38,7 @@ export default function Comments({
   currentUserEmail,
   currentUserRole,
   onFileUploaded,
+  onFileDeleted,
   onUserClick
 }: CommentsProps) {
   const [comments, setComments] = useState<Comment[]>([])
@@ -459,6 +461,7 @@ export default function Comments({
                   showThumbnails={true}
                   currentUserId={currentUserId}
                   currentUserRole={currentUserRole}
+                  onFileDeleted={onFileDeleted}
                 />
               </div>
 

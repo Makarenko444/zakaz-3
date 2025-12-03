@@ -14,6 +14,7 @@ interface FileListProps {
   showThumbnails?: boolean // Показывать миниатюры для картинок
   currentUserId?: string // ID текущего пользователя для проверки прав
   currentUserRole?: string // Роль текущего пользователя
+  onFileDeleted?: () => void // Callback при удалении файла
 }
 
 export default function FileList({
@@ -26,6 +27,7 @@ export default function FileList({
   showThumbnails = false,
   currentUserId,
   currentUserRole,
+  onFileDeleted,
 }: FileListProps) {
   const [files, setFiles] = useState<FileAttachment[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -98,6 +100,10 @@ export default function FileList({
 
       // Обновляем список
       setFiles(files.filter(f => f.id !== fileId))
+      // Уведомляем родительский компонент об удалении файла
+      if (onFileDeleted) {
+        onFileDeleted()
+      }
     } catch (err) {
       console.error('Error deleting file:', err)
       alert(err instanceof Error ? err.message : 'Не удалось удалить файл')

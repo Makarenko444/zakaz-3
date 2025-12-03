@@ -204,18 +204,54 @@ export default function DashboardPage() {
         {stats && stats.statuses && stats.statuses.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Заявки по статусам</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-              {stats.statuses.map((statusItem) => (
-                <button
-                  key={statusItem.status}
-                  onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
-                  className={`border-2 rounded-lg p-4 transition-all hover:scale-105 hover:shadow-md ${
-                    statusColors[statusItem.status] || 'bg-gray-50 text-gray-700 border-gray-200'
-                  }`}>
-                  <div className="text-3xl font-bold mb-1">{statusItem.count}</div>
-                  <div className="text-xs font-medium">{statusItem.label}</div>
-                </button>
-              ))}
+            <div className="flex gap-4">
+              {/* Рабочие статусы */}
+              <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                {stats.statuses
+                  .filter(s => !['installed', 'rejected', 'no_tech'].includes(s.status))
+                  .map((statusItem) => (
+                    <button
+                      key={statusItem.status}
+                      onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
+                      className={`border-2 rounded-lg p-3 transition-all hover:scale-105 hover:shadow-md ${
+                        statusColors[statusItem.status] || 'bg-gray-50 text-gray-700 border-gray-200'
+                      }`}>
+                      <div className="text-2xl font-bold mb-1">{statusItem.count}</div>
+                      <div className="text-xs font-medium">{statusItem.label}</div>
+                    </button>
+                  ))}
+              </div>
+              {/* Завершающие статусы - справа в два ряда */}
+              <div className="flex flex-col gap-2 min-w-[140px]">
+                {/* Выполнено */}
+                {stats.statuses.filter(s => s.status === 'installed').map((statusItem) => (
+                  <button
+                    key={statusItem.status}
+                    onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
+                    className={`border-2 rounded-lg p-3 transition-all hover:scale-105 hover:shadow-md ${
+                      statusColors[statusItem.status] || 'bg-gray-50 text-gray-700 border-gray-200'
+                    }`}>
+                    <div className="text-2xl font-bold mb-1">{statusItem.count}</div>
+                    <div className="text-xs font-medium">{statusItem.label}</div>
+                  </button>
+                ))}
+                {/* Отказ и Нет возможности */}
+                <div className="flex gap-2">
+                  {stats.statuses
+                    .filter(s => ['rejected', 'no_tech'].includes(s.status))
+                    .map((statusItem) => (
+                      <button
+                        key={statusItem.status}
+                        onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
+                        className={`flex-1 border-2 rounded-lg p-3 transition-all hover:scale-105 hover:shadow-md ${
+                          statusColors[statusItem.status] || 'bg-gray-50 text-gray-700 border-gray-200'
+                        }`}>
+                        <div className="text-2xl font-bold mb-1">{statusItem.count}</div>
+                        <div className="text-xs font-medium">{statusItem.label}</div>
+                      </button>
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -262,13 +298,13 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Все сотрудники */}
-          {stats && stats.users && stats.users.length > 0 && (
+          {/* Все сотрудники (без менеджеров) */}
+          {stats && stats.users && stats.users.filter(u => u.role !== 'manager').length > 0 && (
             <div>
               <h2 className="text-lg font-bold text-gray-900 mb-3">Сотрудники</h2>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 max-h-80 overflow-y-auto">
                 <div className="divide-y divide-gray-200">
-                  {stats.users.map((userItem) => {
+                  {stats.users.filter(u => u.role !== 'manager').map((userItem) => {
                     const roleLabels: Record<string, string> = {
                       admin: 'Админ',
                       manager: 'Менеджер',
