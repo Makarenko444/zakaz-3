@@ -36,7 +36,7 @@ export async function GET(_request: NextRequest) {
       supabase
         .from('zakaz_applications')
         .select('*', { count: 'exact', head: true })
-        .in('status', ['thinking', 'estimation', 'waiting_payment', 'contract', 'design', 'approval', 'queue_install', 'install']),
+        .in('status', ['thinking', 'estimation', 'contract', 'design', 'approval', 'queue_install', 'install']),
 
       // Завершено (status = 'installed')
       supabase
@@ -71,7 +71,7 @@ export async function GET(_request: NextRequest) {
       // Последние 10 заявок
       supabase
         .from('zakaz_applications')
-        .select('id, application_number, customer_fullname, customer_phone, service_type, urgency, status, created_at, zakaz_nodes(id, code, street, house, address, presence_type)')
+        .select('id, application_number, customer_fullname, customer_phone, service_type, urgency, status, created_at, zakaz_addresses(id, address, street, house)')
         .order('created_at', { ascending: false })
         .limit(10),
 
@@ -263,7 +263,6 @@ export async function GET(_request: NextRequest) {
       new: 'Новая',
       thinking: 'Думает',
       estimation: 'Расчёт',
-      waiting_payment: 'Ожидание оплаты',
       contract: 'Договор и оплата',
       design: 'Проектирование',
       approval: 'Согласование',
