@@ -380,7 +380,7 @@ export default function DashboardPage() {
                           onClick={() => router.push(`/dashboard/applications/${app.id}`)}
                           className="hover:bg-gray-50 cursor-pointer transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-bold text-indigo-600">#{app.application_number}</div>
+                            <div className="text-sm font-bold text-indigo-600">№{app.application_number}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">{app.customer_fullname}</div>
