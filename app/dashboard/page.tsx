@@ -200,42 +200,17 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Быстрые действия */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Кнопка создания заявки */}
+        <div className="mb-8">
           <button
             onClick={() => router.push('/dashboard/applications/new')}
-            className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl shadow-md p-6 hover:from-indigo-700 hover:to-indigo-800 transition-all flex items-center justify-between group">
+            className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl shadow-md p-6 hover:from-indigo-700 hover:to-indigo-800 transition-all flex items-center justify-between group w-full md:w-auto md:inline-flex">
             <div className="text-left">
               <p className="text-sm font-medium opacity-90">Создать</p>
               <p className="text-xl font-bold mt-1">Новая заявка</p>
             </div>
-            <svg className="w-8 h-8 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-
-          <button
-            onClick={() => router.push('/dashboard/nodes')}
-            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 hover:border-indigo-400 hover:shadow-md transition-all flex items-center justify-between group">
-            <div className="text-left">
-              <p className="text-sm font-medium text-gray-600">Перейти в</p>
-              <p className="text-xl font-bold text-gray-900 mt-1">Узлы</p>
-            </div>
-            <svg className="w-8 h-8 text-gray-400 group-hover:text-indigo-600 group-hover:scale-110 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          </button>
-
-          <button
-            onClick={() => router.push('/dashboard/addresses')}
-            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 hover:border-indigo-400 hover:shadow-md transition-all flex items-center justify-between group">
-            <div className="text-left">
-              <p className="text-sm font-medium text-gray-600">Перейти в</p>
-              <p className="text-xl font-bold text-gray-900 mt-1">Адреса</p>
-            </div>
-            <svg className="w-8 h-8 text-gray-400 group-hover:text-indigo-600 group-hover:scale-110 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
         </div>
@@ -260,123 +235,106 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Заявки по менеджерам */}
-        {stats && stats.managers && stats.managers.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Заявки по менеджерам</h2>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-200">
-              {stats.managers.map((manager) => (
-                <button
-                  key={manager.id}
-                  onClick={() => {
-                    if (manager.id === 'unassigned') {
-                      router.push('/dashboard/applications?assigned_to=unassigned')
-                    } else {
-                      router.push(`/dashboard/applications?assigned_to=${manager.id}`)
-                    }
-                  }}
-                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
-                      manager.id === 'unassigned' ? 'bg-gray-400' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'
-                    }`}>
-                      {manager.name.charAt(0).toUpperCase()}
+        {/* Менеджеры и Сотрудники в две колонки */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Заявки по менеджерам */}
+          {stats && stats.managers && stats.managers.length > 0 && (
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 mb-3">Заявки по менеджерам</h2>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-200 max-h-80 overflow-y-auto">
+                {stats.managers.map((manager) => (
+                  <button
+                    key={manager.id}
+                    onClick={() => {
+                      if (manager.id === 'unassigned') {
+                        router.push('/dashboard/applications?assigned_to=unassigned')
+                      } else {
+                        router.push(`/dashboard/applications?assigned_to=${manager.id}`)
+                      }
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                        manager.id === 'unassigned' ? 'bg-gray-400' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'
+                      }`}>
+                        {manager.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium text-gray-900 group-hover:text-indigo-600">
+                        {manager.name}
+                      </span>
                     </div>
-                    <span className="text-base font-medium text-gray-900 group-hover:text-indigo-600">
-                      {manager.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl font-bold text-gray-900 group-hover:text-indigo-600">
-                      {manager.count}
-                    </span>
-                    <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </button>
-              ))}
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-gray-900 group-hover:text-indigo-600">
+                        {manager.count}
+                      </span>
+                      <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Все сотрудники */}
-        {stats && stats.users && stats.users.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Сотрудники</h2>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Сотрудник
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Роль
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Заявок
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Действия
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {stats.users.map((userItem) => {
-                      const roleLabels: Record<string, string> = {
-                        admin: 'Администратор',
-                        manager: 'Менеджер',
-                        engineer: 'Инженер',
-                        user: 'Пользователь',
-                      }
+          {/* Все сотрудники */}
+          {stats && stats.users && stats.users.length > 0 && (
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 mb-3">Сотрудники</h2>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 max-h-80 overflow-y-auto">
+                <div className="divide-y divide-gray-200">
+                  {stats.users.map((userItem) => {
+                    const roleLabels: Record<string, string> = {
+                      admin: 'Админ',
+                      manager: 'Менеджер',
+                      engineer: 'Инженер',
+                      installer: 'Монтажник',
+                      supply: 'Снабжение',
+                      user: 'Пользователь',
+                    }
 
-                      const roleColors: Record<string, string> = {
-                        admin: 'bg-purple-100 text-purple-800',
-                        manager: 'bg-blue-100 text-blue-800',
-                        engineer: 'bg-green-100 text-green-800',
-                        user: 'bg-gray-100 text-gray-800',
-                      }
+                    const roleColors: Record<string, string> = {
+                      admin: 'bg-purple-100 text-purple-800',
+                      manager: 'bg-blue-100 text-blue-800',
+                      engineer: 'bg-green-100 text-green-800',
+                      installer: 'bg-orange-100 text-orange-800',
+                      supply: 'bg-cyan-100 text-cyan-800',
+                      user: 'bg-gray-100 text-gray-800',
+                    }
 
-                      return (
-                        <tr key={userItem.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold">
-                                {userItem.name.charAt(0).toUpperCase()}
-                              </div>
-                              <span className="text-sm font-medium text-gray-900">{userItem.name}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    return (
+                      <div key={userItem.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                            {userItem.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-900">{userItem.name}</span>
+                            <span className={`ml-2 px-2 py-0.5 text-xs font-medium rounded-full ${
                               roleColors[userItem.role] || 'bg-gray-100 text-gray-800'
                             }`}>
                               {roleLabels[userItem.role] || userItem.role}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-lg font-bold text-gray-900">{userItem.count}</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right">
-                            {userItem.count > 0 && (
-                              <button
-                                onClick={() => router.push(`/dashboard/applications?assigned_to=${userItem.id}`)}
-                                className="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
-                                Смотреть заявки →
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-gray-900">{userItem.count}</span>
+                          {userItem.count > 0 && (
+                            <button
+                              onClick={() => router.push(`/dashboard/applications?assigned_to=${userItem.id}`)}
+                              className="text-indigo-600 hover:text-indigo-900 text-xs">
+                              →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Последние заявки */}
         {stats && stats.recentApplications && stats.recentApplications.length > 0 && (
