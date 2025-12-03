@@ -75,10 +75,10 @@ export async function GET(_request: NextRequest) {
         .order('created_at', { ascending: false })
         .limit(10),
 
-      // Статистика по менеджерам
+      // Статистика по менеджерам - получаем assigned_to
       supabase
         .from('zakaz_applications')
-        .select('assigned_to, zakaz_users(id, full_name)'),
+        .select('assigned_to'),
 
       // Статистика по всем статусам
       supabase
@@ -172,38 +172,41 @@ export async function GET(_request: NextRequest) {
     })
 
     // Подсчитываем статистику по менеджерам
-    interface ManagerData {
-      assigned_to: string | null
-      zakaz_users: {
-        id: string
-        full_name: string
-      } | null
-    }
-
-    const managerStatsMap = new Map<string, { name: string; count: number }>()
+    const managerStatsMap = new Map<string, number>()
     let unassignedCount = 0
 
-    managersResult.data?.forEach((item: ManagerData) => {
+    managersResult.data?.forEach((item: { assigned_to: string | null }) => {
       if (!item.assigned_to) {
         unassignedCount++
       } else {
-        const existing = managerStatsMap.get(item.assigned_to)
-        if (existing) {
-          existing.count++
-        } else {
-          managerStatsMap.set(item.assigned_to, {
-            name: item.zakaz_users?.full_name || 'Неизвестный менеджер',
-            count: 1,
-          })
-        }
+        const count = managerStatsMap.get(item.assigned_to) || 0
+        managerStatsMap.set(item.assigned_to, count + 1)
       }
     })
 
-    const managerStats = Array.from(managerStatsMap.entries()).map(([id, data]) => ({
-      id,
-      name: data.name,
-      count: data.count,
-    }))
+    // Получаем информацию о менеджерах
+    const managerIds = Array.from(managerStatsMap.keys())
+
+    interface ManagerInfo {
+      id: string
+      full_name: string
+    }
+
+    const managersInfoResult = managerIds.length > 0
+      ? await supabase
+          .from('zakaz_users')
+          .select('id, full_name')
+          .in('id', managerIds)
+      : { data: [] as ManagerInfo[], error: null }
+
+    const managerStats = managerIds.map(id => {
+      const managerInfo = (managersInfoResult.data as ManagerInfo[] | null)?.find(u => u.id === id)
+      return {
+        id,
+        name: managerInfo?.full_name || 'Неизвестный менеджер',
+        count: managerStatsMap.get(id) || 0,
+      }
+    })
 
     // Добавляем неназначенные заявки
     if (unassignedCount > 0) {
@@ -213,6 +216,9 @@ export async function GET(_request: NextRequest) {
         count: unassignedCount,
       })
     }
+
+    // Сортируем по количеству заявок
+    managerStats.sort((a, b) => b.count - a.count)
 
     // Подсчитываем статистику по статусам
     const statusStatsMap = new Map<string, number>()
