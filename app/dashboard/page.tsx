@@ -31,6 +31,12 @@ interface DashboardStats {
     name: string
     count: number
   }>
+  users: Array<{
+    id: string
+    name: string
+    role: string
+    count: number
+  }>
   statuses: Array<{
     status: string
     label: string
@@ -75,7 +81,10 @@ export default function DashboardPage() {
         const response = await fetch('/api/dashboard/stats')
         if (response.ok) {
           const data = await response.json()
+          console.log('Dashboard stats loaded:', data)
           setStats(data)
+        } else {
+          console.error('Failed to load stats:', response.status, response.statusText)
         }
       } catch (error: unknown) {
         console.error('Error loading data:', error)
@@ -294,6 +303,84 @@ export default function DashboardPage() {
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Все сотрудники */}
+        {stats && stats.users && stats.users.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Сотрудники</h2>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Сотрудник
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Роль
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Заявок
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Действия
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {stats.users.map((userItem) => {
+                      const roleLabels: Record<string, string> = {
+                        admin: 'Администратор',
+                        manager: 'Менеджер',
+                        engineer: 'Инженер',
+                        user: 'Пользователь',
+                      }
+
+                      const roleColors: Record<string, string> = {
+                        admin: 'bg-purple-100 text-purple-800',
+                        manager: 'bg-blue-100 text-blue-800',
+                        engineer: 'bg-green-100 text-green-800',
+                        user: 'bg-gray-100 text-gray-800',
+                      }
+
+                      return (
+                        <tr key={userItem.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold">
+                                {userItem.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-sm font-medium text-gray-900">{userItem.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              roleColors[userItem.role] || 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {roleLabels[userItem.role] || userItem.role}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <span className="text-lg font-bold text-gray-900">{userItem.count}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            {userItem.count > 0 && (
+                              <button
+                                onClick={() => router.push(`/dashboard/applications?assigned_to=${userItem.id}`)}
+                                className="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
+                                Смотреть заявки →
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

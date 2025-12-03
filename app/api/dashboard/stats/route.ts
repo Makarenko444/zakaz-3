@@ -184,7 +184,28 @@ export async function GET(_request: NextRequest) {
       }
     })
 
-    // Получаем информацию о менеджерах
+    // Получаем всех активных пользователей
+    interface UserInfo {
+      id: string
+      full_name: string
+      role: string
+    }
+
+    const allUsersResult = await supabase
+      .from('zakaz_users')
+      .select('id, full_name, role')
+      .eq('is_active', true)
+      .order('full_name', { ascending: true })
+
+    // Создаем статистику по всем пользователям
+    const userStats = (allUsersResult.data as UserInfo[] | null || []).map(user => ({
+      id: user.id,
+      name: user.full_name,
+      role: user.role,
+      count: managerStatsMap.get(user.id) || 0,
+    }))
+
+    // Получаем информацию о менеджерах (только те, у кого есть заявки)
     const managerIds = Array.from(managerStatsMap.keys())
 
     interface ManagerInfo {
@@ -262,6 +283,7 @@ export async function GET(_request: NextRequest) {
       serviceType: serviceTypeStats,
       customerType: customerTypeStats,
       managers: managerStats,
+      users: userStats,
       statuses: statusStats,
       recentApplications: recentApplicationsResult.data || [],
     }
