@@ -86,6 +86,8 @@ function ApplicationsContent() {
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('')
   const [selectedNodeId, setSelectedNodeId] = useState<string>('')
   const [nodeInfo, setNodeInfo] = useState<{ street: string; house: string } | null>(null)
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('')
+  const [addressInfo, setAddressInfo] = useState<string | null>(null)
   const [selectedAssignedTo, setSelectedAssignedTo] = useState<string>('')
 
   // Список пользователей для фильтра
@@ -119,6 +121,10 @@ function ApplicationsContent() {
         params.append('node_id', selectedNodeId)
       }
 
+      if (selectedAddressId) {
+        params.append('address_id', selectedAddressId)
+      }
+
       if (selectedAssignedTo) {
         params.append('assigned_to', selectedAssignedTo)
       }
@@ -137,13 +143,15 @@ function ApplicationsContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedNodeId, selectedAssignedTo])
+  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedNodeId, selectedAddressId, selectedAssignedTo])
 
   // Инициализация фильтров из URL при монтировании
   useEffect(() => {
     const nodeId = searchParams.get('node_id')
     const nodeStreet = searchParams.get('node_street')
     const nodeHouse = searchParams.get('node_house')
+    const addressId = searchParams.get('address_id')
+    const address = searchParams.get('address')
     const assignedTo = searchParams.get('assigned_to')
     const status = searchParams.get('status')
 
@@ -151,6 +159,13 @@ function ApplicationsContent() {
       setSelectedNodeId(nodeId)
       if (nodeStreet && nodeHouse) {
         setNodeInfo({ street: nodeStreet, house: nodeHouse })
+      }
+    }
+
+    if (addressId) {
+      setSelectedAddressId(addressId)
+      if (address) {
+        setAddressInfo(address)
       }
     }
 
@@ -267,7 +282,7 @@ function ApplicationsContent() {
           <span className="text-sm text-gray-500">({total})</span>
         </div>
 
-        {/* Фильтр по адресу */}
+        {/* Фильтр по узлу */}
         {nodeInfo && (
           <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -276,7 +291,7 @@ function ApplicationsContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <span className="text-sm text-blue-900">
-                <span className="font-medium">Фильтр по адресу:</span> {nodeInfo.street}, {nodeInfo.house}
+                <span className="font-medium">Фильтр по узлу:</span> {nodeInfo.street}, {nodeInfo.house}
               </span>
             </div>
             <button
@@ -286,6 +301,33 @@ function ApplicationsContent() {
                 router.push('/dashboard/applications')
               }}
               className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+            >
+              Сбросить
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Фильтр по формализованному адресу */}
+        {addressInfo && (
+          <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm text-green-900">
+                <span className="font-medium">Заявки по адресу:</span> {addressInfo}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedAddressId('')
+                setAddressInfo(null)
+                router.push('/dashboard/applications')
+              }}
+              className="text-green-600 hover:text-green-800 text-sm font-medium flex items-center gap-1"
             >
               Сбросить
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

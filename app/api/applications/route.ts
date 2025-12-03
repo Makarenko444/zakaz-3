@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const serviceType = searchParams.get('service_type')
     const customerType = searchParams.get('customer_type')
     const nodeId = searchParams.get('node_id')
+    const addressId = searchParams.get('address_id')
     const assignedTo = searchParams.get('assigned_to')
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
@@ -61,6 +62,11 @@ export async function GET(request: NextRequest) {
 
     if (nodeId) {
       query = query.eq('node_id', nodeId)
+    }
+
+    // Фильтр по формализованному адресу
+    if (addressId) {
+      query = query.eq('address_id', addressId)
     }
 
     // Фильтр по назначенному менеджеру
