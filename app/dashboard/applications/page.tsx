@@ -139,17 +139,27 @@ function ApplicationsContent() {
     }
   }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedNodeId, selectedAssignedTo])
 
-  // Инициализация фильтра по узлу/адресу из URL при монтировании
+  // Инициализация фильтров из URL при монтировании
   useEffect(() => {
     const nodeId = searchParams.get('node_id')
     const nodeStreet = searchParams.get('node_street')
     const nodeHouse = searchParams.get('node_house')
+    const assignedTo = searchParams.get('assigned_to')
+    const status = searchParams.get('status')
 
     if (nodeId) {
       setSelectedNodeId(nodeId)
       if (nodeStreet && nodeHouse) {
         setNodeInfo({ street: nodeStreet, house: nodeHouse })
       }
+    }
+
+    if (assignedTo) {
+      setSelectedAssignedTo(assignedTo)
+    }
+
+    if (status) {
+      setSelectedStatuses(status.split(',') as ApplicationStatus[])
     }
   }, [searchParams])
 
