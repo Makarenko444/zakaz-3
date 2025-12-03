@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 
+interface ApplicationRow {
+  id: string
+  application_number: number
+  customer_fullname: string
+  customer_phone: string
+  service_type: string
+  urgency: string
+  status: string
+  created_at: string
+  street_and_house: string | null
+  assigned_to: string | null
+}
+
 export async function GET(_request: NextRequest) {
   try {
     const supabase = createDirectClient()
@@ -19,7 +32,7 @@ export async function GET(_request: NextRequest) {
       )
     }
 
-    const allApps = applications || []
+    const allApps = (applications || []) as ApplicationRow[]
 
     // Подсчитываем статистику
     const total = allApps.length
