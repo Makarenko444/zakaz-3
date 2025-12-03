@@ -200,21 +200,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Кнопка создания заявки */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.push('/dashboard/applications/new')}
-            className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl shadow-md p-6 hover:from-indigo-700 hover:to-indigo-800 transition-all flex items-center justify-between group w-full md:w-auto md:inline-flex">
-            <div className="text-left">
-              <p className="text-sm font-medium opacity-90">Создать</p>
-              <p className="text-xl font-bold mt-1">Новая заявка</p>
-            </div>
-            <svg className="w-8 h-8 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
-
         {/* Заявки по статусам */}
         {stats && stats.statuses && stats.statuses.length > 0 && (
           <div className="mb-8">
