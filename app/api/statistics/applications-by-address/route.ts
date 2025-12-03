@@ -1,36 +1,68 @@
 import { NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 
-interface StatsRow {
-  node_id: string
-  address: string
-  city: string | null
-  street: string | null
-  house: string | null
-  building: string | null
+interface ApplicationRow {
+  id: string
   status: string
-  status_name: string
-  count: number
+  address_id: string | null
+  zakaz_addresses: {
+    id: string
+    city: string | null
+    street: string | null
+    house: string | null
+    building: string | null
+    address: string
+  } | null
+}
+
+interface StatusRow {
+  code: string
+  name_ru: string
 }
 
 export async function GET() {
   try {
     const supabase = createDirectClient()
 
-    // Получаем все адреса с количеством заявок
-    const { data: stats, error } = await supabase.rpc('get_applications_by_address_stats') as { data: StatsRow[] | null; error: unknown }
+    // Получаем все заявки с привязанными адресами
+    const { data: applications, error: appsError } = await supabase
+      .from('zakaz_applications')
+      .select(`
+        id,
+        status,
+        address_id,
+        zakaz_addresses (
+          id,
+          city,
+          street,
+          house,
+          building,
+          address
+        )
+      `)
+      .not('address_id', 'is', null) as { data: ApplicationRow[] | null; error: unknown }
 
-    if (error) {
-      console.error('Database error:', error)
+    if (appsError) {
+      console.error('Error loading applications:', appsError)
       return NextResponse.json(
-        { error: 'Failed to load statistics', details: error instanceof Error ? error.message : String(error) },
+        { error: 'Failed to load applications' },
         { status: 500 }
       )
     }
 
-    // Группируем данные по адресам
+    // Получаем названия статусов
+    const { data: statuses } = await supabase
+      .from('zakaz_statuses')
+      .select('code, name_ru') as { data: StatusRow[] | null }
+
+    const statusNames: Record<string, string> = {}
+    for (const s of statuses || []) {
+      statusNames[s.code] = s.name_ru
+    }
+
+    // Группируем по адресам
     const groupedStats = new Map<string, {
-      node_id: string
+      address_id: string
       address: string
       city: string | null
       street: string | null
@@ -39,49 +71,64 @@ export async function GET() {
       total_applications: number
       active_count: number
       completed_count: number
-      by_status: Array<{ status: string; status_name: string; count: number }>
+      by_status: Map<string, { status: string; status_name: string; count: number }>
     }>()
 
-    for (const row of stats || []) {
-      const key = row.node_id
+    for (const app of applications || []) {
+      if (!app.address_id || !app.zakaz_addresses) continue
+
+      const key = app.address_id
       if (!groupedStats.has(key)) {
         groupedStats.set(key, {
-          node_id: row.node_id,
-          address: row.address || `${row.street}, ${row.house}`,
-          city: row.city,
-          street: row.street,
-          house: row.house,
-          building: row.building,
+          address_id: app.address_id,
+          address: app.zakaz_addresses.address || `${app.zakaz_addresses.street}, ${app.zakaz_addresses.house}`,
+          city: app.zakaz_addresses.city,
+          street: app.zakaz_addresses.street,
+          house: app.zakaz_addresses.house,
+          building: app.zakaz_addresses.building,
           total_applications: 0,
           active_count: 0,
           completed_count: 0,
-          by_status: []
+          by_status: new Map()
         })
       }
 
       const addr = groupedStats.get(key)!
-      const count = row.count || 0
+      addr.total_applications += 1
 
-      addr.total_applications += count
-
-      // Считаем активные (не завершенные статусы)
-      if (!['installed', 'rejected', 'no_tech'].includes(row.status)) {
-        addr.active_count += count
+      // Считаем активные/завершённые
+      if (!['installed', 'rejected', 'no_tech'].includes(app.status)) {
+        addr.active_count += 1
       } else {
-        addr.completed_count += count
+        addr.completed_count += 1
       }
 
-      addr.by_status.push({
-        status: row.status,
-        status_name: row.status_name,
-        count
-      })
+      // Группируем по статусам
+      if (!addr.by_status.has(app.status)) {
+        addr.by_status.set(app.status, {
+          status: app.status,
+          status_name: statusNames[app.status] || app.status,
+          count: 0
+        })
+      }
+      addr.by_status.get(app.status)!.count += 1
     }
 
-    // Преобразуем Map в массив и сортируем по количеству заявок
-    const result = Array.from(groupedStats.values()).sort((a, b) =>
-      b.total_applications - a.total_applications
-    )
+    // Преобразуем в массив
+    const result = Array.from(groupedStats.values())
+      .map(addr => ({
+        address_id: addr.address_id,
+        address: addr.address,
+        city: addr.city,
+        street: addr.street,
+        house: addr.house,
+        building: addr.building,
+        total_applications: addr.total_applications,
+        active_count: addr.active_count,
+        completed_count: addr.completed_count,
+        by_status: Array.from(addr.by_status.values())
+      }))
+      .sort((a, b) => b.total_applications - a.total_applications)
 
     return NextResponse.json(result)
   } catch (error) {

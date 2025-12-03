@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface AddressStats {
-  node_id: string
+  address_id: string
   address: string
   city: string | null
   street: string | null
@@ -172,7 +172,7 @@ export default function ApplicationsByAddressPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredAddresses.map((addr) => (
-                  <tr key={addr.node_id} className="hover:bg-gray-50 transition">
+                  <tr key={addr.address_id} className="hover:bg-gray-50 transition">
                     <td className="px-4 py-4">
                       <div className="text-sm font-medium text-gray-900">{addr.address}</div>
                     </td>
@@ -208,7 +208,7 @@ export default function ApplicationsByAddressPage() {
                       <button
                         onClick={() =>
                           router.push(
-                            `/dashboard/applications?node_id=${addr.node_id}&node_address=${encodeURIComponent(
+                            `/dashboard/applications?address_id=${addr.address_id}&address=${encodeURIComponent(
                               addr.address
                             )}`
                           )
