@@ -204,31 +204,29 @@ export default function DashboardPage() {
         {stats && stats.statuses && stats.statuses.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Заявки по статусам</h2>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {/* Рабочие статусы */}
-              <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                {stats.statuses
-                  .filter(s => !['installed', 'rejected', 'no_tech'].includes(s.status))
-                  .map((statusItem) => (
-                    <button
-                      key={statusItem.status}
-                      onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
-                      className={`border-2 rounded-lg p-3 transition-all hover:scale-105 hover:shadow-md ${
-                        statusColors[statusItem.status] || 'bg-gray-50 text-gray-700 border-gray-200'
-                      }`}>
-                      <div className="text-2xl font-bold mb-1">{statusItem.count}</div>
-                      <div className="text-xs font-medium">{statusItem.label}</div>
-                    </button>
-                  ))}
-              </div>
-              {/* Завершающие статусы - справа в два ряда */}
-              <div className="flex flex-col gap-2 min-w-[140px]">
+              {stats.statuses
+                .filter(s => !['installed', 'rejected', 'no_tech'].includes(s.status))
+                .map((statusItem) => (
+                  <button
+                    key={statusItem.status}
+                    onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
+                    className={`border-2 rounded-lg p-3 transition-all hover:scale-105 hover:shadow-md min-w-[100px] ${
+                      statusColors[statusItem.status] || 'bg-gray-50 text-gray-700 border-gray-200'
+                    }`}>
+                    <div className="text-2xl font-bold mb-1">{statusItem.count}</div>
+                    <div className="text-xs font-medium">{statusItem.label}</div>
+                  </button>
+                ))}
+              {/* Завершающие статусы */}
+              <div className="flex flex-col gap-2">
                 {/* Выполнено */}
                 {stats.statuses.filter(s => s.status === 'installed').map((statusItem) => (
                   <button
                     key={statusItem.status}
                     onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
-                    className={`border-2 rounded-lg p-3 transition-all hover:scale-105 hover:shadow-md ${
+                    className={`border-2 rounded-lg p-3 transition-all hover:scale-105 hover:shadow-md min-w-[100px] ${
                       statusColors[statusItem.status] || 'bg-gray-50 text-gray-700 border-gray-200'
                     }`}>
                     <div className="text-2xl font-bold mb-1">{statusItem.count}</div>
