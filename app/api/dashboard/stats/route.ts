@@ -69,13 +69,16 @@ export async function GET(_request: NextRequest) {
       no_tech: 'Нет возможности',
     }
 
+    // Порядок статусов по этапам работы
+    const statusOrder = ['new', 'thinking', 'estimation', 'contract', 'design', 'approval', 'queue_install', 'install', 'installed', 'rejected', 'no_tech']
+
     const statuses = Array.from(statusStatsMap.entries())
       .map(([status, count]) => ({
         status,
         label: statusLabels[status] || status,
         count,
       }))
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status))
 
     // Статистика по менеджерам
     const managerStatsMap = new Map<string, number>()
