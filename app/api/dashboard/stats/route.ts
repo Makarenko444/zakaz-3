@@ -197,6 +197,11 @@ export async function GET(_request: NextRequest) {
       .eq('is_active', true)
       .order('full_name', { ascending: true })
 
+    if (allUsersResult.error) {
+      console.error('[Dashboard Stats API] Ошибка allUsersResult:', allUsersResult.error)
+      throw allUsersResult.error
+    }
+
     // Создаем статистику по всем пользователям
     const userStats = (allUsersResult.data as UserInfo[] | null || []).map(user => ({
       id: user.id,
@@ -219,6 +224,11 @@ export async function GET(_request: NextRequest) {
           .select('id, full_name')
           .in('id', managerIds)
       : { data: [] as ManagerInfo[], error: null }
+
+    if (managersInfoResult.error) {
+      console.error('[Dashboard Stats API] Ошибка managersInfoResult:', managersInfoResult.error)
+      throw managersInfoResult.error
+    }
 
     const managerStats = managerIds.map(id => {
       const managerInfo = (managersInfoResult.data as ManagerInfo[] | null)?.find(u => u.id === id)
