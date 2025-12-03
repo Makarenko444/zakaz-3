@@ -68,10 +68,10 @@ export async function GET(_request: NextRequest) {
         .select('customer_type')
         .not('status', 'in', '(rejected,no_tech,installed)'),
 
-      // Последние 10 заявок
+      // Последние 10 заявок (с адресом через FK address_id -> zakaz_addresses)
       supabase
         .from('zakaz_applications')
-        .select('id, application_number, customer_fullname, customer_phone, service_type, urgency, status, created_at, zakaz_addresses(id, address, street, house)')
+        .select('id, application_number, customer_fullname, customer_phone, service_type, urgency, status, created_at, street_and_house, zakaz_addresses!address_id(id, address, street, house)')
         .order('created_at', { ascending: false })
         .limit(10),
 
