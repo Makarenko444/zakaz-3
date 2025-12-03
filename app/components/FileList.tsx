@@ -282,7 +282,7 @@ export default function FileList({
             {/* Кнопка закрытия */}
             <button
               onClick={() => setImageModalOpen(false)}
-              className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition text-white"
+              className="absolute top-4 right-4 p-2 bg-gray-800 hover:bg-gray-700 rounded-full transition text-white shadow-lg"
               title="Закрыть (ESC)"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
