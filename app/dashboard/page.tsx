@@ -72,18 +72,10 @@ export default function DashboardPage() {
         }
         setUser(currentUser)
 
-        // Загружаем статистику дашборда
-        console.log('Загрузка статистики дашборда...')
         const response = await fetch('/api/dashboard/stats')
-        console.log('Ответ API:', response.status, response.statusText)
-
         if (response.ok) {
           const data = await response.json()
-          console.log('Полученные данные:', data)
           setStats(data)
-        } else {
-          const errorText = await response.text()
-          console.error('Failed to load dashboard stats:', response.status, errorText)
         }
       } catch (error: unknown) {
         console.error('Error loading data:', error)
@@ -111,151 +103,166 @@ export default function DashboardPage() {
     return null
   }
 
+  const statusColors: Record<string, string> = {
+    new: 'bg-gray-100 text-gray-800 border-gray-300',
+    thinking: 'bg-blue-50 text-blue-700 border-blue-200',
+    estimation: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    waiting_payment: 'bg-amber-50 text-amber-700 border-amber-200',
+    contract: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    design: 'bg-teal-50 text-teal-700 border-teal-200',
+    approval: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    queue_install: 'bg-purple-50 text-purple-700 border-purple-200',
+    install: 'bg-violet-50 text-violet-700 border-violet-200',
+    installed: 'bg-green-50 text-green-700 border-green-200',
+    rejected: 'bg-red-50 text-red-700 border-red-200',
+    no_tech: 'bg-orange-50 text-orange-700 border-orange-200',
+  }
+
   return (
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Dashboard Cards - Основная статистика */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/applications?status=new')}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">Новые заявки</h3>
-              <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
-                new
-              </span>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{stats?.new ?? 0}</p>
-            <p className="text-xs text-gray-500 mt-2">Требуют обработки</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/applications')}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">В работе</h3>
-              <span className="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-0.5 rounded">
-                active
-              </span>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{stats?.inProgress ?? 0}</p>
-            <p className="text-xs text-gray-500 mt-2">В процессе выполнения</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/applications?status=installed')}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">Завершено</h3>
-              <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded">
-                done
-              </span>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{stats?.installed ?? 0}</p>
-            <p className="text-xs text-gray-500 mt-2">Успешно выполнено</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/applications')}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">Всего заявок</h3>
-              <span className="bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded">
-                total
-              </span>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{stats?.total ?? 0}</p>
-            <p className="text-xs text-gray-500 mt-2">За всё время</p>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Приветствие */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Добро пожаловать, {user.full_name}!
+          </h1>
+          <p className="mt-1 text-gray-600">
+            {new Date().toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
         </div>
 
-        {/* Дополнительная статистика */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          {/* Статистика по срочности */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">По срочности</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-red-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">Критичные</span>
-                </div>
-                <span className="text-lg font-bold text-gray-900">{stats?.urgency.critical ?? 0}</span>
+        {/* Ключевые метрики */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div
+            onClick={() => router.push('/dashboard/applications?status=new')}
+            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Новые заявки</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats?.new ?? 0}</p>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-orange-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">Высокие</span>
-                </div>
-                <span className="text-lg font-bold text-gray-900">{stats?.urgency.high ?? 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">Обычные</span>
-                </div>
-                <span className="text-lg font-bold text-gray-900">{stats?.urgency.normal ?? 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-gray-400 rounded-full"></span>
-                  <span className="text-sm text-gray-600">Низкие</span>
-                </div>
-                <span className="text-lg font-bold text-gray-900">{stats?.urgency.low ?? 0}</span>
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
             </div>
           </div>
 
-          {/* Статистика по типам услуг */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">По типам услуг</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-indigo-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">Квартиры</span>
-                </div>
-                <span className="text-lg font-bold text-gray-900">{stats?.serviceType.apartment ?? 0}</span>
+          <div
+            onClick={() => router.push('/dashboard/applications')}
+            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">В работе</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats?.inProgress ?? 0}</p>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-purple-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">Офисы</span>
-                </div>
-                <span className="text-lg font-bold text-gray-900">{stats?.serviceType.office ?? 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-cyan-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">СКС</span>
-                </div>
-                <span className="text-lg font-bold text-gray-900">{stats?.serviceType.scs ?? 0}</span>
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
               </div>
             </div>
           </div>
 
-          {/* Статистика по типам клиентов */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">По типам клиентов</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">Физ. лица</span>
-                </div>
-                <span className="text-lg font-bold text-gray-900">{stats?.customerType.individual ?? 0}</span>
+          <div
+            onClick={() => router.push('/dashboard/applications?status=installed')}
+            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Завершено</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats?.installed ?? 0}</p>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">Юр. лица</span>
-                </div>
-                <span className="text-lg font-bold text-gray-900">{stats?.customerType.business ?? 0}</span>
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                <span className="text-sm text-gray-600 font-medium">Отклонено</span>
-                <span className="text-lg font-bold text-red-600">{stats?.rejected ?? 0}</span>
+            </div>
+          </div>
+
+          <div
+            onClick={() => router.push('/dashboard/applications')}
+            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Всего заявок</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats?.total ?? 0}</p>
+              </div>
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Быстрые действия */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <button
+            onClick={() => router.push('/dashboard/applications/new')}
+            className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl shadow-md p-6 hover:from-indigo-700 hover:to-indigo-800 transition-all flex items-center justify-between group">
+            <div className="text-left">
+              <p className="text-sm font-medium opacity-90">Создать</p>
+              <p className="text-xl font-bold mt-1">Новая заявка</p>
+            </div>
+            <svg className="w-8 h-8 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+
+          <button
+            onClick={() => router.push('/dashboard/nodes')}
+            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 hover:border-indigo-400 hover:shadow-md transition-all flex items-center justify-between group">
+            <div className="text-left">
+              <p className="text-sm font-medium text-gray-600">Перейти в</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">Узлы</p>
+            </div>
+            <svg className="w-8 h-8 text-gray-400 group-hover:text-indigo-600 group-hover:scale-110 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </button>
+
+          <button
+            onClick={() => router.push('/dashboard/addresses')}
+            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 hover:border-indigo-400 hover:shadow-md transition-all flex items-center justify-between group">
+            <div className="text-left">
+              <p className="text-sm font-medium text-gray-600">Перейти в</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">Адреса</p>
+            </div>
+            <svg className="w-8 h-8 text-gray-400 group-hover:text-indigo-600 group-hover:scale-110 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Заявки по статусам */}
+        {stats && stats.statuses && stats.statuses.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Заявки по статусам</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+              {stats.statuses.map((statusItem) => (
+                <button
+                  key={statusItem.status}
+                  onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
+                  className={`border-2 rounded-lg p-4 transition-all hover:scale-105 hover:shadow-md ${
+                    statusColors[statusItem.status] || 'bg-gray-50 text-gray-700 border-gray-200'
+                  }`}>
+                  <div className="text-3xl font-bold mb-1">{statusItem.count}</div>
+                  <div className="text-xs font-medium">{statusItem.label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Заявки по менеджерам */}
         {stats && stats.managers && stats.managers.length > 0 && (
-          <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Заявки по менеджерам</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Заявки по менеджерам</h2>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-200">
               {stats.managers.map((manager) => (
                 <button
                   key={manager.id}
@@ -266,204 +273,125 @@ export default function DashboardPage() {
                       router.push(`/dashboard/applications?assigned_to=${manager.id}`)
                     }
                   }}
-                  className="flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
-                      manager.id === 'unassigned' ? 'bg-gray-400' : 'bg-indigo-600'
+                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors group">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
+                      manager.id === 'unassigned' ? 'bg-gray-400' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'
                     }`}>
                       {manager.name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-sm font-medium text-gray-900 group-hover:text-indigo-700">
+                    <span className="text-base font-medium text-gray-900 group-hover:text-indigo-600">
                       {manager.name}
                     </span>
                   </div>
-                  <span className="text-lg font-bold text-gray-900 group-hover:text-indigo-700">
-                    {manager.count}
-                  </span>
+                  <div className="flex items-center gap-4">
+                    <span className="text-2xl font-bold text-gray-900 group-hover:text-indigo-600">
+                      {manager.count}
+                    </span>
+                    <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Заявки по статусам */}
-        {stats && stats.statuses && stats.statuses.length > 0 && (
-          <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Заявки по статусам</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {stats.statuses.map((statusItem) => {
-                const statusColors: Record<string, string> = {
-                  new: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
-                  thinking: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
-                  estimation: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200',
-                  waiting_payment: 'bg-amber-100 text-amber-800 hover:bg-amber-200',
-                  contract: 'bg-cyan-100 text-cyan-800 hover:bg-cyan-200',
-                  design: 'bg-teal-100 text-teal-800 hover:bg-teal-200',
-                  approval: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
-                  queue_install: 'bg-purple-100 text-purple-800 hover:bg-purple-200',
-                  install: 'bg-violet-100 text-violet-800 hover:bg-violet-200',
-                  installed: 'bg-green-100 text-green-800 hover:bg-green-200',
-                  rejected: 'bg-red-100 text-red-800 hover:bg-red-200',
-                  no_tech: 'bg-orange-100 text-orange-800 hover:bg-orange-200',
-                }
-
-                return (
-                  <button
-                    key={statusItem.status}
-                    onClick={() => router.push(`/dashboard/applications?status=${statusItem.status}`)}
-                    className={`flex items-center justify-between px-4 py-3 rounded-lg transition cursor-pointer ${
-                      statusColors[statusItem.status] || 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}>
-                    <span className="text-sm font-medium">{statusItem.label}</span>
-                    <span className="text-lg font-bold">{statusItem.count}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Последние заявки */}
         {stats && stats.recentApplications && stats.recentApplications.length > 0 && (
-          <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Последние заявки</h3>
+              <h2 className="text-xl font-bold text-gray-900">Последние заявки</h2>
               <button
                 onClick={() => router.push('/dashboard/applications')}
-                className="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-                Смотреть все →
+                className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold flex items-center gap-1">
+                Смотреть все
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Номер
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Клиент
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Адрес
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Тип услуги
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Срочность
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Статус
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Дата
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {stats.recentApplications.map((app) => {
-                    const urgencyColors = {
-                      critical: 'bg-red-100 text-red-800',
-                      high: 'bg-orange-100 text-orange-800',
-                      normal: 'bg-blue-100 text-blue-800',
-                      low: 'bg-gray-100 text-gray-800',
-                    }
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Заявка
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Клиент
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                        Адрес
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                        Статус
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Дата
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {stats.recentApplications.map((app) => {
+                      const statusLabels: Record<string, string> = {
+                        new: 'Новая',
+                        thinking: 'Думает',
+                        estimation: 'Расчёт',
+                        waiting_payment: 'Ожидание оплаты',
+                        contract: 'Договор и оплата',
+                        design: 'Проектирование',
+                        approval: 'Согласование',
+                        queue_install: 'Очередь на монтаж',
+                        install: 'Монтаж',
+                        installed: 'Выполнено',
+                        rejected: 'Отказ',
+                        no_tech: 'Нет возможности',
+                      }
 
-                    const urgencyLabels = {
-                      critical: 'Критично',
-                      high: 'Высокая',
-                      normal: 'Обычная',
-                      low: 'Низкая',
-                    }
-
-                    const statusColors = {
-                      new: 'bg-gray-100 text-gray-800',
-                      thinking: 'bg-blue-100 text-blue-800',
-                      estimation: 'bg-indigo-100 text-indigo-800',
-                      contract: 'bg-cyan-100 text-cyan-800',
-                      design: 'bg-teal-100 text-teal-800',
-                      approval: 'bg-emerald-100 text-emerald-800',
-                      queue_install: 'bg-purple-100 text-purple-800',
-                      install: 'bg-violet-100 text-violet-800',
-                      installed: 'bg-green-100 text-green-800',
-                      rejected: 'bg-red-100 text-red-800',
-                      no_tech: 'bg-orange-100 text-orange-800',
-                    }
-
-                    const statusLabels = {
-                      new: 'Новая',
-                      thinking: 'Думает',
-                      estimation: 'Расчёт',
-                      contract: 'Договор и оплата',
-                      design: 'Проектирование',
-                      approval: 'Согласование',
-                      queue_install: 'Очередь на монтаж',
-                      install: 'Монтаж',
-                      installed: 'Выполнено',
-                      rejected: 'Отказ',
-                      no_tech: 'Нет возможности',
-                    }
-
-                    const serviceTypeLabels = {
-                      apartment: 'Квартира',
-                      office: 'Офис',
-                      scs: 'СКС',
-                    }
-
-                    return (
-                      <tr
-                        key={app.id}
-                        onClick={() => router.push(`/dashboard/applications/${app.id}`)}
-                        className="hover:bg-gray-50 cursor-pointer transition-colors">
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-indigo-600">
-                          #{app.application_number}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{app.customer_fullname}</div>
-                          <div className="text-sm text-gray-500">{app.customer_phone}</div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {app.zakaz_nodes
-                              ? app.zakaz_nodes.address || `${app.zakaz_nodes.street}, ${app.zakaz_nodes.house}`
-                              : 'Адрес не указан'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {serviceTypeLabels[app.service_type as keyof typeof serviceTypeLabels] || app.service_type}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              urgencyColors[app.urgency as keyof typeof urgencyColors] || urgencyColors.normal
+                      return (
+                        <tr
+                          key={app.id}
+                          onClick={() => router.push(`/dashboard/applications/${app.id}`)}
+                          className="hover:bg-gray-50 cursor-pointer transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-bold text-indigo-600">#{app.application_number}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{app.customer_fullname}</div>
+                            <div className="text-xs text-gray-500">{app.customer_phone}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
+                            <div className="text-sm text-gray-900 max-w-xs truncate">
+                              {app.zakaz_nodes?.address || 'Адрес не указан'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${
+                              statusColors[app.status] || 'bg-gray-100 text-gray-800 border-gray-300'
                             }`}>
-                            {urgencyLabels[app.urgency as keyof typeof urgencyLabels] || app.urgency}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              statusColors[app.status as keyof typeof statusColors] || statusColors.new
-                            }`}>
-                            {statusLabels[app.status as keyof typeof statusLabels] || app.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(app.created_at).toLocaleDateString('ru-RU', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                              {statusLabels[app.status] || app.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(app.created_at).toLocaleDateString('ru-RU', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
-      </main>
+      </div>
+    </div>
   )
 }
