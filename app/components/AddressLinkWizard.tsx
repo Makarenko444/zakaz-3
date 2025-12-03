@@ -450,14 +450,16 @@ export default function AddressLinkWizard({
         throw new Error(errorData.error || 'Не удалось создать адрес')
       }
 
-      // Адрес создан, но для привязки к заявке нужен узел
+      const createdAddress = await response.json()
+
+      // Адрес создан - сразу привязываем к заявке
       setError('')
       setShowCreateForm(false)
       setNewAddress({ city: 'Томск', street: '', house: '', building: '' })
       setStreetValidation(null)
 
-      // Показываем сообщение пользователю
-      alert('Адрес успешно создан! Для привязки заявки к этому адресу, сначала создайте узел на этом адресе в разделе "Узлы".')
+      // Привязываем созданный адрес к заявке
+      await onLink(createdAddress.id)
       onClose()
     } catch (error) {
       console.error('Error creating address:', error)
