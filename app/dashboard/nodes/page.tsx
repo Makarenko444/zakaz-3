@@ -105,6 +105,10 @@ export default function NodesPage() {
   const [addresses, setAddresses] = useState<Address[]>([])
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false)
 
+  // Удаление узла
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
   useEffect(() => {
     // Загружаем сортировку из localStorage
     const savedSort = localStorage.getItem('nodes-sort')
@@ -413,6 +417,37 @@ export default function NodesPage() {
       setError(`Ошибка создания узла: ${err}`)
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  async function handleDeleteNode() {
+    if (!selectedNode) return
+
+    setIsDeleting(true)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/nodes/${selectedNode.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete node')
+      }
+
+      // Перезагружаем список узлов
+      await loadNodes()
+
+      // Закрываем модальное окно
+      handleCloseModal()
+      setShowDeleteConfirm(false)
+    } catch (err) {
+      console.error('Error deleting node:', err)
+      setError(`Ошибка удаления: ${err}`)
+      setShowDeleteConfirm(false)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -997,13 +1032,22 @@ export default function NodesPage() {
                       Закрыть
                     </button>
                     {currentUser?.role === 'admin' && (
-                      <button
-                        type="button"
-                        onClick={handleEditToggle}
-                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-                      >
-                        Редактировать
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteConfirm(true)}
+                          className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                        >
+                          Удалить
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleEditToggle}
+                          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+                        >
+                          Редактировать
+                        </button>
+                      </>
                     )}
                   </>
                 )}
@@ -1160,6 +1204,34 @@ export default function NodesPage() {
                   className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
                 >
                   {isSaving ? 'Создание...' : 'Создать узел'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модальное окно подтверждения удаления узла */}
+        {showDeleteConfirm && selectedNode && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Подтверждение удаления</h3>
+              <p className="text-gray-700 mb-6">
+                Вы уверены, что хотите удалить узел <strong>{selectedNode.code}</strong>?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleDeleteNode}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeleting ? 'Удаление...' : 'Удалить'}
                 </button>
               </div>
             </div>
