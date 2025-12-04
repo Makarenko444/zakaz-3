@@ -15,6 +15,8 @@ interface Address {
   address: string
   comment: string | null
   node_count: number
+  applications_total: number
+  applications_active: number
   presence_status: string
   created_at: string
   updated_at: string
@@ -512,6 +514,17 @@ export default function AddressesPage() {
                     </th>
                     <th
                       className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
+                      onClick={() => handleSort('applications_total')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        Заявки
+                        {sortField === 'applications_total' && (
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
                       onClick={() => handleSort('presence_status')}
                     >
                       <div className="flex items-center justify-center gap-1">
@@ -551,9 +564,44 @@ export default function AddressesPage() {
                         )}
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
-                          {address.node_count}
-                        </span>
+                        {address.node_count > 0 ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/dashboard/nodes?address_id=${address.id}&address=${encodeURIComponent(address.address)}`)
+                            }}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors"
+                            title="Показать узлы на этом адресе"
+                          >
+                            {address.node_count}
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-gray-100 text-gray-500">
+                            0
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-center">
+                        {address.applications_total > 0 ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/dashboard/applications?address_id=${address.id}&address=${encodeURIComponent(address.address)}`)
+                            }}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium transition-colors ${
+                              address.applications_active > 0
+                                ? 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+                                : 'bg-green-100 text-green-800 hover:bg-green-200'
+                            }`}
+                            title="Показать заявки на этом адресе"
+                          >
+                            {address.applications_active}/{address.applications_total}
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-gray-100 text-gray-500">
+                            0
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-center">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${presenceColors[address.presence_status]}`}>
@@ -706,9 +754,47 @@ export default function AddressesPage() {
 
                   <div className="border-t border-gray-200 pt-4">
                     <h4 className="text-sm font-semibold text-gray-700 mb-3">Статистика</h4>
-                    <div className="bg-indigo-50 rounded-lg p-3">
-                      <div className="text-xs text-indigo-600 font-medium">Всего узлов на адресе</div>
-                      <div className="text-2xl font-bold text-indigo-900">{selectedAddress.node_count}</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => {
+                          if (selectedAddress.node_count > 0) {
+                            router.push(`/dashboard/nodes?address_id=${selectedAddress.id}&address=${encodeURIComponent(selectedAddress.address)}`)
+                          }
+                        }}
+                        disabled={selectedAddress.node_count === 0}
+                        className={`bg-indigo-50 rounded-lg p-3 text-left transition-colors ${
+                          selectedAddress.node_count > 0 ? 'hover:bg-indigo-100 cursor-pointer' : 'opacity-60 cursor-default'
+                        }`}
+                      >
+                        <div className="text-xs text-indigo-600 font-medium">Узлов на адресе</div>
+                        <div className="text-2xl font-bold text-indigo-900">{selectedAddress.node_count}</div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (selectedAddress.applications_total > 0) {
+                            router.push(`/dashboard/applications?address_id=${selectedAddress.id}&address=${encodeURIComponent(selectedAddress.address)}`)
+                          }
+                        }}
+                        disabled={selectedAddress.applications_total === 0}
+                        className={`rounded-lg p-3 text-left transition-colors ${
+                          selectedAddress.applications_active > 0
+                            ? 'bg-orange-50 hover:bg-orange-100 cursor-pointer'
+                            : selectedAddress.applications_total > 0
+                              ? 'bg-green-50 hover:bg-green-100 cursor-pointer'
+                              : 'bg-gray-50 opacity-60 cursor-default'
+                        }`}
+                      >
+                        <div className={`text-xs font-medium ${
+                          selectedAddress.applications_active > 0 ? 'text-orange-600' : 'text-green-600'
+                        }`}>
+                          Заявок (активные/всего)
+                        </div>
+                        <div className={`text-2xl font-bold ${
+                          selectedAddress.applications_active > 0 ? 'text-orange-900' : 'text-green-900'
+                        }`}>
+                          {selectedAddress.applications_active}/{selectedAddress.applications_total}
+                        </div>
+                      </button>
                     </div>
                   </div>
 
