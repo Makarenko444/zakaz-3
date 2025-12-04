@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Application, ApplicationStatus, Urgency, ServiceType, CustomerType } from '@/lib/types'
+import Pagination from '@/app/components/Pagination'
 
 // Расширенный тип для заявки с узлом/адресом
 interface ApplicationWithAddress extends Application {
@@ -67,6 +68,8 @@ const serviceTypeLabels: Record<ServiceType, string> = {
   scs: 'СКС',
 }
 
+const DEFAULT_ITEMS_PER_PAGE = 20
+
 function ApplicationsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -74,6 +77,7 @@ function ApplicationsContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE)
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
@@ -98,7 +102,7 @@ function ApplicationsContent() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20',
+        limit: itemsPerPage.toString(),
       })
 
       if (selectedStatuses.length > 0) {
@@ -143,7 +147,7 @@ function ApplicationsContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedNodeId, selectedAddressId, selectedAssignedTo])
+  }, [page, itemsPerPage, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedNodeId, selectedAddressId, selectedAssignedTo])
 
   // Инициализация фильтров из URL при монтировании
   useEffect(() => {
@@ -255,6 +259,13 @@ function ApplicationsContent() {
     setPage(1)
     loadApplications()
   }
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setItemsPerPage(newLimit)
+    setPage(1)
+  }
+
+  const totalPages = Math.ceil(total / itemsPerPage)
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -455,6 +466,20 @@ function ApplicationsContent() {
           </div>
         </div>
 
+        {/* Пагинация сверху */}
+        {!isLoading && total > 0 && (
+          <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={total}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          </div>
+        )}
+
         {/* Список заявок */}
         {isLoading ? (
           <div className="flex justify-center items-center py-8">
@@ -512,26 +537,17 @@ function ApplicationsContent() {
           </div>
         )}
 
-        {/* Пагинация */}
-        {!isLoading && total > 20 && (
-          <div className="mt-4 flex justify-center gap-2">
-            <button
-              onClick={() => setPage(page - 1)}
-              disabled={page === 1}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Назад
-            </button>
-            <span className="px-3 py-1.5 text-sm text-gray-700">
-              Страница {page} из {Math.ceil(total / 20)}
-            </span>
-            <button
-              onClick={() => setPage(page + 1)}
-              disabled={page >= Math.ceil(total / 20)}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Вперёд
-            </button>
+        {/* Пагинация снизу */}
+        {!isLoading && total > 0 && (
+          <div className="mt-3 bg-white rounded-lg border border-gray-200 p-3">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={total}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
           </div>
         )}
       </main>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { User } from '@/lib/types'
 import { getCurrentUser } from '@/lib/auth-client'
+import Pagination from '@/app/components/Pagination'
 
 interface Address {
   id: string
@@ -120,7 +121,7 @@ export default function AddressesPage() {
       void loadAddresses()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortField, sortDirection])
+  }, [sortField, sortDirection, pagination.page, pagination.limit])
 
   // Закрытие модального окна по Esc
   useEffect(() => {
@@ -207,6 +208,14 @@ export default function AddressesPage() {
     setSearchQuery('')
     // Передаем пустую строку явно, чтобы не зависеть от состояния
     loadAddresses('')
+  }
+
+  function handleItemsPerPageChange(newLimit: number) {
+    setPagination(p => ({ ...p, limit: newLimit, page: 1 }))
+  }
+
+  function handlePageChange(newPage: number) {
+    setPagination(p => ({ ...p, page: newPage }))
   }
 
   function handleAddressClick(address: Address) {
@@ -448,6 +457,20 @@ export default function AddressesPage() {
           </div>
         </div>
 
+        {/* Пагинация сверху */}
+        {addresses.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          </div>
+        )}
+
         {/* Таблица */}
         {addresses.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
@@ -552,63 +575,17 @@ export default function AddressesPage() {
               </table>
             </div>
 
-            {/* Пагинация */}
-            {pagination.totalPages > 1 && (
-              <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 flex justify-between sm:hidden">
-                    <button
-                      onClick={() => setPagination(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
-                      disabled={pagination.page === 1}
-                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Назад
-                    </button>
-                    <button
-                      onClick={() => setPagination(p => ({ ...p, page: Math.min(p.totalPages, p.page + 1) }))}
-                      disabled={pagination.page === pagination.totalPages}
-                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Вперёд
-                    </button>
-                  </div>
-                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700">
-                        Показано <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> -
-                        <span className="font-medium"> {Math.min(pagination.page * pagination.limit, pagination.total)}</span> из
-                        <span className="font-medium"> {pagination.total}</span>
-                      </p>
-                    </div>
-                    <div>
-                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                        <button
-                          onClick={() => setPagination(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
-                          disabled={pagination.page === 1}
-                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <span className="sr-only">Назад</span>
-                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                        <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                          {pagination.page} / {pagination.totalPages}
-                        </span>
-                        <button
-                          onClick={() => setPagination(p => ({ ...p, page: Math.min(p.totalPages, p.page + 1) }))}
-                          disabled={pagination.page === pagination.totalPages}
-                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <span className="sr-only">Вперёд</span>
-                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                      </nav>
-                    </div>
-                  </div>
-                </div>
+            {/* Пагинация снизу */}
+            {pagination.total > 0 && (
+              <div className="px-4 py-3 border-t border-gray-200">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={handlePageChange}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                />
               </div>
             )}
           </div>
