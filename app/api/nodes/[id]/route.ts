@@ -196,20 +196,6 @@ export async function DELETE(
 
     const { id } = await params
 
-    // Проверяем, есть ли заявки, привязанные к этому узлу
-    const { data: applications } = await supabase
-      .from('zakaz_applications')
-      .select('id')
-      .eq('node_id', id)
-      .limit(1)
-
-    if (applications && applications.length > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete node with existing applications. Unlink applications first.' },
-        { status: 400 }
-      )
-    }
-
     // Получаем данные узла для логирования
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: nodeData } = await (supabase.from('zakaz_nodes') as any)
