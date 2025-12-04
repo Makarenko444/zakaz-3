@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface AddressStats {
@@ -21,6 +21,10 @@ interface AddressStats {
 }
 
 type FilterType = 'all' | 'active' | 'completed'
+type SortField = 'address' | 'total_applications' | 'active_count' | 'completed_count'
+type SortDirection = 'asc' | 'desc'
+
+const ITEMS_PER_PAGE = 20
 
 export default function ApplicationsByAddressPage() {
   const router = useRouter()
@@ -28,6 +32,9 @@ export default function ApplicationsByAddressPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState<FilterType>('active')
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortField, setSortField] = useState<SortField>('total_applications')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     loadAddressesStats()
@@ -47,20 +54,76 @@ export default function ApplicationsByAddressPage() {
     }
   }
 
-  // Фильтрация адресов
-  const filteredAddresses = addressesStats.filter((addr) => {
+  // Фильтрация и сортировка
+  const processedAddresses = useMemo(() => {
+    let result = [...addressesStats]
+
     // Фильтр по статусу
-    if (filter === 'active' && addr.active_count === 0) return false
-    if (filter === 'completed' && addr.completed_count === 0) return false
+    if (filter === 'active') {
+      result = result.filter(addr => addr.active_count > 0)
+    } else if (filter === 'completed') {
+      result = result.filter(addr => addr.completed_count > 0)
+    }
 
     // Поиск по адресу
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      return addr.address.toLowerCase().includes(query)
+      result = result.filter(addr => addr.address.toLowerCase().includes(query))
     }
 
-    return true
-  })
+    // Сортировка
+    result.sort((a, b) => {
+      let comparison = 0
+      if (sortField === 'address') {
+        comparison = a.address.localeCompare(b.address, 'ru')
+      } else {
+        comparison = a[sortField] - b[sortField]
+      }
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+
+    return result
+  }, [addressesStats, filter, searchQuery, sortField, sortDirection])
+
+  // Пагинация
+  const totalPages = Math.ceil(processedAddresses.length / ITEMS_PER_PAGE)
+  const paginatedAddresses = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return processedAddresses.slice(start, start + ITEMS_PER_PAGE)
+  }, [processedAddresses, currentPage])
+
+  // Сброс страницы при изменении фильтров
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filter, searchQuery, sortField, sortDirection])
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection(field === 'address' ? 'asc' : 'desc')
+    }
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return (
+        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      )
+    }
+    return sortDirection === 'asc' ? (
+      <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    )
+  }
 
   const filterButtons: { value: FilterType; label: string }[] = [
     { value: 'active', label: 'Активные' },
@@ -126,7 +189,7 @@ export default function ApplicationsByAddressPage() {
             <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600">Загрузка статистики...</p>
           </div>
-        ) : filteredAddresses.length === 0 ? (
+        ) : paginatedAddresses.length === 0 ? (
           <div className="p-8 text-center">
             <svg
               className="w-16 h-16 text-gray-400 mx-auto mb-4"
@@ -150,17 +213,41 @@ export default function ApplicationsByAddressPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Адрес
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition"
+                    onClick={() => handleSort('address')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Адрес
+                      <SortIcon field="address" />
+                    </div>
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Всего
+                  <th
+                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition"
+                    onClick={() => handleSort('total_applications')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Всего
+                      <SortIcon field="total_applications" />
+                    </div>
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Активных
+                  <th
+                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition"
+                    onClick={() => handleSort('active_count')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Активных
+                      <SortIcon field="active_count" />
+                    </div>
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Завершенных
+                  <th
+                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition"
+                    onClick={() => handleSort('completed_count')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Завершенных
+                      <SortIcon field="completed_count" />
+                    </div>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     По статусам
@@ -171,7 +258,7 @@ export default function ApplicationsByAddressPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredAddresses.map((addr) => (
+                {paginatedAddresses.map((addr) => (
                   <tr key={addr.address_id} className="hover:bg-gray-50 transition">
                     <td className="px-4 py-4">
                       <div className="text-sm font-medium text-gray-900">{addr.address}</div>
@@ -224,14 +311,58 @@ export default function ApplicationsByAddressPage() {
             </table>
           </div>
         )}
+
+        {/* Пагинация */}
+        {!isLoading && totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Показано {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, processedAddresses.length)} из {processedAddresses.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                «
+              </button>
+              <button
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ‹
+              </button>
+              <span className="px-3 py-1 text-sm">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ›
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                »
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Итоговая информация */}
-      {!isLoading && filteredAddresses.length > 0 && (
+      {!isLoading && processedAddresses.length > 0 && (
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <p className="text-sm text-gray-600">
-            Показано адресов: <span className="font-semibold">{filteredAddresses.length}</span> из{' '}
-            <span className="font-semibold">{addressesStats.length}</span>
+            Всего адресов: <span className="font-semibold">{processedAddresses.length}</span>
+            {filter !== 'all' && (
+              <> (из <span className="font-semibold">{addressesStats.length}</span>)</>
+            )}
           </p>
         </div>
       )}
