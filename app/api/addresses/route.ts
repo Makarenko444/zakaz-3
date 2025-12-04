@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const sortField = searchParams.get('sort_field') || 'created_at'
     const sortDirection = searchParams.get('sort_direction') || 'desc'
 
-    // Базовый запрос для получения адресов с узлами
+    // Базовый запрос для получения адресов с узлами и заявками
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabase.from('zakaz_addresses') as any)
       .select(`
@@ -26,6 +26,10 @@ export async function GET(request: NextRequest) {
           presence_type,
           status,
           node_type
+        ),
+        zakaz_applications(
+          id,
+          status
         )
       `, { count: 'exact' })
       .order(sortField, { ascending: sortDirection === 'asc' })
@@ -61,17 +65,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Обрабатываем данные - добавляем количество узлов
+    // Статусы завершенных заявок
+    const completedStatuses = ['installed', 'rejected', 'no_tech']
+
+    // Обрабатываем данные - добавляем количество узлов и статистику заявок
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transformedData = data?.map((address: any) => {
       const nodes = address.zakaz_nodes || []
+      const applications = address.zakaz_applications || []
+
+      // Подсчитываем активные и всего заявок
+      const totalApplications = applications.length
+      const activeApplications = applications.filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (app: any) => !completedStatuses.includes(app.status)
+      ).length
 
       return {
         ...address,
         node_count: nodes.length,
+        applications_total: totalApplications,
+        applications_active: activeApplications,
         // presence_status уже есть в адресе из БД
-        // Убираем вложенный массив узлов из ответа для краткости
+        // Убираем вложенные массивы из ответа для краткости
         zakaz_nodes: undefined,
+        zakaz_applications: undefined,
       }
     }) || []
 
