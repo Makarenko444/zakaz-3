@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Pagination from '@/app/components/Pagination'
 
 interface AddressStats {
   address_id: string
@@ -24,7 +25,7 @@ type FilterType = 'all' | 'active' | 'completed'
 type SortField = 'address' | 'total_applications' | 'active_count' | 'completed_count'
 type SortDirection = 'asc' | 'desc'
 
-const ITEMS_PER_PAGE = 20
+const DEFAULT_ITEMS_PER_PAGE = 20
 
 export default function ApplicationsByAddressPage() {
   const router = useRouter()
@@ -35,6 +36,7 @@ export default function ApplicationsByAddressPage() {
   const [sortField, setSortField] = useState<SortField>('total_applications')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE)
 
   useEffect(() => {
     loadAddressesStats()
@@ -86,16 +88,16 @@ export default function ApplicationsByAddressPage() {
   }, [addressesStats, filter, searchQuery, sortField, sortDirection])
 
   // Пагинация
-  const totalPages = Math.ceil(processedAddresses.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(processedAddresses.length / itemsPerPage)
   const paginatedAddresses = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE
-    return processedAddresses.slice(start, start + ITEMS_PER_PAGE)
-  }, [processedAddresses, currentPage])
+    const start = (currentPage - 1) * itemsPerPage
+    return processedAddresses.slice(start, start + itemsPerPage)
+  }, [processedAddresses, currentPage, itemsPerPage])
 
-  // Сброс страницы при изменении фильтров
+  // Сброс страницы при изменении фильтров или количества на странице
   useEffect(() => {
     setCurrentPage(1)
-  }, [filter, searchQuery, sortField, sortDirection])
+  }, [filter, searchQuery, sortField, sortDirection, itemsPerPage])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -184,6 +186,20 @@ export default function ApplicationsByAddressPage() {
 
       {/* Таблица */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        {/* Пагинация сверху */}
+        {!isLoading && processedAddresses.length > 0 && (
+          <div className="px-4 py-3 border-b border-gray-200">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={processedAddresses.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
+            />
+          </div>
+        )}
+
         {isLoading ? (
           <div className="p-8 text-center">
             <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -312,45 +328,17 @@ export default function ApplicationsByAddressPage() {
           </div>
         )}
 
-        {/* Пагинация */}
-        {!isLoading && totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Показано {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, processedAddresses.length)} из {processedAddresses.length}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                «
-              </button>
-              <button
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                ‹
-              </button>
-              <span className="px-3 py-1 text-sm">
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                ›
-              </button>
-              <button
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                »
-              </button>
-            </div>
+        {/* Пагинация снизу */}
+        {!isLoading && processedAddresses.length > 0 && (
+          <div className="px-4 py-3 border-t border-gray-200">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={processedAddresses.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
+            />
           </div>
         )}
       </div>
