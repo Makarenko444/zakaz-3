@@ -111,7 +111,6 @@ export async function PATCH(
 
     // Подготовка данных для обновления
     const updateData: Record<string, unknown> = {
-      address_id: body.address_id !== undefined ? body.address_id : null,
       street_and_house: body.street_and_house || null,
       address_details: body.address_details || null,
       customer_type: body.customer_type,
@@ -129,6 +128,11 @@ export async function PATCH(
     // Обновляем статус привязки адреса если передан
     if (body.address_match_status) {
       updateData.address_match_status = body.address_match_status
+    }
+
+    // Обновляем address_id только если он явно передан в запросе
+    if ('address_id' in body) {
+      updateData.address_id = body.address_id || null
     }
 
     // Обходим проблемы с автогенерируемыми типами Supabase через unknown
