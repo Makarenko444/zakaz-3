@@ -178,7 +178,7 @@ export async function PATCH(
       actionType: 'update',
       entityType: 'application',
       entityId: id,
-      description: `Отредактирована заявка: ${body.customer_fullname}`,
+      description: 'Заявка отредактирована.',
       oldValues: oldData || undefined,
       newValues: {
         customer_fullname: body.customer_fullname,
