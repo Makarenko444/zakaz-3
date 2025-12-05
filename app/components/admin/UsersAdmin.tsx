@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { User, UserRole } from '@/lib/types'
 
 const roleNames: Record<UserRole, string> = {
@@ -20,6 +20,13 @@ interface UserFormData {
   active: boolean
 }
 
+interface Filters {
+  search: string
+  role: UserRole | 'all'
+  status: 'all' | 'active' | 'inactive'
+  source: 'all' | 'legacy' | 'new'
+}
+
 export default function UsersAdmin() {
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -34,6 +41,12 @@ export default function UsersAdmin() {
     active: true,
   })
   const [error, setError] = useState<string | null>(null)
+  const [filters, setFilters] = useState<Filters>({
+    search: '',
+    role: 'all',
+    status: 'all',
+    source: 'all',
+  })
 
   useEffect(() => {
     loadUsers()
@@ -54,6 +67,36 @@ export default function UsersAdmin() {
       setIsLoading(false)
     }
   }
+
+  // Фильтрация пользователей
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      // Поиск по имени или email
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase()
+        const matchesSearch =
+          user.full_name.toLowerCase().includes(searchLower) ||
+          user.email.toLowerCase().includes(searchLower) ||
+          (user.phone && user.phone.includes(filters.search))
+        if (!matchesSearch) return false
+      }
+
+      // Фильтр по роли
+      if (filters.role !== 'all' && user.role !== filters.role) {
+        return false
+      }
+
+      // Фильтр по статусу
+      if (filters.status === 'active' && !user.active) return false
+      if (filters.status === 'inactive' && user.active) return false
+
+      // Фильтр по источнику
+      if (filters.source === 'legacy' && !user.legacy_uid) return false
+      if (filters.source === 'new' && user.legacy_uid) return false
+
+      return true
+    })
+  }, [users, filters])
 
   function openCreateModal() {
     setEditingUser(null)
@@ -146,6 +189,32 @@ export default function UsersAdmin() {
     }
   }
 
+  function formatDate(dateString: string | null): string {
+    if (!dateString) return '—'
+    try {
+      return new Date(dateString).toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      return '—'
+    }
+  }
+
+  function clearFilters() {
+    setFilters({
+      search: '',
+      role: 'all',
+      status: 'all',
+      source: 'all',
+    })
+  }
+
+  const hasActiveFilters = filters.search || filters.role !== 'all' || filters.status !== 'all' || filters.source !== 'all'
+
   if (isLoading) {
     return <div className="text-center py-8">Загрузка...</div>
   }
@@ -172,6 +241,86 @@ export default function UsersAdmin() {
         </div>
       )}
 
+      {/* Filters */}
+      <div className="mb-6 bg-white rounded-lg shadow p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Search */}
+          <div className="lg:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Поиск</label>
+            <input
+              type="text"
+              placeholder="Имя, email или телефон..."
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Role filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Роль</label>
+            <select
+              value={filters.role}
+              onChange={(e) => setFilters({ ...filters, role: e.target.value as UserRole | 'all' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            >
+              <option value="all">Все роли</option>
+              <option value="admin">Администратор</option>
+              <option value="manager">Менеджер</option>
+              <option value="engineer">Инженер</option>
+              <option value="installer">Монтажник</option>
+              <option value="supply">Снабжение</option>
+            </select>
+          </div>
+
+          {/* Status filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value as 'all' | 'active' | 'inactive' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            >
+              <option value="all">Все</option>
+              <option value="active">Активные</option>
+              <option value="inactive">Неактивные</option>
+            </select>
+          </div>
+
+          {/* Source filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Источник</label>
+            <select
+              value={filters.source}
+              onChange={(e) => setFilters({ ...filters, source: e.target.value as 'all' | 'legacy' | 'new' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            >
+              <option value="all">Все</option>
+              <option value="legacy">Из старой системы</option>
+              <option value="new">Новые</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Filter stats and clear */}
+        <div className="mt-4 flex justify-between items-center text-sm text-gray-600">
+          <span>
+            Показано: {filteredUsers.length} из {users.length} пользователей
+          </span>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Сбросить фильтры
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Users Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
@@ -193,16 +342,22 @@ export default function UsersAdmin() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Статус
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Источник
+              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Действия
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
+            {filteredUsers.map((user) => (
               <tr key={user.id} className={!user.active ? 'bg-gray-50 opacity-60' : ''}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                  {user.legacy_uid && (
+                    <div className="text-xs text-gray-400">ID: {user.legacy_uid}</div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-500">{user.email}</div>
@@ -226,6 +381,17 @@ export default function UsersAdmin() {
                     {user.active ? 'Активен' : 'Неактивен'}
                   </span>
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {user.legacy_uid ? (
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
+                      Legacy
+                    </span>
+                  ) : (
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-600">
+                      Новый
+                    </span>
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
                     onClick={() => openEditModal(user)}
@@ -242,6 +408,13 @@ export default function UsersAdmin() {
                 </td>
               </tr>
             ))}
+            {filteredUsers.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  {hasActiveFilters ? 'Нет пользователей, соответствующих фильтрам' : 'Нет пользователей'}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
         </div>
@@ -250,80 +423,130 @@ export default function UsersAdmin() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {editingUser ? 'Редактировать пользователя' : 'Новый пользователь'}
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
+              {/* Основные поля в две колонки */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ФИО *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Телефон
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Роль *
+                  </label>
+                  <select
+                    required
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="admin">Администратор</option>
+                    <option value="manager">Менеджер</option>
+                    <option value="engineer">Инженер</option>
+                    <option value="installer">Монтажник</option>
+                    <option value="supply">Снабжение</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Пароль {editingUser ? '(оставьте пустым, если не меняете)' : '*'}
+                  </label>
+                  <input
+                    type="password"
+                    required={!editingUser}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.active}
+                      onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Активен</span>
+                  </label>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ФИО *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Телефон
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Роль *
-                </label>
-                <select
-                  required
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="admin">Администратор</option>
-                  <option value="manager">Менеджер</option>
-                  <option value="engineer">Инженер</option>
-                  <option value="installer">Монтажник</option>
-                  <option value="supply">Снабжение</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Пароль {editingUser ? '(оставьте пустым, если не меняете)' : '*'}
-                </label>
-                <input
-                  type="password"
-                  required={!editingUser}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
+              {/* Дополнительная информация (только при редактировании) */}
+              {editingUser && (
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Дополнительная информация</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <span className="text-gray-500">ID в системе:</span>
+                      <div className="font-mono text-gray-900 truncate" title={editingUser.id}>
+                        {editingUser.id}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <span className="text-gray-500">Дата создания:</span>
+                      <div className="text-gray-900">{formatDate(editingUser.created_at)}</div>
+                    </div>
+                    {editingUser.legacy_uid && (
+                      <>
+                        <div className="bg-amber-50 p-3 rounded-lg">
+                          <span className="text-amber-700">ID в старой системе:</span>
+                          <div className="text-amber-900 font-medium">{editingUser.legacy_uid}</div>
+                        </div>
+                        <div className="bg-amber-50 p-3 rounded-lg">
+                          <span className="text-amber-700">Последний вход (старая система):</span>
+                          <div className="text-amber-900">{formatDate(editingUser.legacy_last_login)}</div>
+                        </div>
+                        <div className="bg-amber-50 p-3 rounded-lg col-span-full">
+                          <span className="text-amber-700">Последний визит (старая система):</span>
+                          <div className="text-amber-900">{formatDate(editingUser.legacy_last_access)}</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm">
