@@ -6,8 +6,9 @@ import { getCurrentUser } from '@/lib/auth-client'
 import { User } from '@/lib/types'
 import UsersAdmin from '@/app/components/admin/UsersAdmin'
 import StatusesAdmin from '@/app/components/admin/StatusesAdmin'
+import LegacyImportAdmin from '@/app/components/admin/LegacyImportAdmin'
 
-type AdminTab = 'users' | 'statuses'
+type AdminTab = 'users' | 'statuses' | 'legacy-import'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -91,6 +92,22 @@ export default function AdminPage() {
                 Статусы заявок
               </div>
             </button>
+
+            <button
+              onClick={() => setActiveTab('legacy-import')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+                activeTab === 'legacy-import'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Импорт данных
+              </div>
+            </button>
           </nav>
         </div>
       </div>
@@ -99,6 +116,7 @@ export default function AdminPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'users' && <UsersAdmin />}
         {activeTab === 'statuses' && <StatusesAdmin />}
+        {activeTab === 'legacy-import' && <LegacyImportAdmin />}
       </main>
     </>
   )
