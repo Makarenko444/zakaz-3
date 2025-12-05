@@ -645,6 +645,7 @@ export async function POST(request: NextRequest) {
                 user_email: null,
                 comment: commentText,
                 created_at: createdAt,
+                updated_at: createdAt,  // чтобы не показывало "изменен"
               }
 
               const { error } = await supabase
