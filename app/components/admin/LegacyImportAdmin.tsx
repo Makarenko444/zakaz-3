@@ -29,6 +29,12 @@ interface ImportStats {
     skipped: number
     errors: number
   }
+  users: {
+    total: number
+    imported: number
+    skipped: number
+    errors: number
+  }
 }
 
 interface ProgressData {
@@ -67,6 +73,7 @@ export default function LegacyImportAdmin() {
   const [ordersFile, setOrdersFile] = useState<File | null>(null)
   const [commentsFile, setCommentsFile] = useState<File | null>(null)
   const [filesFile, setFilesFile] = useState<File | null>(null)
+  const [usersFile, setUsersFile] = useState<File | null>(null)
   const [batchSize, setBatchSize] = useState(50)
   const [recordLimit, setRecordLimit] = useState<number | ''>(30) // Лимит записей для теста (пусто = без лимита)
 
@@ -79,11 +86,13 @@ export default function LegacyImportAdmin() {
     orders: number
     comments: number
     files: number
+    users: number
   } | null>(null)
 
   const ordersInputRef = useRef<HTMLInputElement>(null)
   const commentsInputRef = useRef<HTMLInputElement>(null)
   const filesInputRef = useRef<HTMLInputElement>(null)
+  const usersInputRef = useRef<HTMLInputElement>(null)
   const logContainerRef = useRef<HTMLDivElement>(null)
 
   // Парсинг TSV файла
@@ -113,6 +122,7 @@ export default function LegacyImportAdmin() {
       orders: 0,
       comments: 0,
       files: 0,
+      users: 0,
     }
 
     if (ordersFile) {
@@ -127,14 +137,19 @@ export default function LegacyImportAdmin() {
       const rows = await parseTSV(filesFile)
       preview.files = rows.length
     }
+    if (usersFile) {
+      const rows = await parseTSV(usersFile)
+      // Фильтруем анонимного пользователя (uid=0)
+      preview.users = rows.filter(r => r.uid !== '0' && r.uid !== '').length
+    }
 
     setPreviewData(preview)
   }
 
   // Запуск импорта со streaming
   async function handleImport() {
-    if (!ordersFile) {
-      alert('Загрузите файл orders.tsv')
+    if (!ordersFile && !usersFile) {
+      alert('Загрузите хотя бы один файл (orders.tsv или users.tsv)')
       return
     }
 
@@ -146,7 +161,9 @@ export default function LegacyImportAdmin() {
 
     try {
       const formData = new FormData()
-      formData.append('orders', ordersFile)
+      if (ordersFile) {
+        formData.append('orders', ordersFile)
+      }
       formData.append('batchSize', batchSize.toString())
       if (recordLimit !== '' && recordLimit > 0) {
         formData.append('recordLimit', recordLimit.toString())
@@ -156,6 +173,9 @@ export default function LegacyImportAdmin() {
       }
       if (filesFile) {
         formData.append('files', filesFile)
+      }
+      if (usersFile) {
+        formData.append('users', usersFile)
       }
 
       const response = await fetch('/api/admin/legacy-import', {
@@ -280,6 +300,7 @@ export default function LegacyImportAdmin() {
     orders: 'Импорт заявок',
     comments: 'Импорт комментариев',
     files: 'Импорт файлов',
+    users: 'Импорт пользователей',
     done: 'Завершено',
     error: 'Ошибка',
   }
@@ -292,7 +313,7 @@ export default function LegacyImportAdmin() {
           Импорт данных из старой системы
         </h2>
         <p className="text-gray-600">
-          Загрузите TSV файлы из старой системы Drupal (zakaz_all) для импорта заявок, комментариев и файлов.
+          Загрузите TSV файлы из старой системы Drupal (zakaz_all) для импорта заявок, комментариев, файлов и пользователей.
         </p>
       </div>
 
@@ -300,7 +321,7 @@ export default function LegacyImportAdmin() {
       <div className="bg-white shadow rounded-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Загрузка файлов</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Orders */}
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-indigo-400 transition">
             <div className="text-center">
@@ -408,6 +429,42 @@ export default function LegacyImportAdmin() {
               )}
             </div>
           </div>
+
+          {/* Users */}
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-indigo-400 transition">
+            <div className="text-center">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <h4 className="mt-2 text-sm font-medium text-gray-900">users.tsv</h4>
+              <p className="mt-1 text-xs text-gray-500">Пользователи (опционально)</p>
+
+              <input
+                ref={usersInputRef}
+                type="file"
+                accept=".tsv,.txt"
+                className="hidden"
+                onChange={(e) => {
+                  setUsersFile(e.target.files?.[0] || null)
+                  setPreviewData(null)
+                }}
+              />
+
+              <button
+                onClick={() => usersInputRef.current?.click()}
+                disabled={isImporting}
+                className="mt-3 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 disabled:opacity-50"
+              >
+                {usersFile ? 'Заменить' : 'Выбрать'}
+              </button>
+
+              {usersFile && (
+                <p className="mt-2 text-xs text-green-600 truncate">
+                  {usersFile.name}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Настройки и кнопки */}
@@ -443,7 +500,7 @@ export default function LegacyImportAdmin() {
 
           <button
             onClick={handlePreview}
-            disabled={!ordersFile || isImporting}
+            disabled={(!ordersFile && !usersFile) || isImporting}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Предпросмотр
@@ -451,7 +508,7 @@ export default function LegacyImportAdmin() {
 
           <button
             onClick={handleImport}
-            disabled={!ordersFile || isImporting}
+            disabled={(!ordersFile && !usersFile) || isImporting}
             className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isImporting ? (
@@ -472,7 +529,7 @@ export default function LegacyImportAdmin() {
         {previewData && (
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <h4 className="text-sm font-medium text-gray-900 mb-2">Предпросмотр:</h4>
-            <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-gray-500">Заявок:</span>{' '}
                 <span className="font-medium">{previewData.orders}</span>
@@ -484,6 +541,10 @@ export default function LegacyImportAdmin() {
               <div>
                 <span className="text-gray-500">Файлов:</span>{' '}
                 <span className="font-medium">{previewData.files}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Пользователей:</span>{' '}
+                <span className="font-medium">{previewData.users}</span>
               </div>
             </div>
           </div>
@@ -534,7 +595,7 @@ export default function LegacyImportAdmin() {
 
           {/* Статистика */}
           {importStats && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <div className="border rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-500 mb-2">Заявки</h4>
                 <div className="space-y-1 text-sm">
@@ -597,6 +658,28 @@ export default function LegacyImportAdmin() {
                   <div className="flex justify-between text-red-600">
                     <span>Ошибок:</span>
                     <span className="font-medium">{importStats.files.errors}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Пользователи</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Всего:</span>
+                    <span className="font-medium">{importStats.users.total}</span>
+                  </div>
+                  <div className="flex justify-between text-green-600">
+                    <span>Импортировано:</span>
+                    <span className="font-medium">{importStats.users.imported}</span>
+                  </div>
+                  <div className="flex justify-between text-yellow-600">
+                    <span>Пропущено:</span>
+                    <span className="font-medium">{importStats.users.skipped}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600">
+                    <span>Ошибок:</span>
+                    <span className="font-medium">{importStats.users.errors}</span>
                   </div>
                 </div>
               </div>
