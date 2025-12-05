@@ -614,12 +614,13 @@ export async function POST(request: NextRequest) {
 
               let commentText = comment.comment?.trim() || ''
 
-              // Очистка HTML
+              // Очистка HTML и специальных символов
               commentText = commentText
                 .replace(/<br\s*\/?>/gi, '\n')
                 .replace(/<p>/gi, '')
                 .replace(/<\/p>/gi, '\n')
                 .replace(/<[^>]+>/g, '')
+                .replace(/\\n/g, '\n')        // литеральный \n → перевод строки
                 .replace(/&nbsp;/g, ' ')
                 .replace(/&amp;/g, '&')
                 .replace(/&lt;/g, '<')
