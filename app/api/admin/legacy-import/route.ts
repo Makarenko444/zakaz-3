@@ -273,9 +273,9 @@ export async function POST(request: NextRequest) {
 
         const { data: inserted, error } = await supabase
           .from('zakaz_applications')
-          .insert(applicationData)
+          .insert(applicationData as never)
           .select('id')
-          .single()
+          .single() as { data: { id: string } | null; error: { message: string } | null }
 
         if (error) {
           stats.orders.errors++
@@ -284,7 +284,7 @@ export async function POST(request: NextRequest) {
         }
 
         stats.orders.imported++
-        orderIdMapping.set(legacyId, inserted.id)
+        orderIdMapping.set(legacyId, inserted!.id)
         log(logs, 'success', `Импортирована заявка #${legacyId} -> ${inserted.id}`)
 
       } catch (error) {
@@ -384,7 +384,7 @@ export async function POST(request: NextRequest) {
 
           const { error } = await supabase
             .from('zakaz_application_comments')
-            .insert(commentData)
+            .insert(commentData as never) as { error: { message: string } | null }
 
           if (error) {
             stats.comments.errors++
@@ -489,7 +489,7 @@ export async function POST(request: NextRequest) {
 
           const { error } = await supabase
             .from('zakaz_files')
-            .insert(fileData)
+            .insert(fileData as never) as { error: { message: string } | null }
 
           if (error) {
             stats.files.errors++
