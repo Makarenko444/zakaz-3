@@ -437,6 +437,19 @@ export async function POST(request: NextRequest) {
                 }
               }
 
+              // Парсинг даты изменения (node_changed_at)
+              let updatedAt: string | null = null
+              if (order.node_changed_at) {
+                try {
+                  const date = new Date(order.node_changed_at)
+                  if (!isNaN(date.getTime())) {
+                    updatedAt = date.toISOString()
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+
               // Формируем дополнительную информацию для комментария
               const additionalInfo: string[] = []
 
@@ -482,6 +495,7 @@ export async function POST(request: NextRequest) {
                 address_match_status: 'unmatched',
                 client_comment: clientComment,
                 created_at: createdAt,
+                updated_at: updatedAt,
                 created_by: createdBy,
               }
 
