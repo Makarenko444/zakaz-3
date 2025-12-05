@@ -879,15 +879,41 @@ export async function POST(request: NextRequest) {
                 continue
               }
 
-              // Проверка: email уже существует (для новых пользователей)
+              // Проверка: email уже существует - обновляем пользователя (устанавливаем legacy_uid)
               if (userEmail && existingEmails.has(userEmail.toLowerCase())) {
-                stats.users.skipped++
-                sendProgress({
-                  phase: 'users',
-                  current: i + 1,
-                  total: users.length,
-                  log: log('warning', `Пользователь ${userName}: email ${userEmail} уже существует`),
-                })
+                // Обновляем существующего пользователя по email
+                const updateData: Record<string, unknown> = {
+                  legacy_uid: parseInt(legacyUid),
+                  legacy_last_access: lastAccess,
+                  legacy_last_login: lastLogin,
+                  full_name: userName,
+                  active: isActive,
+                }
+
+                const { data: updated, error: updateError } = await supabase
+                  .from('zakaz_users')
+                  .update(updateData as never)
+                  .eq('email', userEmail.toLowerCase())
+                  .select('id')
+                  .single() as { data: { id: string } | null; error: { message: string } | null }
+
+                if (updateError) {
+                  stats.users.errors++
+                  if (stats.users.errors <= 5) {
+                    sendProgress({
+                      phase: 'users',
+                      current: i + 1,
+                      total: users.length,
+                      log: log('error', `Ошибка обновления ${userName} по email`, updateError.message),
+                    })
+                  }
+                } else {
+                  stats.users.imported++
+                  if (updated) {
+                    userIdMapping.set(legacyUid, updated.id)
+                    existingLegacyUids.add(legacyUid) // Добавляем в список для последующих проверок
+                  }
+                }
                 continue
               }
 
