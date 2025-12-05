@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth-client'
 import { User } from '@/lib/types'
 import Header from '@/app/components/Header'
 import Sidebar from '@/components/Sidebar'
+import ChangePasswordModal from '@/components/ChangePasswordModal'
 
 export default function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default function DashboardLayout({
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [showChangePassword, setShowChangePassword] = useState(false)
 
   useEffect(() => {
     loadUser()
@@ -85,6 +87,7 @@ export default function DashboardLayout({
         applicationsCount={applicationsCount}
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
+        onChangePassword={() => setShowChangePassword(true)}
       />
 
       {/* Верхняя панель */}
@@ -100,6 +103,12 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
+
+      {/* Модал смены пароля */}
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+      />
     </div>
   )
 }

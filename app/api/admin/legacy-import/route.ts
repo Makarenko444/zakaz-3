@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
-import { validateSession } from '@/lib/session'
+import { validateSession, hashPassword } from '@/lib/session'
+
+// Стартовый пароль для импортируемых пользователей
+const DEFAULT_IMPORT_PASSWORD = 'tomicazakaz'
 
 // Типы
 interface ImportLogEntry {
@@ -900,7 +903,7 @@ export async function POST(request: NextRequest) {
                 full_name: userName,
                 phone: null,
                 role: 'engineer',
-                password_hash: 'NEEDS_RESET', // Требуется сброс пароля
+                password_hash: hashPassword(DEFAULT_IMPORT_PASSWORD),
                 active: isActive,
                 created_at: createdAt,
               }
