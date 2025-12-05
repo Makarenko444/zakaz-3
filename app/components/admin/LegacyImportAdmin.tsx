@@ -68,6 +68,7 @@ export default function LegacyImportAdmin() {
   const [commentsFile, setCommentsFile] = useState<File | null>(null)
   const [filesFile, setFilesFile] = useState<File | null>(null)
   const [batchSize, setBatchSize] = useState(50)
+  const [recordLimit, setRecordLimit] = useState<number | ''>(30) // Лимит записей для теста (пусто = без лимита)
 
   const [isImporting, setIsImporting] = useState(false)
   const [importLogs, setImportLogs] = useState<ImportLogEntry[]>([])
@@ -147,6 +148,9 @@ export default function LegacyImportAdmin() {
       const formData = new FormData()
       formData.append('orders', ordersFile)
       formData.append('batchSize', batchSize.toString())
+      if (recordLimit !== '' && recordLimit > 0) {
+        formData.append('recordLimit', recordLimit.toString())
+      }
       if (commentsFile) {
         formData.append('comments', commentsFile)
       }
@@ -408,6 +412,20 @@ export default function LegacyImportAdmin() {
 
         {/* Настройки и кнопки */}
         <div className="mt-6 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Лимит записей:</label>
+            <input
+              type="number"
+              value={recordLimit}
+              onChange={(e) => setRecordLimit(e.target.value === '' ? '' : parseInt(e.target.value))}
+              disabled={isImporting}
+              placeholder="все"
+              min={0}
+              className="w-20 px-3 py-1 border rounded text-sm"
+            />
+            <span className="text-xs text-gray-400">(пусто = все)</span>
+          </div>
+
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Размер блока:</label>
             <select

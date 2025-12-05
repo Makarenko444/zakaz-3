@@ -167,6 +167,8 @@ export async function POST(request: NextRequest) {
   const commentsFile = formData.get('comments') as File | null
   const filesFile = formData.get('files') as File | null
   const batchSize = parseInt(formData.get('batchSize') as string) || 50
+  const recordLimitStr = formData.get('recordLimit') as string | null
+  const recordLimit = recordLimitStr ? parseInt(recordLimitStr) : 0 // 0 = без лимита
 
   if (!ordersFile) {
     return NextResponse.json({ error: 'Файл orders.tsv обязателен' }, { status: 400 })
@@ -174,7 +176,13 @@ export async function POST(request: NextRequest) {
 
   // Парсинг файлов заранее
   const ordersText = await ordersFile.text()
-  const orders = parseTSV<LegacyOrder>(ordersText)
+  let orders = parseTSV<LegacyOrder>(ordersText)
+
+  // Применяем лимит записей если указан
+  const totalOrdersBeforeLimit = orders.length
+  if (recordLimit > 0 && orders.length > recordLimit) {
+    orders = orders.slice(0, recordLimit)
+  }
 
   let comments: LegacyComment[] = []
   if (commentsFile) {
@@ -239,8 +247,17 @@ export async function POST(request: NextRequest) {
           phase: 'init',
           current: 0,
           total: orders.length + comments.length + files.length,
-          log: log('info', `Найдено: заявок ${orders.length}, комментариев ${comments.length}, файлов ${files.length}`),
+          log: log('info', `Найдено: заявок ${totalOrdersBeforeLimit}, комментариев ${comments.length}, файлов ${files.length}`),
         })
+
+        if (recordLimit > 0 && totalOrdersBeforeLimit > recordLimit) {
+          sendProgress({
+            phase: 'init',
+            current: 0,
+            total: orders.length,
+            log: log('warning', `Применён лимит: будет импортировано только ${recordLimit} из ${totalOrdersBeforeLimit} заявок`),
+          })
+        }
 
         // Получаем существующие legacy_id
         const { data: existingOrders } = await supabase
