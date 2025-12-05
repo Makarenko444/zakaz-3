@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       .from('zakaz_users')
       .select('id, password_hash')
       .eq('id', session.user.id)
-      .single()
+      .single() as { data: { id: string; password_hash: string } | null; error: unknown }
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Пользователь не найден' }, { status: 404 })
