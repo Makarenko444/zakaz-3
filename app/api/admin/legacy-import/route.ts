@@ -628,7 +628,8 @@ export async function POST(request: NextRequest) {
                 .replace(/&quot;/g, '"')
                 .trim()
 
-              if (!commentText) {
+              // Пропускаем пустые и слишком короткие комментарии (меньше 4 символов)
+              if (!commentText || commentText.length < 4) {
                 stats.comments.skipped++
                 continue
               }
@@ -645,6 +646,7 @@ export async function POST(request: NextRequest) {
                 user_email: null,
                 comment: commentText,
                 created_at: createdAt,
+                updated_at: createdAt,  // чтобы не показывало "изменен"
               }
 
               const { error } = await supabase
