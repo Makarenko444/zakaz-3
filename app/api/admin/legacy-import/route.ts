@@ -519,7 +519,7 @@ export async function POST(request: NextRequest) {
                 stats.orders.imported++
                 orderIdMapping.set(legacyId, inserted!.id)
               }
-            } catch (error) {
+            } catch {
               stats.orders.errors++
             }
           }
