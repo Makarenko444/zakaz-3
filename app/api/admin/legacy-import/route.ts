@@ -248,7 +248,7 @@ export async function POST(request: NextRequest) {
     users = parseTSV<LegacyUser>(usersText)
     // Фильтруем анонимного пользователя Drupal (uid=0 или id=0)
     users = users.filter(u => {
-      const id = u.uid || (u as Record<string, string>)['id']
+      const id = u.uid || (u as unknown as Record<string, string>)['id']
       return id !== '0' && id !== ''
     })
   }
@@ -753,7 +753,7 @@ export async function POST(request: NextRequest) {
           for (let i = 0; i < users.length; i++) {
             const user = users[i]
             // Поддержка обоих форматов: uid (старый) и id (новый экспорт)
-            const legacyUid = (user.uid || (user as Record<string, string>)['id'])?.trim()
+            const legacyUid = (user.uid || (user as unknown as Record<string, string>)['id'])?.trim()
 
             if (!legacyUid || legacyUid === '0') {
               stats.users.skipped++
@@ -778,7 +778,7 @@ export async function POST(request: NextRequest) {
 
             try {
               // Поддержка обоих форматов: name (старый) и login (новый экспорт)
-              const userName = getValueOrNull(user.name) || getValueOrNull((user as Record<string, string>)['login'])
+              const userName = getValueOrNull(user.name) || getValueOrNull((user as unknown as Record<string, string>)['login'])
               const userEmail = getValueOrNull(user.mail)
 
               if (!userName) {
