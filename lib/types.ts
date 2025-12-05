@@ -38,6 +38,10 @@ export interface User {
   active: boolean
   created_at: string
   updated_at: string
+  // Legacy-поля для импорта из старой системы
+  legacy_uid: number | null
+  legacy_last_access: string | null
+  legacy_last_login: string | null
 }
 
 export interface Application {
