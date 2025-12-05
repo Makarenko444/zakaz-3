@@ -163,13 +163,15 @@ function mapServiceType(type: string): string {
 }
 
 // Очистка адреса от сокращений (ул., пр-т и т.д.)
+// Приводим к формату адресного справочника
 function cleanAddress(address: string | null): string | null {
   if (!address) return null
   return address
-    .replace(/^ул\.\s*/i, '')        // "ул. Ленина" → "Ленина"
-    .replace(/^пр-т\s*/i, 'пр. ')    // "пр-т Ленина" → "пр. Ленина"
-    .replace(/^пр-кт\s*/i, 'пр. ')   // "пр-кт Ленина" → "пр. Ленина"
-    .replace(/^пл\.\s*/i, 'пл. ')    // оставляем площадь
+    .replace(/^ул\.\s*/i, '')           // "ул. Ленина" → "Ленина"
+    .replace(/^пр-т\s*/i, 'просп. ')    // "пр-т Ленина" → "просп. Ленина"
+    .replace(/^пр-кт\s*/i, 'просп. ')   // "пр-кт Ленина" → "просп. Ленина"
+    .replace(/^пр\.\s*/i, 'просп. ')    // "пр. Ленина" → "просп. Ленина"
+    .replace(/^пл\.\s*/i, 'пл. ')       // оставляем площадь
     .trim()
 }
 
@@ -467,9 +469,6 @@ export async function POST(request: NextRequest) {
 
               // Формируем дополнительную информацию для комментария
               const additionalInfo: string[] = []
-
-              // Добавляем создателя заявки
-              if (isValidValue(order.node_uid)) additionalInfo.push(`Создал заявку (uid): ${order.node_uid.trim()}`)
 
               // Технические данные
               if (isValidValue(order.field_all_account_value)) additionalInfo.push(`Лицевой счёт: ${order.field_all_account_value.trim()}`)
