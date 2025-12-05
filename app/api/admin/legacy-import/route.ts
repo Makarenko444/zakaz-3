@@ -736,6 +736,23 @@ export async function POST(request: NextRequest) {
             log: log('info', '=== Импорт пользователей ==='),
           })
 
+          // Debug: показываем колонки первого пользователя
+          if (users[0]) {
+            const firstUserKeys = Object.keys(users[0])
+            sendProgress({
+              phase: 'users',
+              current: 0,
+              total: users.length,
+              log: log('info', `Колонки в файле: ${firstUserKeys.join(', ')}`),
+            })
+            sendProgress({
+              phase: 'users',
+              current: 0,
+              total: users.length,
+              log: log('info', `Первый пользователь: uid=${users[0].uid}, name=${users[0].name}, mail=${users[0].mail}`),
+            })
+          }
+
           // Получаем существующие legacy_uid
           const { data: existingUsers } = await supabase
             .from('zakaz_users')
