@@ -340,6 +340,26 @@ export async function POST(request: NextRequest) {
         // Маппинг legacy_id -> new_application_id
         const orderIdMapping: Map<string, string> = new Map()
 
+        // Маппинг legacy_uid -> user_id для связывания заявок и комментариев с пользователями
+        const { data: usersWithLegacyUid } = await supabase
+          .from('zakaz_users')
+          .select('id, legacy_uid')
+          .not('legacy_uid', 'is', null)
+
+        const legacyUserMapping: Map<string, string> = new Map()
+        if (usersWithLegacyUid) {
+          for (const u of usersWithLegacyUid as { id: string; legacy_uid: number }[]) {
+            legacyUserMapping.set(u.legacy_uid.toString(), u.id)
+          }
+        }
+
+        sendProgress({
+          phase: 'init',
+          current: 0,
+          total: orders.length,
+          log: log('info', `Загружено ${legacyUserMapping.size} пользователей для связывания`),
+        })
+
         // ==================== ИМПОРТ ЗАЯВОК ====================
         sendProgress({
           phase: 'orders',
@@ -439,6 +459,10 @@ export async function POST(request: NextRequest) {
 
               const clientComment = additionalInfo.length > 0 ? additionalInfo.join('\n') : null
 
+              // Связываем с пользователем, создавшим заявку
+              const creatorLegacyUid = order.node_uid?.trim()
+              const createdBy = creatorLegacyUid ? legacyUserMapping.get(creatorLegacyUid) || null : null
+
               const applicationData = {
                 legacy_id: parseInt(legacyId),
                 legacy_stage: stageValue,
@@ -456,6 +480,7 @@ export async function POST(request: NextRequest) {
                 address_match_status: 'unmatched',
                 client_comment: clientComment,
                 created_at: createdAt,
+                created_by: createdBy,
               }
 
               const { data: inserted, error } = await supabase
@@ -579,10 +604,14 @@ export async function POST(request: NextRequest) {
                 continue
               }
 
+              // Связываем с пользователем, написавшим комментарий
+              const commentAuthorLegacyUid = comment.uid?.trim()
+              const commentUserId = commentAuthorLegacyUid ? legacyUserMapping.get(commentAuthorLegacyUid) || null : null
+
               const commentData = {
                 legacy_id: parseInt(legacyCid),
                 application_id: applicationId,
-                user_id: null,
+                user_id: commentUserId,
                 user_name: comment.user_name?.trim() || 'Система',
                 user_email: null,
                 comment: commentText,
