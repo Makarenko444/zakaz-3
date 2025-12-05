@@ -285,7 +285,7 @@ export async function POST(request: NextRequest) {
 
         stats.orders.imported++
         orderIdMapping.set(legacyId, inserted!.id)
-        log(logs, 'success', `Импортирована заявка #${legacyId} -> ${inserted.id}`)
+        log(logs, 'success', `Импортирована заявка #${legacyId} -> ${inserted!.id}`)
 
       } catch (error) {
         stats.orders.errors++
