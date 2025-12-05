@@ -25,7 +25,7 @@ export async function DELETE(request: NextRequest) {
 
     // Удаление заявок (с legacy_id)
     if (type === 'applications' || type === 'all') {
-      // Сначала удаляем связанные комментарии и файлы
+      // Сначала получаем список заявок для удаления
       const { data: legacyApps } = await supabase
         .from('zakaz_applications')
         .select('id')
@@ -51,49 +51,77 @@ export async function DELETE(request: NextRequest) {
           .from('zakaz_application_logs')
           .delete()
           .in('application_id', appIds)
+
+        // Удаляем заявки
+        await supabase
+          .from('zakaz_applications')
+          .delete()
+          .in('id', appIds)
+
+        results.applications = legacyApps.length
+      } else {
+        results.applications = 0
       }
-
-      const { count } = await supabase
-        .from('zakaz_applications')
-        .delete()
-        .not('legacy_id', 'is', null)
-        .select('*', { count: 'exact', head: true }) as { count: number | null }
-
-      results.applications = count || 0
     }
 
     // Удаление комментариев (с legacy_id)
     if (type === 'comments' || type === 'all') {
-      const { count } = await supabase
+      // Сначала считаем
+      const { data: legacyComments } = await supabase
         .from('zakaz_application_comments')
-        .delete()
+        .select('id')
         .not('legacy_id', 'is', null)
-        .select('*', { count: 'exact', head: true }) as { count: number | null }
 
-      results.comments = count || 0
+      if (legacyComments && legacyComments.length > 0) {
+        await supabase
+          .from('zakaz_application_comments')
+          .delete()
+          .not('legacy_id', 'is', null)
+
+        results.comments = legacyComments.length
+      } else {
+        results.comments = 0
+      }
     }
 
     // Удаление файлов (с legacy_id)
     if (type === 'files' || type === 'all') {
-      const { count } = await supabase
+      const { data: legacyFiles } = await supabase
         .from('zakaz_application_files')
-        .delete()
+        .select('id')
         .not('legacy_id', 'is', null)
-        .select('*', { count: 'exact', head: true }) as { count: number | null }
 
-      results.files = count || 0
+      if (legacyFiles && legacyFiles.length > 0) {
+        await supabase
+          .from('zakaz_application_files')
+          .delete()
+          .not('legacy_id', 'is', null)
+
+        results.files = legacyFiles.length
+      } else {
+        results.files = 0
+      }
     }
 
     // Удаление пользователей (с legacy_uid, кроме текущего админа)
     if (type === 'users' || type === 'all') {
-      const { count } = await supabase
+      const { data: legacyUsers } = await supabase
         .from('zakaz_users')
-        .delete()
+        .select('id')
         .not('legacy_uid', 'is', null)
-        .neq('id', session.user.id) // Не удаляем текущего пользователя
-        .select('*', { count: 'exact', head: true }) as { count: number | null }
+        .neq('id', session.user.id)
 
-      results.users = count || 0
+      if (legacyUsers && legacyUsers.length > 0) {
+        await supabase
+          .from('zakaz_users')
+          .delete()
+          .not('legacy_uid', 'is', null)
+          .neq('id', session.user.id)
+
+        results.users = legacyUsers.length
+      } else {
+        results.users = 0
+      }
     }
 
     return NextResponse.json({
@@ -119,28 +147,28 @@ export async function GET(request: NextRequest) {
     const [applications, comments, files, users] = await Promise.all([
       supabase
         .from('zakaz_applications')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .not('legacy_id', 'is', null),
       supabase
         .from('zakaz_application_comments')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .not('legacy_id', 'is', null),
       supabase
         .from('zakaz_application_files')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .not('legacy_id', 'is', null),
       supabase
         .from('zakaz_users')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .not('legacy_uid', 'is', null),
     ])
 
     return NextResponse.json({
       counts: {
-        applications: (applications as { count: number | null }).count || 0,
-        comments: (comments as { count: number | null }).count || 0,
-        files: (files as { count: number | null }).count || 0,
-        users: (users as { count: number | null }).count || 0,
+        applications: (applications.data as unknown[] | null)?.length || 0,
+        comments: (comments.data as unknown[] | null)?.length || 0,
+        files: (files.data as unknown[] | null)?.length || 0,
+        users: (users.data as unknown[] | null)?.length || 0,
       },
     })
   } catch (error) {
