@@ -760,22 +760,6 @@ export async function POST(request: NextRequest) {
               continue
             }
 
-            // Проверка: уже импортирован по legacy_uid
-            if (existingLegacyUids.has(legacyUid)) {
-              stats.users.skipped++
-              // Получаем ID для маппинга
-              const { data: existing } = await supabase
-                .from('zakaz_users')
-                .select('id')
-                .eq('legacy_uid', parseInt(legacyUid))
-                .single() as { data: { id: string } | null }
-
-              if (existing) {
-                userIdMapping.set(legacyUid, existing.id)
-              }
-              continue
-            }
-
             try {
               // Поддержка обоих форматов: name (старый) и login (новый экспорт)
               const userName = getValueOrNull(user.name) || getValueOrNull((user as unknown as Record<string, string>)['login'])
@@ -783,18 +767,6 @@ export async function POST(request: NextRequest) {
 
               if (!userName) {
                 stats.users.errors++
-                continue
-              }
-
-              // Проверка: email уже существует
-              if (userEmail && existingEmails.has(userEmail.toLowerCase())) {
-                stats.users.skipped++
-                sendProgress({
-                  phase: 'users',
-                  current: i + 1,
-                  total: users.length,
-                  log: log('warning', `Пользователь ${userName}: email ${userEmail} уже существует`),
-                })
                 continue
               }
 
@@ -863,6 +835,59 @@ export async function POST(request: NextRequest) {
               // Статус: 1 = активен, 0 = заблокирован
               const isActive = user.status !== '0'
 
+              // Проверка: уже импортирован по legacy_uid - обновляем данные
+              if (existingLegacyUids.has(legacyUid)) {
+                // Обновляем существующего пользователя
+                const updateData: Record<string, unknown> = {
+                  full_name: userName,
+                  legacy_last_access: lastAccess,
+                  legacy_last_login: lastLogin,
+                  active: isActive,
+                }
+
+                // Обновляем email только если он не placeholder
+                if (userEmail && !userEmail.includes('@placeholder.local')) {
+                  updateData.email = userEmail.toLowerCase()
+                }
+
+                const { data: updated, error: updateError } = await supabase
+                  .from('zakaz_users')
+                  .update(updateData as never)
+                  .eq('legacy_uid', parseInt(legacyUid))
+                  .select('id')
+                  .single() as { data: { id: string } | null; error: { message: string } | null }
+
+                if (updateError) {
+                  stats.users.errors++
+                  if (stats.users.errors <= 5) {
+                    sendProgress({
+                      phase: 'users',
+                      current: i + 1,
+                      total: users.length,
+                      log: log('error', `Ошибка обновления ${userName}`, updateError.message),
+                    })
+                  }
+                } else {
+                  stats.users.imported++ // Считаем обновление как импорт
+                  if (updated) {
+                    userIdMapping.set(legacyUid, updated.id)
+                  }
+                }
+                continue
+              }
+
+              // Проверка: email уже существует (для новых пользователей)
+              if (userEmail && existingEmails.has(userEmail.toLowerCase())) {
+                stats.users.skipped++
+                sendProgress({
+                  phase: 'users',
+                  current: i + 1,
+                  total: users.length,
+                  log: log('warning', `Пользователь ${userName}: email ${userEmail} уже существует`),
+                })
+                continue
+              }
+
               // Генерируем временный email если нет
               const finalEmail = userEmail || `legacy_${legacyUid}@placeholder.local`
 
@@ -903,7 +928,7 @@ export async function POST(request: NextRequest) {
                   existingEmails.add(finalEmail.toLowerCase())
                 }
               }
-            } catch (error) {
+            } catch (_error) {
               stats.users.errors++
             }
 
