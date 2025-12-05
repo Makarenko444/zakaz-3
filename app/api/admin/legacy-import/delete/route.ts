@@ -42,7 +42,7 @@ export async function DELETE(request: NextRequest) {
 
         // Удаляем файлы
         await supabase
-          .from('zakaz_application_files')
+          .from('zakaz_files')
           .delete()
           .in('application_id', appIds)
 
@@ -87,13 +87,13 @@ export async function DELETE(request: NextRequest) {
     // Удаление файлов (с legacy_id)
     if (type === 'files' || type === 'all') {
       const { data: legacyFiles } = await supabase
-        .from('zakaz_application_files')
+        .from('zakaz_files')
         .select('id')
         .not('legacy_id', 'is', null)
 
       if (legacyFiles && legacyFiles.length > 0) {
         await supabase
-          .from('zakaz_application_files')
+          .from('zakaz_files')
           .delete()
           .not('legacy_id', 'is', null)
 
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
         .select('id')
         .not('legacy_id', 'is', null),
       supabase
-        .from('zakaz_application_files')
+        .from('zakaz_files')
         .select('id')
         .not('legacy_id', 'is', null),
       supabase
