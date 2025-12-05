@@ -140,7 +140,7 @@ const STAGE_STATUS_MAPPING: Record<string, { status: string; urgency: string }> 
   '5.1. Согласование': { status: 'approval', urgency: 'normal' },
   '6. Очередь на монтаж': { status: 'queue_install', urgency: 'normal' },
   '7. Монтаж': { status: 'install', urgency: 'normal' },
-  '8. Пусконаладка': { status: 'install', urgency: 'normal' },
+  '8. Пусконаладка': { status: 'installed', urgency: 'normal' },
   '9. Выполнена': { status: 'installed', urgency: 'normal' },
   '10. Отказ': { status: 'rejected', urgency: 'normal' },
   '11. Нет техн. возможности': { status: 'no_tech', urgency: 'normal' },
@@ -160,6 +160,17 @@ function mapServiceType(type: string): string {
     return 'scs'
   }
   return 'apartment' // default
+}
+
+// Очистка адреса от сокращений (ул., пр-т и т.д.)
+function cleanAddress(address: string | null): string | null {
+  if (!address) return null
+  return address
+    .replace(/^ул\.\s*/i, '')        // "ул. Ленина" → "Ленина"
+    .replace(/^пр-т\s*/i, 'пр. ')    // "пр-т Ленина" → "пр. Ленина"
+    .replace(/^пр-кт\s*/i, 'пр. ')   // "пр-кт Ленина" → "пр. Ленина"
+    .replace(/^пл\.\s*/i, 'пл. ')    // оставляем площадь
+    .trim()
 }
 
 // Парсинг TSV
@@ -425,10 +436,13 @@ export async function POST(request: NextRequest) {
               const contactPhone = phone1 ? phone2 : null
 
               // Парсинг даты (node_created_at уже в формате datetime)
+              // Добавляем 'Z' чтобы сохранить время как есть (без конвертации в UTC)
               let createdAt: string | null = null
               if (order.node_created_at) {
                 try {
-                  const date = new Date(order.node_created_at)
+                  // "2014-04-01 14:07:25" → "2014-04-01T14:07:25Z"
+                  const isoString = order.node_created_at.trim().replace(' ', 'T') + 'Z'
+                  const date = new Date(isoString)
                   if (!isNaN(date.getTime())) {
                     createdAt = date.toISOString()
                   }
@@ -441,7 +455,8 @@ export async function POST(request: NextRequest) {
               let updatedAt: string | null = null
               if (order.node_changed_at) {
                 try {
-                  const date = new Date(order.node_changed_at)
+                  const isoString = order.node_changed_at.trim().replace(' ', 'T') + 'Z'
+                  const date = new Date(isoString)
                   if (!isNaN(date.getTime())) {
                     updatedAt = date.toISOString()
                   }
@@ -490,7 +505,7 @@ export async function POST(request: NextRequest) {
                 service_type: mapServiceType(order.field_all_type_value),
                 status: stageMapping.status,
                 urgency: stageMapping.urgency,
-                street_and_house: getValueOrNull(order.field_all_adres_value),
+                street_and_house: cleanAddress(getValueOrNull(order.field_all_adres_value)),
                 address_details: getValueOrNull(order.field_all_adres2_value),
                 address_match_status: 'unmatched',
                 client_comment: clientComment,
@@ -588,7 +603,8 @@ export async function POST(request: NextRequest) {
               let createdAt: string | null = null
               if (comment.created_at) {
                 try {
-                  const date = new Date(comment.created_at)
+                  const isoString = comment.created_at.trim().replace(' ', 'T') + 'Z'
+                  const date = new Date(isoString)
                   if (!isNaN(date.getTime())) {
                     createdAt = date.toISOString()
                   }
@@ -598,9 +614,6 @@ export async function POST(request: NextRequest) {
               }
 
               let commentText = comment.comment?.trim() || ''
-              if (comment.subject?.trim()) {
-                commentText = `**${comment.subject.trim()}**\n\n${commentText}`
-              }
 
               // Очистка HTML
               commentText = commentText
@@ -711,7 +724,8 @@ export async function POST(request: NextRequest) {
               let uploadedAt: string | null = null
               if (file.uploaded_at) {
                 try {
-                  const date = new Date(file.uploaded_at)
+                  const isoString = file.uploaded_at.trim().replace(' ', 'T') + 'Z'
+                  const date = new Date(isoString)
                   if (!isNaN(date.getTime())) {
                     uploadedAt = date.toISOString()
                   }
