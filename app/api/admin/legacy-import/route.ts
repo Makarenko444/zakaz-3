@@ -14,6 +14,7 @@ interface ImportStats {
   orders: { total: number; imported: number; skipped: number; errors: number }
   comments: { total: number; imported: number; skipped: number; errors: number }
   files: { total: number; imported: number; skipped: number; errors: number }
+  users: { total: number; imported: number; skipped: number; errors: number }
 }
 
 // Новая структура данных из Drupal
@@ -93,6 +94,31 @@ interface LegacyFile {
   status: string
   uploaded_at: string
   file_url: string
+}
+
+interface LegacyUser {
+  uid: string
+  name: string
+  mail: string
+  pass: string
+  mode: string
+  sort: string
+  threshold: string
+  theme: string
+  signature: string
+  signature_format: string
+  created: string      // UNIX timestamp или уже конвертированная дата
+  access: string       // UNIX timestamp или уже конвертированная дата
+  login: string        // UNIX timestamp или уже конвертированная дата
+  status: string       // 1 = активный, 0 = заблокирован
+  timezone: string
+  language: string
+  picture: string
+  init: string
+  data: string
+  created_at?: string  // если уже конвертировано
+  last_access?: string
+  last_login?: string
 }
 
 // Маппинг stage -> status
@@ -181,22 +207,27 @@ export async function POST(request: NextRequest) {
   const ordersFile = formData.get('orders') as File | null
   const commentsFile = formData.get('comments') as File | null
   const filesFile = formData.get('files') as File | null
+  const usersFile = formData.get('users') as File | null
   const batchSize = parseInt(formData.get('batchSize') as string) || 50
   const recordLimitStr = formData.get('recordLimit') as string | null
   const recordLimit = recordLimitStr ? parseInt(recordLimitStr) : 0 // 0 = без лимита
 
-  if (!ordersFile) {
-    return NextResponse.json({ error: 'Файл orders.tsv обязателен' }, { status: 400 })
+  // Требуется хотя бы один файл
+  if (!ordersFile && !usersFile) {
+    return NextResponse.json({ error: 'Требуется хотя бы один файл (orders.tsv или users.tsv)' }, { status: 400 })
   }
 
   // Парсинг файлов заранее
-  const ordersText = await ordersFile.text()
-  let orders = parseTSV<LegacyOrder>(ordersText)
-
-  // Применяем лимит записей если указан
-  const totalOrdersBeforeLimit = orders.length
-  if (recordLimit > 0 && orders.length > recordLimit) {
-    orders = orders.slice(0, recordLimit)
+  let orders: LegacyOrder[] = []
+  let totalOrdersBeforeLimit = 0
+  if (ordersFile) {
+    const ordersText = await ordersFile.text()
+    orders = parseTSV<LegacyOrder>(ordersText)
+    totalOrdersBeforeLimit = orders.length
+    // Применяем лимит записей если указан
+    if (recordLimit > 0 && orders.length > recordLimit) {
+      orders = orders.slice(0, recordLimit)
+    }
   }
 
   let comments: LegacyComment[] = []
@@ -211,6 +242,14 @@ export async function POST(request: NextRequest) {
     files = parseTSV<LegacyFile>(filesText)
   }
 
+  let users: LegacyUser[] = []
+  if (usersFile) {
+    const usersText = await usersFile.text()
+    users = parseTSV<LegacyUser>(usersText)
+    // Фильтруем анонимного пользователя Drupal (uid=0)
+    users = users.filter(u => u.uid !== '0' && u.uid !== '')
+  }
+
   // Создаём streaming response
   const encoder = new TextEncoder()
 
@@ -222,6 +261,7 @@ export async function POST(request: NextRequest) {
         orders: { total: orders.length, imported: 0, skipped: 0, errors: 0 },
         comments: { total: comments.length, imported: 0, skipped: 0, errors: 0 },
         files: { total: files.length, imported: 0, skipped: 0, errors: 0 },
+        users: { total: users.length, imported: 0, skipped: 0, errors: 0 },
       }
 
       // Функция отправки прогресса
@@ -254,15 +294,15 @@ export async function POST(request: NextRequest) {
         sendProgress({
           phase: 'init',
           current: 0,
-          total: orders.length + comments.length + files.length,
+          total: orders.length + comments.length + files.length + users.length,
           log: log('info', `Начало импорта. Пользователь: ${session.user.email}`),
         })
 
         sendProgress({
           phase: 'init',
           current: 0,
-          total: orders.length + comments.length + files.length,
-          log: log('info', `Найдено: заявок ${totalOrdersBeforeLimit}, комментариев ${comments.length}, файлов ${files.length}`),
+          total: orders.length + comments.length + files.length + users.length,
+          log: log('info', `Найдено: заявок ${totalOrdersBeforeLimit}, комментариев ${comments.length}, файлов ${files.length}, пользователей ${users.length}`),
         })
 
         if (recordLimit > 0 && totalOrdersBeforeLimit > recordLimit) {
@@ -681,11 +721,214 @@ export async function POST(request: NextRequest) {
           })
         }
 
+        // ==================== ИМПОРТ ПОЛЬЗОВАТЕЛЕЙ ====================
+        if (users.length > 0) {
+          sendProgress({
+            phase: 'users',
+            current: 0,
+            total: users.length,
+            log: log('info', '=== Импорт пользователей ==='),
+          })
+
+          // Получаем существующие legacy_uid
+          const { data: existingUsers } = await supabase
+            .from('zakaz_users')
+            .select('legacy_uid, email')
+
+          const existingLegacyUids = new Set(
+            (existingUsers || [])
+              .filter((u: { legacy_uid: number | null }) => u.legacy_uid !== null)
+              .map((u: { legacy_uid: number | null }) => u.legacy_uid?.toString())
+          )
+          const existingEmails = new Set(
+            (existingUsers || []).map((u: { email: string }) => u.email?.toLowerCase())
+          )
+
+          // Маппинг legacy_uid -> new_user_id (для связывания)
+          const userIdMapping: Map<string, string> = new Map()
+
+          for (let i = 0; i < users.length; i++) {
+            const user = users[i]
+            const legacyUid = user.uid?.trim()
+
+            if (!legacyUid || legacyUid === '0') {
+              stats.users.skipped++
+              continue
+            }
+
+            // Проверка: уже импортирован по legacy_uid
+            if (existingLegacyUids.has(legacyUid)) {
+              stats.users.skipped++
+              // Получаем ID для маппинга
+              const { data: existing } = await supabase
+                .from('zakaz_users')
+                .select('id')
+                .eq('legacy_uid', parseInt(legacyUid))
+                .single() as { data: { id: string } | null }
+
+              if (existing) {
+                userIdMapping.set(legacyUid, existing.id)
+              }
+              continue
+            }
+
+            try {
+              const userName = getValueOrNull(user.name)
+              const userEmail = getValueOrNull(user.mail)
+
+              if (!userName) {
+                stats.users.errors++
+                continue
+              }
+
+              // Проверка: email уже существует
+              if (userEmail && existingEmails.has(userEmail.toLowerCase())) {
+                stats.users.skipped++
+                sendProgress({
+                  phase: 'users',
+                  current: i + 1,
+                  total: users.length,
+                  log: log('warning', `Пользователь ${userName}: email ${userEmail} уже существует`),
+                })
+                continue
+              }
+
+              // Парсинг дат (могут быть UNIX timestamp или уже конвертированы)
+              let createdAt: string | null = null
+              let lastAccess: string | null = null
+              let lastLogin: string | null = null
+
+              // created
+              const createdValue = user.created_at || user.created
+              if (createdValue) {
+                try {
+                  // Проверяем: это UNIX timestamp (число) или дата
+                  const numValue = parseInt(createdValue)
+                  if (!isNaN(numValue) && numValue > 100000000) {
+                    // UNIX timestamp
+                    createdAt = new Date(numValue * 1000).toISOString()
+                  } else {
+                    // Дата-строка
+                    const date = new Date(createdValue)
+                    if (!isNaN(date.getTime())) {
+                      createdAt = date.toISOString()
+                    }
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+
+              // last_access
+              const accessValue = user.last_access || user.access
+              if (accessValue) {
+                try {
+                  const numValue = parseInt(accessValue)
+                  if (!isNaN(numValue) && numValue > 100000000) {
+                    lastAccess = new Date(numValue * 1000).toISOString()
+                  } else {
+                    const date = new Date(accessValue)
+                    if (!isNaN(date.getTime())) {
+                      lastAccess = date.toISOString()
+                    }
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+
+              // last_login
+              const loginValue = user.last_login || user.login
+              if (loginValue) {
+                try {
+                  const numValue = parseInt(loginValue)
+                  if (!isNaN(numValue) && numValue > 100000000) {
+                    lastLogin = new Date(numValue * 1000).toISOString()
+                  } else {
+                    const date = new Date(loginValue)
+                    if (!isNaN(date.getTime())) {
+                      lastLogin = date.toISOString()
+                    }
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+
+              // Статус: 1 = активен, 0 = заблокирован
+              const isActive = user.status !== '0'
+
+              // Генерируем временный email если нет
+              const finalEmail = userEmail || `legacy_${legacyUid}@placeholder.local`
+
+              // Роль по умолчанию - engineer (можно потом изменить)
+              const userData = {
+                legacy_uid: parseInt(legacyUid),
+                legacy_last_access: lastAccess,
+                legacy_last_login: lastLogin,
+                email: finalEmail.toLowerCase(),
+                full_name: userName,
+                phone: null,
+                role: 'engineer',
+                password_hash: 'NEEDS_RESET', // Требуется сброс пароля
+                active: isActive,
+                created_at: createdAt,
+              }
+
+              const { data: inserted, error } = await supabase
+                .from('zakaz_users')
+                .insert(userData as never)
+                .select('id')
+                .single() as { data: { id: string } | null; error: { message: string } | null }
+
+              if (error) {
+                stats.users.errors++
+                if (stats.users.errors <= 5) {
+                  sendProgress({
+                    phase: 'users',
+                    current: i + 1,
+                    total: users.length,
+                    log: log('error', `Ошибка пользователя ${userName}`, error.message),
+                  })
+                }
+              } else {
+                stats.users.imported++
+                if (inserted) {
+                  userIdMapping.set(legacyUid, inserted.id)
+                  existingEmails.add(finalEmail.toLowerCase())
+                }
+              }
+            } catch (error) {
+              stats.users.errors++
+            }
+
+            // Прогресс каждые batchSize записей
+            if ((i + 1) % batchSize === 0 || i === users.length - 1) {
+              sendProgress({
+                phase: 'users',
+                current: i + 1,
+                total: users.length,
+                stats: { ...stats },
+                log: log('info', `Пользователи: обработано ${i + 1}/${users.length}`),
+              })
+            }
+          }
+
+          sendProgress({
+            phase: 'users',
+            current: users.length,
+            total: users.length,
+            stats: { ...stats },
+            log: log('success', `Пользователи завершены: импортировано ${stats.users.imported}, пропущено ${stats.users.skipped}, ошибок ${stats.users.errors}`),
+          })
+        }
+
         // Финал
         const duration = Date.now() - startTime
         const success = stats.orders.errors === 0 &&
                        stats.comments.errors === 0 &&
-                       stats.files.errors === 0
+                       stats.files.errors === 0 &&
+                       stats.users.errors === 0
 
         sendProgress({
           phase: 'done',
