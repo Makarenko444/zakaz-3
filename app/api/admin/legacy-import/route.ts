@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
           .from('zakaz_applications')
           .select('id')
           .eq('legacy_id', parseInt(legacyId))
-          .single()
+          .single() as { data: { id: string } | null }
 
         if (existing) {
           orderIdMapping.set(legacyId, existing.id)
