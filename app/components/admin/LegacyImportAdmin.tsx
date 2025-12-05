@@ -31,11 +31,13 @@ interface ImportStats {
   }
 }
 
-interface ImportResult {
-  success: boolean
-  stats: ImportStats
-  log: ImportLogEntry[]
-  duration: number
+interface ProgressData {
+  phase: string
+  current: number
+  total: number
+  log?: ImportLogEntry
+  stats?: ImportStats
+  done?: boolean
 }
 
 // Маппинг stage -> status
@@ -65,9 +67,13 @@ export default function LegacyImportAdmin() {
   const [ordersFile, setOrdersFile] = useState<File | null>(null)
   const [commentsFile, setCommentsFile] = useState<File | null>(null)
   const [filesFile, setFilesFile] = useState<File | null>(null)
+  const [batchSize, setBatchSize] = useState(50)
 
   const [isImporting, setIsImporting] = useState(false)
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [importLogs, setImportLogs] = useState<ImportLogEntry[]>([])
+  const [importStats, setImportStats] = useState<ImportStats | null>(null)
+  const [progress, setProgress] = useState<{ phase: string; current: number; total: number } | null>(null)
+  const [isDone, setIsDone] = useState(false)
   const [previewData, setPreviewData] = useState<{
     orders: number
     comments: number
@@ -77,6 +83,7 @@ export default function LegacyImportAdmin() {
   const ordersInputRef = useRef<HTMLInputElement>(null)
   const commentsInputRef = useRef<HTMLInputElement>(null)
   const filesInputRef = useRef<HTMLInputElement>(null)
+  const logContainerRef = useRef<HTMLDivElement>(null)
 
   // Парсинг TSV файла
   async function parseTSV(file: File): Promise<Record<string, string>[]> {
@@ -123,7 +130,7 @@ export default function LegacyImportAdmin() {
     setPreviewData(preview)
   }
 
-  // Запуск импорта
+  // Запуск импорта со streaming
   async function handleImport() {
     if (!ordersFile) {
       alert('Загрузите файл orders.tsv')
@@ -131,11 +138,15 @@ export default function LegacyImportAdmin() {
     }
 
     setIsImporting(true)
-    setImportResult(null)
+    setImportLogs([])
+    setImportStats(null)
+    setProgress(null)
+    setIsDone(false)
 
     try {
       const formData = new FormData()
       formData.append('orders', ordersFile)
+      formData.append('batchSize', batchSize.toString())
       if (commentsFile) {
         formData.append('comments', commentsFile)
       }
@@ -148,29 +159,74 @@ export default function LegacyImportAdmin() {
         body: formData,
       })
 
-      const result = await response.json()
-
       if (!response.ok) {
-        throw new Error(result.error || 'Ошибка импорта')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка импорта')
       }
 
-      setImportResult(result)
+      // Читаем streaming response
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Streaming не поддерживается')
+      }
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+
+        // Парсим SSE события
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || '' // Оставляем неполное событие в буфере
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data: ProgressData = JSON.parse(line.slice(6))
+
+              // Обновляем состояние
+              if (data.log) {
+                setImportLogs(prev => [...prev, data.log!])
+                // Автоскролл лога
+                setTimeout(() => {
+                  if (logContainerRef.current) {
+                    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+                  }
+                }, 10)
+              }
+
+              if (data.stats) {
+                setImportStats(data.stats)
+              }
+
+              setProgress({
+                phase: data.phase,
+                current: data.current,
+                total: data.total,
+              })
+
+              if (data.done) {
+                setIsDone(true)
+                setIsImporting(false)
+              }
+            } catch (e) {
+              console.error('Error parsing SSE:', e)
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Import error:', error)
-      setImportResult({
-        success: false,
-        stats: {
-          orders: { total: 0, imported: 0, skipped: 0, errors: 0 },
-          comments: { total: 0, imported: 0, skipped: 0, errors: 0 },
-          files: { total: 0, imported: 0, skipped: 0, errors: 0 },
-        },
-        log: [{
-          timestamp: new Date().toISOString(),
-          level: 'error',
-          message: error instanceof Error ? error.message : 'Неизвестная ошибка',
-        }],
-        duration: 0,
-      })
+      setImportLogs(prev => [...prev, {
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      }])
+      setIsDone(true)
     } finally {
       setIsImporting(false)
     }
@@ -178,9 +234,7 @@ export default function LegacyImportAdmin() {
 
   // Скачивание лога
   function downloadLog() {
-    if (!importResult) return
-
-    const logText = importResult.log
+    const logText = importLogs
       .map(entry => `[${entry.timestamp}] [${entry.level.toUpperCase()}] ${entry.message}${entry.details ? '\n  ' + entry.details : ''}`)
       .join('\n')
 
@@ -195,15 +249,11 @@ export default function LegacyImportAdmin() {
 
   // Скачивание отчёта
   function downloadReport() {
-    if (!importResult) return
-
     const report = {
       date: new Date().toISOString(),
-      duration: importResult.duration,
-      success: importResult.success,
-      statistics: importResult.stats,
+      statistics: importStats,
       stageMapping: STAGE_STATUS_MAPPING,
-      log: importResult.log,
+      log: importLogs,
     }
 
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
@@ -213,6 +263,21 @@ export default function LegacyImportAdmin() {
     a.download = `import-report-${new Date().toISOString().split('T')[0]}.json`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  // Расчёт процента прогресса
+  const progressPercent = progress && progress.total > 0
+    ? Math.round((progress.current / progress.total) * 100)
+    : 0
+
+  // Название фазы
+  const phaseNames: Record<string, string> = {
+    init: 'Инициализация',
+    orders: 'Импорт заявок',
+    comments: 'Импорт комментариев',
+    files: 'Импорт файлов',
+    done: 'Завершено',
+    error: 'Ошибка',
   }
 
   return (
@@ -254,7 +319,8 @@ export default function LegacyImportAdmin() {
 
               <button
                 onClick={() => ordersInputRef.current?.click()}
-                className="mt-3 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100"
+                disabled={isImporting}
+                className="mt-3 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 disabled:opacity-50"
               >
                 {ordersFile ? 'Заменить' : 'Выбрать'}
               </button>
@@ -289,7 +355,8 @@ export default function LegacyImportAdmin() {
 
               <button
                 onClick={() => commentsInputRef.current?.click()}
-                className="mt-3 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100"
+                disabled={isImporting}
+                className="mt-3 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 disabled:opacity-50"
               >
                 {commentsFile ? 'Заменить' : 'Выбрать'}
               </button>
@@ -324,7 +391,8 @@ export default function LegacyImportAdmin() {
 
               <button
                 onClick={() => filesInputRef.current?.click()}
-                className="mt-3 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100"
+                disabled={isImporting}
+                className="mt-3 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 disabled:opacity-50"
               >
                 {filesFile ? 'Заменить' : 'Выбрать'}
               </button>
@@ -338,11 +406,26 @@ export default function LegacyImportAdmin() {
           </div>
         </div>
 
-        {/* Кнопки действий */}
-        <div className="mt-6 flex items-center gap-4">
+        {/* Настройки и кнопки */}
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Размер блока:</label>
+            <select
+              value={batchSize}
+              onChange={(e) => setBatchSize(parseInt(e.target.value))}
+              disabled={isImporting}
+              className="px-3 py-1 border rounded text-sm"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+            </select>
+          </div>
+
           <button
             onClick={handlePreview}
-            disabled={!ordersFile}
+            disabled={!ordersFile || isImporting}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Предпросмотр
@@ -389,124 +472,127 @@ export default function LegacyImportAdmin() {
         )}
       </div>
 
-      {/* Результаты импорта */}
-      {importResult && (
+      {/* Прогресс импорта */}
+      {(isImporting || isDone) && progress && (
         <div className="bg-white shadow rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
-              Результаты импорта
+              {isImporting ? 'Прогресс импорта' : 'Результаты импорта'}
             </h3>
-            <div className="flex gap-2">
-              <button
-                onClick={downloadLog}
-                className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
-              >
-                Скачать лог
-              </button>
-              <button
-                onClick={downloadReport}
-                className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
-              >
-                Скачать отчёт
-              </button>
-            </div>
+            {isDone && (
+              <div className="flex gap-2">
+                <button
+                  onClick={downloadLog}
+                  className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+                >
+                  Скачать лог
+                </button>
+                <button
+                  onClick={downloadReport}
+                  className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+                >
+                  Скачать отчёт
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Статус */}
-          <div className={`mb-4 p-4 rounded-lg ${importResult.success ? 'bg-green-50' : 'bg-red-50'}`}>
-            <div className="flex items-center gap-2">
-              {importResult.success ? (
-                <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-              <span className={`font-medium ${importResult.success ? 'text-green-800' : 'text-red-800'}`}>
-                {importResult.success ? 'Импорт завершён успешно' : 'Импорт завершён с ошибками'}
-              </span>
-              <span className="text-sm text-gray-500 ml-auto">
-                Время: {(importResult.duration / 1000).toFixed(2)} сек
-              </span>
+          {/* Progress bar */}
+          <div className="mb-4">
+            <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <span>{phaseNames[progress.phase] || progress.phase}</span>
+              <span>{progress.current} / {progress.total} ({progressPercent}%)</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className={`h-3 rounded-full transition-all duration-300 ${
+                  isDone && importStats?.orders.errors === 0 ? 'bg-green-500' :
+                  isDone ? 'bg-yellow-500' : 'bg-indigo-600'
+                }`}
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
           </div>
 
           {/* Статистика */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="border rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Заявки</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Всего:</span>
-                  <span className="font-medium">{importResult.stats.orders.total}</span>
-                </div>
-                <div className="flex justify-between text-green-600">
-                  <span>Импортировано:</span>
-                  <span className="font-medium">{importResult.stats.orders.imported}</span>
-                </div>
-                <div className="flex justify-between text-yellow-600">
-                  <span>Пропущено:</span>
-                  <span className="font-medium">{importResult.stats.orders.skipped}</span>
-                </div>
-                <div className="flex justify-between text-red-600">
-                  <span>Ошибок:</span>
-                  <span className="font-medium">{importResult.stats.orders.errors}</span>
+          {importStats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="border rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Заявки</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Всего:</span>
+                    <span className="font-medium">{importStats.orders.total}</span>
+                  </div>
+                  <div className="flex justify-between text-green-600">
+                    <span>Импортировано:</span>
+                    <span className="font-medium">{importStats.orders.imported}</span>
+                  </div>
+                  <div className="flex justify-between text-yellow-600">
+                    <span>Пропущено:</span>
+                    <span className="font-medium">{importStats.orders.skipped}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600">
+                    <span>Ошибок:</span>
+                    <span className="font-medium">{importStats.orders.errors}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="border rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Комментарии</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Всего:</span>
-                  <span className="font-medium">{importResult.stats.comments.total}</span>
-                </div>
-                <div className="flex justify-between text-green-600">
-                  <span>Импортировано:</span>
-                  <span className="font-medium">{importResult.stats.comments.imported}</span>
-                </div>
-                <div className="flex justify-between text-yellow-600">
-                  <span>Пропущено:</span>
-                  <span className="font-medium">{importResult.stats.comments.skipped}</span>
-                </div>
-                <div className="flex justify-between text-red-600">
-                  <span>Ошибок:</span>
-                  <span className="font-medium">{importResult.stats.comments.errors}</span>
+              <div className="border rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Комментарии</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Всего:</span>
+                    <span className="font-medium">{importStats.comments.total}</span>
+                  </div>
+                  <div className="flex justify-between text-green-600">
+                    <span>Импортировано:</span>
+                    <span className="font-medium">{importStats.comments.imported}</span>
+                  </div>
+                  <div className="flex justify-between text-yellow-600">
+                    <span>Пропущено:</span>
+                    <span className="font-medium">{importStats.comments.skipped}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600">
+                    <span>Ошибок:</span>
+                    <span className="font-medium">{importStats.comments.errors}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="border rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Файлы</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Всего:</span>
-                  <span className="font-medium">{importResult.stats.files.total}</span>
-                </div>
-                <div className="flex justify-between text-green-600">
-                  <span>Импортировано:</span>
-                  <span className="font-medium">{importResult.stats.files.imported}</span>
-                </div>
-                <div className="flex justify-between text-yellow-600">
-                  <span>Пропущено:</span>
-                  <span className="font-medium">{importResult.stats.files.skipped}</span>
-                </div>
-                <div className="flex justify-between text-red-600">
-                  <span>Ошибок:</span>
-                  <span className="font-medium">{importResult.stats.files.errors}</span>
+              <div className="border rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Файлы</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Всего:</span>
+                    <span className="font-medium">{importStats.files.total}</span>
+                  </div>
+                  <div className="flex justify-between text-green-600">
+                    <span>Импортировано:</span>
+                    <span className="font-medium">{importStats.files.imported}</span>
+                  </div>
+                  <div className="flex justify-between text-yellow-600">
+                    <span>Пропущено:</span>
+                    <span className="font-medium">{importStats.files.skipped}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600">
+                    <span>Ошибок:</span>
+                    <span className="font-medium">{importStats.files.errors}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Лог */}
           <div>
             <h4 className="text-sm font-medium text-gray-900 mb-2">Лог импорта</h4>
-            <div className="bg-gray-900 rounded-lg p-4 max-h-96 overflow-y-auto font-mono text-xs">
-              {importResult.log.map((entry, index) => (
+            <div
+              ref={logContainerRef}
+              className="bg-gray-900 rounded-lg p-4 max-h-64 overflow-y-auto font-mono text-xs"
+            >
+              {importLogs.map((entry, index) => (
                 <div key={index} className="mb-1">
                   <span className="text-gray-500">[{new Date(entry.timestamp).toLocaleTimeString()}]</span>{' '}
                   <span className={
@@ -523,6 +609,9 @@ export default function LegacyImportAdmin() {
                   )}
                 </div>
               ))}
+              {isImporting && (
+                <div className="text-gray-500 animate-pulse">Ожидание данных...</div>
+              )}
             </div>
           </div>
         </div>
