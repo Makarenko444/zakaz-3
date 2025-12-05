@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 // Типы для результатов импорта
 interface ImportLogEntry {
@@ -94,6 +94,67 @@ export default function LegacyImportAdmin() {
   const filesInputRef = useRef<HTMLInputElement>(null)
   const usersInputRef = useRef<HTMLInputElement>(null)
   const logContainerRef = useRef<HTMLDivElement>(null)
+
+  // Счётчики импортированных данных
+  const [legacyCounts, setLegacyCounts] = useState<{
+    applications: number
+    comments: number
+    files: number
+    users: number
+  } | null>(null)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+
+  // Загрузка счётчиков при монтировании
+  useEffect(() => {
+    loadLegacyCounts()
+  }, [])
+
+  async function loadLegacyCounts() {
+    try {
+      const response = await fetch('/api/admin/legacy-import/delete')
+      if (response.ok) {
+        const data = await response.json()
+        setLegacyCounts(data.counts)
+      }
+    } catch (error) {
+      console.error('Error loading legacy counts:', error)
+    }
+  }
+
+  async function handleDelete(type: 'applications' | 'comments' | 'files' | 'users' | 'all') {
+    const typeNames: Record<string, string> = {
+      applications: 'заявки',
+      comments: 'комментарии',
+      files: 'файлы',
+      users: 'пользователей',
+      all: 'ВСЕ импортированные данные',
+    }
+
+    if (!confirm(`Вы уверены, что хотите удалить ${typeNames[type]}?\n\nЭто действие нельзя отменить!`)) {
+      return
+    }
+
+    setIsDeleting(type)
+    try {
+      const response = await fetch(`/api/admin/legacy-import/delete?type=${type}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Удалено:\n${Object.entries(data.deleted).map(([k, v]) => `${k}: ${v}`).join('\n')}`)
+        loadLegacyCounts()
+      } else {
+        const error = await response.json()
+        alert(`Ошибка: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error deleting:', error)
+      alert('Ошибка удаления')
+    } finally {
+      setIsDeleting(null)
+    }
+  }
 
   // Парсинг TSV файла
   async function parseTSV(file: File): Promise<Record<string, string>[]> {
@@ -236,6 +297,7 @@ export default function LegacyImportAdmin() {
               if (data.done) {
                 setIsDone(true)
                 setIsImporting(false)
+                loadLegacyCounts() // Обновляем счётчики
               }
             } catch (e) {
               console.error('Error parsing SSE:', e)
@@ -316,6 +378,119 @@ export default function LegacyImportAdmin() {
           Загрузите TSV файлы из старой системы Drupal (zakaz_all) для импорта заявок, комментариев, файлов и пользователей.
         </p>
       </div>
+
+      {/* Управление импортированными данными */}
+      {legacyCounts && (legacyCounts.applications > 0 || legacyCounts.comments > 0 || legacyCounts.files > 0 || legacyCounts.users > 0) && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Импортированные данные</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {/* Заявки */}
+            <div className="border rounded-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500">Заявки</h4>
+                  <p className="text-2xl font-bold text-gray-900">{legacyCounts.applications}</p>
+                </div>
+                <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <button
+                onClick={() => handleDelete('applications')}
+                disabled={isDeleting !== null || legacyCounts.applications === 0}
+                className="w-full mt-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting === 'applications' ? 'Удаление...' : 'Удалить'}
+              </button>
+            </div>
+
+            {/* Комментарии */}
+            <div className="border rounded-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500">Комментарии</h4>
+                  <p className="text-2xl font-bold text-gray-900">{legacyCounts.comments}</p>
+                </div>
+                <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+              <button
+                onClick={() => handleDelete('comments')}
+                disabled={isDeleting !== null || legacyCounts.comments === 0}
+                className="w-full mt-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting === 'comments' ? 'Удаление...' : 'Удалить'}
+              </button>
+            </div>
+
+            {/* Файлы */}
+            <div className="border rounded-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500">Файлы</h4>
+                  <p className="text-2xl font-bold text-gray-900">{legacyCounts.files}</p>
+                </div>
+                <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              </div>
+              <button
+                onClick={() => handleDelete('files')}
+                disabled={isDeleting !== null || legacyCounts.files === 0}
+                className="w-full mt-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting === 'files' ? 'Удаление...' : 'Удалить'}
+              </button>
+            </div>
+
+            {/* Пользователи */}
+            <div className="border rounded-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500">Пользователи</h4>
+                  <p className="text-2xl font-bold text-gray-900">{legacyCounts.users}</p>
+                </div>
+                <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <button
+                onClick={() => handleDelete('users')}
+                disabled={isDeleting !== null || legacyCounts.users === 0}
+                className="w-full mt-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting === 'users' ? 'Удаление...' : 'Удалить'}
+              </button>
+            </div>
+
+            {/* Удалить всё */}
+            <div className="border-2 border-red-200 rounded-lg p-4 bg-red-50">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h4 className="text-sm font-medium text-red-700">Удалить всё</h4>
+                  <p className="text-xs text-red-600 mt-1">Удаляет все импортированные данные</p>
+                </div>
+                <svg className="w-8 h-8 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <button
+                onClick={() => handleDelete('all')}
+                disabled={isDeleting !== null}
+                className="w-full mt-2 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting === 'all' ? 'Удаление...' : 'Удалить всё'}
+              </button>
+            </div>
+          </div>
+
+          <p className="mt-4 text-xs text-gray-500">
+            * Удаление заявок также удалит связанные комментарии, файлы и логи
+          </p>
+        </div>
+      )}
 
       {/* Загрузка файлов */}
       <div className="bg-white shadow rounded-lg p-6">
