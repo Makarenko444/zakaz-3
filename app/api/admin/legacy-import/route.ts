@@ -153,6 +153,21 @@ function parseTSV<T>(text: string): T[] {
   return rows
 }
 
+// Проверка что значение не пустое и не NULL
+function isValidValue(value: string | undefined | null): boolean {
+  if (!value) return false
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  if (trimmed.toUpperCase() === 'NULL') return false
+  return true
+}
+
+// Получить значение или null (фильтруя NULL строки)
+function getValueOrNull(value: string | undefined | null): string | null {
+  if (!isValidValue(value)) return null
+  return value!.trim()
+}
+
 // Streaming response для прогресса
 export async function POST(request: NextRequest) {
   // Проверка авторизации
@@ -314,25 +329,32 @@ export async function POST(request: NextRequest) {
           } else {
             try {
               // Маппинг stage -> status (field_etap_value)
-              const stageMapping = STAGE_STATUS_MAPPING[order.field_etap_value?.trim()] || {
+              const stageValue = getValueOrNull(order.field_etap_value)
+              const stageMapping = stageValue ? STAGE_STATUS_MAPPING[stageValue] || {
                 status: 'new',
                 urgency: 'normal',
-              }
+              } : { status: 'new', urgency: 'normal' }
 
-              // Определение типа клиента
-              const hasCompany = order.field_all_company_value?.trim()
+              // Определение типа клиента (проверяем что company не NULL)
+              const companyValue = getValueOrNull(order.field_all_company_value)
+              const fioValue = getValueOrNull(order.field_all_fio_value)
+              const fio2Value = getValueOrNull(order.field_all_fio2_value)
+
+              const hasCompany = !!companyValue
               const customerType = hasCompany ? 'business' : 'individual'
               const customerFullname = hasCompany
-                ? order.field_all_company_value.trim()
-                : order.field_all_fio_value?.trim() || 'Не указано'
+                ? companyValue
+                : fioValue || 'Не указано'
               // Для юрлиц: основное ФИО как контактное лицо, для физлиц: второе ФИО
               const contactPerson = hasCompany
-                ? order.field_all_fio_value?.trim() || order.field_all_fio2_value?.trim() || null
-                : order.field_all_fio2_value?.trim() || null
+                ? fioValue || fio2Value
+                : fio2Value
 
-              // Телефоны
-              const customerPhone = order.field_all_phone1_value?.trim() || ''
-              const contactPhone = order.field_all_phone2_value?.trim() || null
+              // Телефоны (фильтруем NULL)
+              const phone1 = getValueOrNull(order.field_all_phone1_value)
+              const phone2 = getValueOrNull(order.field_all_phone2_value)
+              const customerPhone = phone1 || ''
+              const contactPhone = phone2
 
               // Парсинг даты (node_created_at уже в формате datetime)
               let createdAt: string | null = null
@@ -349,27 +371,32 @@ export async function POST(request: NextRequest) {
 
               // Формируем дополнительную информацию для комментария
               const additionalInfo: string[] = []
-              if (order.field_all_account_value?.trim()) additionalInfo.push(`Лицевой счёт: ${order.field_all_account_value.trim()}`)
-              if (order.field_all_ndogovor_value?.trim()) additionalInfo.push(`Договор: ${order.field_all_ndogovor_value.trim()}`)
-              if (order.field_all_ddogovor_value?.trim()) additionalInfo.push(`Дата договора: ${order.field_all_ddogovor_value.trim()}`)
-              if (order.field_all_login_value?.trim()) additionalInfo.push(`Логин: ${order.field_all_login_value.trim()}`)
-              if (order.field_all_ip_adres_value?.trim()) additionalInfo.push(`IP: ${order.field_all_ip_adres_value.trim()}`)
-              if (order.field_all_tarif_value?.trim()) additionalInfo.push(`Тариф: ${order.field_all_tarif_value.trim()}`)
-              if (order.field_all_uzel_value?.trim()) additionalInfo.push(`Узел: ${order.field_all_uzel_value.trim()}`)
-              if (order.field_all_port_value?.trim()) additionalInfo.push(`Порт: ${order.field_all_port_value.trim()}`)
-              if (order.field_all_mac_value?.trim()) additionalInfo.push(`MAC: ${order.field_all_mac_value.trim()}`)
-              if (order.field_all_price_value?.trim()) additionalInfo.push(`Цена: ${order.field_all_price_value.trim()}`)
-              if (order.field_all_oplata_value?.trim()) additionalInfo.push(`Оплата: ${order.field_all_oplata_value.trim()}`)
-              if (order.field_all_job_value?.trim()) additionalInfo.push(`Работы: ${order.field_all_job_value.trim()}`)
-              if (order.field_all_kurator_value?.trim()) additionalInfo.push(`Куратор: ${order.field_all_kurator_value.trim()}`)
-              if (order.field_all_manager_value?.trim()) additionalInfo.push(`Менеджер: ${order.field_all_manager_value.trim()}`)
+
+              // Добавляем создателя заявки
+              if (isValidValue(order.node_uid)) additionalInfo.push(`Создал заявку (uid): ${order.node_uid.trim()}`)
+
+              // Технические данные
+              if (isValidValue(order.field_all_account_value)) additionalInfo.push(`Лицевой счёт: ${order.field_all_account_value.trim()}`)
+              if (isValidValue(order.field_all_ndogovor_value)) additionalInfo.push(`Договор: ${order.field_all_ndogovor_value.trim()}`)
+              if (isValidValue(order.field_all_ddogovor_value)) additionalInfo.push(`Дата договора: ${order.field_all_ddogovor_value.trim()}`)
+              if (isValidValue(order.field_all_login_value)) additionalInfo.push(`Логин: ${order.field_all_login_value.trim()}`)
+              if (isValidValue(order.field_all_ip_adres_value)) additionalInfo.push(`IP: ${order.field_all_ip_adres_value.trim()}`)
+              if (isValidValue(order.field_all_tarif_value)) additionalInfo.push(`Тариф: ${order.field_all_tarif_value.trim()}`)
+              if (isValidValue(order.field_all_uzel_value)) additionalInfo.push(`Узел: ${order.field_all_uzel_value.trim()}`)
+              if (isValidValue(order.field_all_port_value)) additionalInfo.push(`Порт: ${order.field_all_port_value.trim()}`)
+              if (isValidValue(order.field_all_mac_value)) additionalInfo.push(`MAC: ${order.field_all_mac_value.trim()}`)
+              if (isValidValue(order.field_all_price_value)) additionalInfo.push(`Цена: ${order.field_all_price_value.trim()}`)
+              if (isValidValue(order.field_all_oplata_value)) additionalInfo.push(`Оплата: ${order.field_all_oplata_value.trim()}`)
+              if (isValidValue(order.field_all_job_value)) additionalInfo.push(`Работы: ${order.field_all_job_value.trim()}`)
+              if (isValidValue(order.field_all_kurator_value)) additionalInfo.push(`Куратор: ${order.field_all_kurator_value.trim()}`)
+              if (isValidValue(order.field_all_manager_value)) additionalInfo.push(`Менеджер: ${order.field_all_manager_value.trim()}`)
 
               const clientComment = additionalInfo.length > 0 ? additionalInfo.join('\n') : null
 
               const applicationData = {
                 legacy_id: parseInt(legacyId),
-                legacy_stage: order.field_etap_value?.trim() || null,
-                application_number: parseInt(order.field_all_number_value?.trim()) || parseInt(legacyId),
+                legacy_stage: stageValue,
+                application_number: parseInt(getValueOrNull(order.field_all_number_value) || '') || parseInt(legacyId),
                 customer_type: customerType,
                 customer_fullname: customerFullname,
                 customer_phone: customerPhone,
@@ -378,8 +405,8 @@ export async function POST(request: NextRequest) {
                 service_type: mapServiceType(order.field_all_type_value),
                 status: stageMapping.status,
                 urgency: stageMapping.urgency,
-                street_and_house: order.field_all_adres_value?.trim() || null,
-                address_details: order.field_all_adres2_value?.trim() || null,
+                street_and_house: getValueOrNull(order.field_all_adres_value),
+                address_details: getValueOrNull(order.field_all_adres2_value),
                 address_match_status: 'unmatched',
                 client_comment: clientComment,
                 created_at: createdAt,
