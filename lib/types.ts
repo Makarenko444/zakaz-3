@@ -62,6 +62,9 @@ export interface Application {
   service_type: ServiceType
   application_number: number
   assigned_to: string | null
+  // Legacy-поля для импорта из старой системы
+  legacy_id: number | null
+  legacy_stage: string | null
 }
 
 export interface ApplicationStatusInfo {
@@ -75,6 +78,20 @@ export interface ApplicationStatusInfo {
   updated_at: string
 }
 
+export interface Comment {
+  id: string
+  application_id: string
+  user_id: string | null
+  user_name: string
+  user_email: string | null
+  comment: string
+  reply_to_comment_id: string | null
+  created_at: string
+  updated_at: string
+  // Legacy-поле для импорта из старой системы
+  legacy_id: number | null
+}
+
 export interface FileAttachment {
   id: string
   application_id: string
@@ -83,9 +100,12 @@ export interface FileAttachment {
   stored_filename: string
   file_size: number
   mime_type: string
-  uploaded_by: string
+  uploaded_by: string | null  // nullable для legacy-записей
   uploaded_at: string
   description: string | null
+  // Legacy-поля для импорта из старой системы
+  legacy_id: number | null
+  legacy_path: string | null
 }
 
 export interface Address {
@@ -154,6 +174,11 @@ export interface Database {
         Row: FileAttachment
         Insert: Omit<FileAttachment, 'id' | 'uploaded_at'>
         Update: Partial<Omit<FileAttachment, 'id' | 'uploaded_at'>>
+      }
+      zakaz_application_comments: {
+        Row: Comment
+        Insert: Omit<Comment, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Comment, 'id' | 'created_at' | 'updated_at'>>
       }
       zakaz_nodes: {
         Row: Node
