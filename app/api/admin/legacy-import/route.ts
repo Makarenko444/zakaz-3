@@ -408,19 +408,21 @@ export async function POST(request: NextRequest) {
 
               const hasCompany = !!companyValue
               const customerType = hasCompany ? 'business' : 'individual'
+              // Для юрлиц: название компании, для физлиц: ФИО (из field_all_fio или field_all_fio2)
               const customerFullname = hasCompany
                 ? companyValue
-                : fioValue || 'Не указано'
-              // Для юрлиц: основное ФИО как контактное лицо, для физлиц: второе ФИО
+                : fioValue || fio2Value || 'Не указано'
+              // Для юрлиц: основное ФИО как контактное лицо, для физлиц: второе ФИО (если основное уже использовано)
               const contactPerson = hasCompany
                 ? fioValue || fio2Value
-                : fio2Value
+                : (fioValue ? fio2Value : null)
 
-              // Телефоны (фильтруем NULL)
+              // Телефоны (фильтруем NULL) - используем fallback на phone2 если phone1 пустой
               const phone1 = getValueOrNull(order.field_all_phone1_value)
               const phone2 = getValueOrNull(order.field_all_phone2_value)
-              const customerPhone = phone1 || ''
-              const contactPhone = phone2
+              const customerPhone = phone1 || phone2 || ''
+              // Контактный телефон - второй телефон, если первый уже использован
+              const contactPhone = phone1 ? phone2 : null
 
               // Парсинг даты (node_created_at уже в формате datetime)
               let createdAt: string | null = null
