@@ -8,9 +8,10 @@ interface SidebarProps {
   applicationsCount: number
   isCollapsed: boolean
   setIsCollapsed: (collapsed: boolean) => void
+  onChangePassword?: () => void
 }
 
-export default function Sidebar({ user, applicationsCount, isCollapsed, setIsCollapsed }: SidebarProps) {
+export default function Sidebar({ user, applicationsCount, isCollapsed, setIsCollapsed, onChangePassword }: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -168,11 +169,11 @@ export default function Sidebar({ user, applicationsCount, isCollapsed, setIsCol
       {/* Информация о пользователе внизу */}
       {user && !isCollapsed && (
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0">
               {user.full_name.charAt(0).toUpperCase()}
             </div>
-            <div className="text-xs overflow-hidden">
+            <div className="text-xs overflow-hidden flex-1">
               <p className="font-medium text-gray-900 truncate">{user.full_name}</p>
               <p className="text-gray-500 truncate">
                 {user.role === 'admin' && 'Администратор'}
@@ -183,6 +184,17 @@ export default function Sidebar({ user, applicationsCount, isCollapsed, setIsCol
               </p>
             </div>
           </div>
+          {onChangePassword && (
+            <button
+              onClick={onChangePassword}
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              Сменить пароль
+            </button>
+          )}
         </div>
       )}
 
