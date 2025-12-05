@@ -16,35 +16,83 @@ interface ImportStats {
   files: { total: number; imported: number; skipped: number; errors: number }
 }
 
+// Новая структура данных из Drupal
 interface LegacyOrder {
-  id: string
-  number: string
-  created_at: string
-  type: string
-  client_fio: string
-  company: string
-  address: string
-  status: string
-  stage: string
+  // Системные поля
+  nid: string
+  vid: string
+  node_type: string
+  node_created_at: string
+  node_changed_at: string
+  node_uid: string
+  node_status: string
+  // Поля заявки
+  field_all_type_value: string
+  field_all_company_value: string
+  field_all_fio_value: string
+  field_all_fio2_value: string
+  field_all_number_value: string
+  field_all_phone1_value: string
+  field_all_phone2_value: string
+  field_all_dakt_value: string
+  field_all_adres_value: string
+  field_all_account_value: string
+  field_all_ddogovor_value: string
+  field_all_ndogovor_value: string
+  field_all_login_value: string
+  field_all_ip_adres_value: string
+  field_all_tarif_value: string
+  field_all_uzel_value: string
+  field_all_vneshka_value: string
+  field_all_port_value: string
+  field_etap_value: string
+  field_all_price_value: string
+  field_all_oplata_value: string
+  field_all_job_value: string
+  field_all_adres2_value: string
+  field_all_mac_value: string
+  field_all_fio_r_value: string
+  field_all_data_value: string
+  field_all_nakt_value: string
+  field_all_status_value: string
+  field_all_kurator_value: string
+  field_all_manager_value: string
+  field_all_udogovor_value: string
+  field_all_ndogovor_tomica_value: string
+  field_all_ddogovor_tomica_value: string
+  field_srok_value: string
 }
 
 interface LegacyComment {
-  nid: string
   cid: string
-  created_at: string
-  author: string
+  nid: string
+  pid: string
+  uid: string
   subject: string
   comment: string
+  hostname: string
+  timestamp: string
+  status: string
+  format: string
+  thread: string
+  created_at: string
+  user_name: string
 }
 
 interface LegacyFile {
   nid: string
   fid: string
+  description: string
+  list: string
+  weight: string
   filename: string
   filepath: string
+  filemime: string
   filesize: string
+  timestamp: string
+  status: string
   uploaded_at: string
-  description: string
+  file_url: string
 }
 
 // Маппинг stage -> status
@@ -70,16 +118,16 @@ const STAGE_STATUS_MAPPING: Record<string, { status: string; urgency: string }> 
   '12. Дубль заявки': { status: 'rejected', urgency: 'normal' },
 }
 
-// Маппинг type -> service_type
+// Маппинг type -> service_type (field_all_type_value)
 function mapServiceType(type: string): string {
   const normalizedType = type?.toLowerCase().trim() || ''
-  if (normalizedType.includes('домашн') || normalizedType.includes('квартир')) {
+  if (normalizedType.includes('домашн') || normalizedType.includes('квартир') || normalizedType.includes('дом')) {
     return 'apartment'
   }
-  if (normalizedType.includes('офис')) {
+  if (normalizedType.includes('офис') || normalizedType.includes('юр')) {
     return 'office'
   }
-  if (normalizedType.includes('скс')) {
+  if (normalizedType.includes('скс') || normalizedType.includes('сеть')) {
     return 'scs'
   }
   return 'apartment' // default
@@ -224,7 +272,8 @@ export async function POST(request: NextRequest) {
 
         for (let i = 0; i < orders.length; i++) {
           const order = orders[i]
-          const legacyId = order.id?.trim()
+          // Используем nid как основной ID
+          const legacyId = order.nid?.trim()
 
           if (!legacyId) {
             stats.orders.errors++
@@ -247,25 +296,32 @@ export async function POST(request: NextRequest) {
             }
           } else {
             try {
-              // Маппинг stage -> status
-              const stageMapping = STAGE_STATUS_MAPPING[order.stage?.trim()] || {
+              // Маппинг stage -> status (field_etap_value)
+              const stageMapping = STAGE_STATUS_MAPPING[order.field_etap_value?.trim()] || {
                 status: 'new',
                 urgency: 'normal',
               }
 
               // Определение типа клиента
-              const hasCompany = order.company?.trim()
+              const hasCompany = order.field_all_company_value?.trim()
               const customerType = hasCompany ? 'business' : 'individual'
               const customerFullname = hasCompany
-                ? order.company.trim()
-                : order.client_fio?.trim() || 'Не указано'
-              const contactPerson = hasCompany ? order.client_fio?.trim() || null : null
+                ? order.field_all_company_value.trim()
+                : order.field_all_fio_value?.trim() || 'Не указано'
+              // Для юрлиц: основное ФИО как контактное лицо, для физлиц: второе ФИО
+              const contactPerson = hasCompany
+                ? order.field_all_fio_value?.trim() || order.field_all_fio2_value?.trim() || null
+                : order.field_all_fio2_value?.trim() || null
 
-              // Парсинг даты
+              // Телефоны
+              const customerPhone = order.field_all_phone1_value?.trim() || ''
+              const contactPhone = order.field_all_phone2_value?.trim() || null
+
+              // Парсинг даты (node_created_at уже в формате datetime)
               let createdAt: string | null = null
-              if (order.created_at) {
+              if (order.node_created_at) {
                 try {
-                  const date = new Date(order.created_at)
+                  const date = new Date(order.node_created_at)
                   if (!isNaN(date.getTime())) {
                     createdAt = date.toISOString()
                   }
@@ -274,19 +330,41 @@ export async function POST(request: NextRequest) {
                 }
               }
 
+              // Формируем дополнительную информацию для комментария
+              const additionalInfo: string[] = []
+              if (order.field_all_account_value?.trim()) additionalInfo.push(`Лицевой счёт: ${order.field_all_account_value.trim()}`)
+              if (order.field_all_ndogovor_value?.trim()) additionalInfo.push(`Договор: ${order.field_all_ndogovor_value.trim()}`)
+              if (order.field_all_ddogovor_value?.trim()) additionalInfo.push(`Дата договора: ${order.field_all_ddogovor_value.trim()}`)
+              if (order.field_all_login_value?.trim()) additionalInfo.push(`Логин: ${order.field_all_login_value.trim()}`)
+              if (order.field_all_ip_adres_value?.trim()) additionalInfo.push(`IP: ${order.field_all_ip_adres_value.trim()}`)
+              if (order.field_all_tarif_value?.trim()) additionalInfo.push(`Тариф: ${order.field_all_tarif_value.trim()}`)
+              if (order.field_all_uzel_value?.trim()) additionalInfo.push(`Узел: ${order.field_all_uzel_value.trim()}`)
+              if (order.field_all_port_value?.trim()) additionalInfo.push(`Порт: ${order.field_all_port_value.trim()}`)
+              if (order.field_all_mac_value?.trim()) additionalInfo.push(`MAC: ${order.field_all_mac_value.trim()}`)
+              if (order.field_all_price_value?.trim()) additionalInfo.push(`Цена: ${order.field_all_price_value.trim()}`)
+              if (order.field_all_oplata_value?.trim()) additionalInfo.push(`Оплата: ${order.field_all_oplata_value.trim()}`)
+              if (order.field_all_job_value?.trim()) additionalInfo.push(`Работы: ${order.field_all_job_value.trim()}`)
+              if (order.field_all_kurator_value?.trim()) additionalInfo.push(`Куратор: ${order.field_all_kurator_value.trim()}`)
+              if (order.field_all_manager_value?.trim()) additionalInfo.push(`Менеджер: ${order.field_all_manager_value.trim()}`)
+
+              const clientComment = additionalInfo.length > 0 ? additionalInfo.join('\n') : null
+
               const applicationData = {
                 legacy_id: parseInt(legacyId),
-                legacy_stage: order.stage?.trim() || null,
-                application_number: parseInt(order.number?.trim()) || parseInt(legacyId),
+                legacy_stage: order.field_etap_value?.trim() || null,
+                application_number: parseInt(order.field_all_number_value?.trim()) || parseInt(legacyId),
                 customer_type: customerType,
                 customer_fullname: customerFullname,
-                customer_phone: '',
+                customer_phone: customerPhone,
                 contact_person: contactPerson,
-                service_type: mapServiceType(order.type),
+                contact_phone: contactPhone,
+                service_type: mapServiceType(order.field_all_type_value),
                 status: stageMapping.status,
                 urgency: stageMapping.urgency,
-                street_and_house: order.address?.trim() || null,
+                street_and_house: order.field_all_adres_value?.trim() || null,
+                address_details: order.field_all_adres2_value?.trim() || null,
                 address_match_status: 'unmatched',
+                client_comment: clientComment,
                 created_at: createdAt,
               }
 
@@ -415,7 +493,7 @@ export async function POST(request: NextRequest) {
                 legacy_id: parseInt(legacyCid),
                 application_id: applicationId,
                 user_id: null,
-                user_name: comment.author?.trim() || 'Система',
+                user_name: comment.user_name?.trim() || 'Система',
                 user_email: null,
                 comment: commentText,
                 created_at: createdAt,
@@ -508,24 +586,12 @@ export async function POST(request: NextRequest) {
               }
 
               const filename = file.filename?.trim() || 'unknown'
-              const ext = filename.split('.').pop()?.toLowerCase() || ''
-              const mimeTypes: Record<string, string> = {
-                jpg: 'image/jpeg',
-                jpeg: 'image/jpeg',
-                png: 'image/png',
-                gif: 'image/gif',
-                pdf: 'application/pdf',
-                doc: 'application/msword',
-                docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                xls: 'application/vnd.ms-excel',
-                xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                txt: 'text/plain',
-              }
-              const mimeType = mimeTypes[ext] || 'application/octet-stream'
+              // Используем filemime из Drupal, если есть
+              const mimeType = file.filemime?.trim() || 'application/octet-stream'
 
               const fileData = {
                 legacy_id: parseInt(legacyFid),
-                legacy_path: file.filepath?.trim() || null,
+                legacy_path: file.filepath?.trim() || file.file_url?.trim() || null,
                 application_id: applicationId,
                 comment_id: null,
                 original_filename: filename,
