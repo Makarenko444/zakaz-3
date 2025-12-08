@@ -229,8 +229,8 @@ export async function POST(request: NextRequest) {
   const recordLimit = recordLimitStr ? parseInt(recordLimitStr) : 0 // 0 = без лимита
 
   // Требуется хотя бы один файл
-  if (!ordersFile && !usersFile) {
-    return NextResponse.json({ error: 'Требуется хотя бы один файл (orders.tsv или users.tsv)' }, { status: 400 })
+  if (!ordersFile && !usersFile && !commentsFile && !filesFile) {
+    return NextResponse.json({ error: 'Требуется хотя бы один файл' }, { status: 400 })
   }
 
   // Парсинг файлов заранее
@@ -368,6 +368,28 @@ export async function POST(request: NextRequest) {
 
         // Маппинг legacy_id -> new_application_id
         const orderIdMapping: Map<string, string> = new Map()
+
+        // Если нет заявок для импорта, но есть комментарии или файлы -
+        // загружаем маппинг из существующих заявок в БД
+        if (orders.length === 0 && (comments.length > 0 || files.length > 0)) {
+          const { data: existingApps } = await supabase
+            .from('zakaz_applications')
+            .select('id, legacy_id')
+            .not('legacy_id', 'is', null)
+
+          if (existingApps) {
+            for (const app of existingApps as { id: string; legacy_id: number }[]) {
+              orderIdMapping.set(app.legacy_id.toString(), app.id)
+            }
+          }
+
+          sendProgress({
+            phase: 'init',
+            current: 0,
+            total: comments.length + files.length,
+            log: log('info', `Загружен маппинг для ${orderIdMapping.size} существующих заявок`),
+          })
+        }
 
         // Маппинг legacy_uid -> user_id для связывания заявок и комментариев с пользователями
         const { data: usersWithLegacyUid } = await supabase
