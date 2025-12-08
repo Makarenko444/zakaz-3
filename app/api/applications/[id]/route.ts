@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
 import { validateSession } from '@/lib/session'
+import { deleteFile } from '@/lib/file-upload'
 
 export async function GET(
   request: NextRequest,
@@ -262,14 +263,31 @@ export async function DELETE(
       console.error('Error deleting comments:', commentsError)
     }
 
-    // 2. Удаляем файлы
+    // 2. Удаляем файлы (сначала с диска, потом из БД)
+    const { data: files } = await supabase
+      .from('zakaz_files')
+      .select('stored_filename')
+      .eq('application_id', id)
+
+    if (files && files.length > 0) {
+      // Удаляем физические файлы с диска
+      for (const file of files) {
+        try {
+          await deleteFile(id, file.stored_filename)
+        } catch (err) {
+          console.error(`Error deleting file ${file.stored_filename}:`, err)
+        }
+      }
+    }
+
+    // Удаляем записи о файлах из БД
     const { error: filesError } = await supabase
       .from('zakaz_files')
       .delete()
       .eq('application_id', id)
 
     if (filesError) {
-      console.error('Error deleting files:', filesError)
+      console.error('Error deleting file records:', filesError)
     }
 
     // 3. Удаляем логи
