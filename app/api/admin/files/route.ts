@@ -4,8 +4,31 @@ import { getUserBySessionToken, SESSION_COOKIE_OPTIONS } from '@/lib/session'
 import { getFilePath } from '@/lib/file-upload'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { execSync } from 'child_process'
 
 const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads')
+
+// Получить информацию о диске
+function getDiskInfo(): { total: number; used: number; free: number; percent: number } | null {
+  try {
+    // Используем df для получения информации о диске
+    const output = execSync(`df -B1 "${UPLOAD_BASE_DIR}" 2>/dev/null || df -B1 / 2>/dev/null`).toString()
+    const lines = output.trim().split('\n')
+    if (lines.length < 2) return null
+
+    const parts = lines[1].split(/\s+/)
+    if (parts.length < 4) return null
+
+    const total = parseInt(parts[1]) || 0
+    const used = parseInt(parts[2]) || 0
+    const free = parseInt(parts[3]) || 0
+    const percent = total > 0 ? Math.round((used / total) * 100) : 0
+
+    return { total, used, free, percent }
+  } catch {
+    return null
+  }
+}
 
 interface FileRecord {
   id: string
@@ -240,6 +263,7 @@ export async function GET(request: NextRequest) {
       limit,
       totalPages: Math.ceil((count || 0) / limit),
       files: filesWithStatus,
+      diskInfo: getDiskInfo(),
     })
   } catch (error) {
     console.error('Error in files API:', error)
