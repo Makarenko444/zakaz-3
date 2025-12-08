@@ -209,8 +209,8 @@ export default function LegacyImportAdmin() {
 
   // Запуск импорта со streaming
   async function handleImport() {
-    if (!ordersFile && !usersFile) {
-      alert('Загрузите хотя бы один файл (orders.tsv или users.tsv)')
+    if (!ordersFile && !usersFile && !commentsFile && !filesFile) {
+      alert('Загрузите хотя бы один файл')
       return
     }
 
@@ -504,7 +504,7 @@ export default function LegacyImportAdmin() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <h4 className="mt-2 text-sm font-medium text-gray-900">orders.tsv</h4>
-              <p className="mt-1 text-xs text-gray-500">Заявки (обязательно)</p>
+              <p className="mt-1 text-xs text-gray-500">Заявки (опционально)</p>
 
               <input
                 ref={ordersInputRef}
@@ -675,7 +675,7 @@ export default function LegacyImportAdmin() {
 
           <button
             onClick={handlePreview}
-            disabled={(!ordersFile && !usersFile) || isImporting}
+            disabled={(!ordersFile && !usersFile && !commentsFile && !filesFile) || isImporting}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Предпросмотр
@@ -683,7 +683,7 @@ export default function LegacyImportAdmin() {
 
           <button
             onClick={handleImport}
-            disabled={(!ordersFile && !usersFile) || isImporting}
+            disabled={(!ordersFile && !usersFile && !commentsFile && !filesFile) || isImporting}
             className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isImporting ? (
