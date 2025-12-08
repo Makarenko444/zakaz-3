@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyPassword, createSession, SESSION_COOKIE_OPTIONS } from '@/lib/session'
+import { createDirectClient } from '@/lib/supabase-direct'
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +31,13 @@ export async function POST(request: NextRequest) {
       request.headers.get('x-forwarded-for') || undefined,
       request.headers.get('user-agent') || undefined
     )
+
+    // Обновляем дату последнего входа
+    const supabase = createDirectClient()
+    await supabase
+      .from('zakaz_users')
+      .update({ legacy_last_login: new Date().toISOString() })
+      .eq('id', user.id)
 
     // Создаем response с cookie
     const response = NextResponse.json({
