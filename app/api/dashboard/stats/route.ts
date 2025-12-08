@@ -131,6 +131,7 @@ export async function GET(_request: NextRequest) {
     const { data: usersData, error: usersError } = await supabase
       .from('zakaz_users')
       .select('id, full_name, role')
+      .eq('active', true)
       .order('full_name', { ascending: true })
 
     let users: Array<{ id: string; name: string; role: string; count: number }> = []
