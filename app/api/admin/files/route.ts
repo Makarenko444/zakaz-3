@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { getUserBySessionToken, SESSION_COOKIE_OPTIONS } from '@/lib/session'
-import { getFilePath, getApplicationUploadDir } from '@/lib/file-upload'
+import { getFilePath } from '@/lib/file-upload'
 import { promises as fs } from 'fs'
 import path from 'path'
 
@@ -161,8 +161,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to fetch files', details: error.message }, { status: 500 })
       }
 
-      const files = allFiles || []
-      const orphanDbFiles: (typeof files[0] & { reason: string })[] = []
+      const files = (allFiles || []) as FileRecord[]
+      const orphanDbFiles: (FileRecord & { reason: string })[] = []
 
       for (const file of files) {
         const { data: app } = await supabase
