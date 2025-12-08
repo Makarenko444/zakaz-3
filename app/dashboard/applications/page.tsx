@@ -89,74 +89,71 @@ function ApplicationsContent() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
 
-  // Количество элементов на странице (загружаем из localStorage)
-  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY_ITEMS_PER_PAGE)
-      if (saved) {
-        const num = parseInt(saved, 10)
-        if (!isNaN(num) && num > 0) return num
-      }
-    }
-    return DEFAULT_ITEMS_PER_PAGE
-  })
+  // Количество элементов на странице
+  const [itemsPerPage, setItemsPerPage] = useState<number>(DEFAULT_ITEMS_PER_PAGE)
 
-  // Режим отображения (загружаем из localStorage)
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY_VIEW_MODE)
-      if (saved === 'cards' || saved === 'table') {
-        return saved
-      }
-    }
-    return 'cards'
-  })
+  // Режим отображения
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
 
-  // Сортировка (загружаем из localStorage)
-  const [sortField, setSortField] = useState<SortField>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY_SORT)
-      if (saved) {
-        try {
-          const { field } = JSON.parse(saved)
-          if (['application_number', 'created_at', 'status', 'customer_fullname', 'street_and_house'].includes(field)) {
-            return field as SortField
-          }
-        } catch { /* ignore */ }
-      }
-    }
-    return 'created_at'
-  })
+  // Сортировка
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
-  const [sortDirection, setSortDirection] = useState<SortDirection>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY_SORT)
-      if (saved) {
-        try {
-          const { direction } = JSON.parse(saved)
-          if (direction === 'asc' || direction === 'desc') {
-            return direction as SortDirection
-          }
-        } catch { /* ignore */ }
-      }
-    }
-    return 'desc'
-  })
+  // Флаг загрузки настроек из localStorage
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
 
-  // Сохраняем режим отображения в localStorage при изменении
+  // Загружаем настройки из localStorage при монтировании
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode)
-  }, [viewMode])
+    // Загружаем количество элементов на странице
+    const savedItemsPerPage = localStorage.getItem(STORAGE_KEY_ITEMS_PER_PAGE)
+    if (savedItemsPerPage) {
+      const num = parseInt(savedItemsPerPage, 10)
+      if (!isNaN(num) && num > 0) {
+        setItemsPerPage(num)
+      }
+    }
 
-  // Сохраняем количество элементов на странице в localStorage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_ITEMS_PER_PAGE, itemsPerPage.toString())
-  }, [itemsPerPage])
+    // Загружаем режим отображения
+    const savedViewMode = localStorage.getItem(STORAGE_KEY_VIEW_MODE)
+    if (savedViewMode === 'cards' || savedViewMode === 'table') {
+      setViewMode(savedViewMode)
+    }
 
-  // Сохраняем сортировку в localStorage
+    // Загружаем сортировку
+    const savedSort = localStorage.getItem(STORAGE_KEY_SORT)
+    if (savedSort) {
+      try {
+        const { field, direction } = JSON.parse(savedSort)
+        if (['application_number', 'created_at', 'status', 'customer_fullname', 'street_and_house'].includes(field)) {
+          setSortField(field as SortField)
+        }
+        if (direction === 'asc' || direction === 'desc') {
+          setSortDirection(direction as SortDirection)
+        }
+      } catch { /* ignore */ }
+    }
+
+    setSettingsLoaded(true)
+  }, [])
+
+  // Сохраняем настройки в localStorage (только после загрузки)
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_SORT, JSON.stringify({ field: sortField, direction: sortDirection }))
-  }, [sortField, sortDirection])
+    if (settingsLoaded) {
+      localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode)
+    }
+  }, [viewMode, settingsLoaded])
+
+  useEffect(() => {
+    if (settingsLoaded) {
+      localStorage.setItem(STORAGE_KEY_ITEMS_PER_PAGE, itemsPerPage.toString())
+    }
+  }, [itemsPerPage, settingsLoaded])
+
+  useEffect(() => {
+    if (settingsLoaded) {
+      localStorage.setItem(STORAGE_KEY_SORT, JSON.stringify({ field: sortField, direction: sortDirection }))
+    }
+  }, [sortField, sortDirection, settingsLoaded])
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
