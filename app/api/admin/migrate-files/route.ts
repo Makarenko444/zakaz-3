@@ -17,6 +17,36 @@ function getLegacyAuthHeader(): string {
   return `Basic ${credentials}`
 }
 
+// Правильное кодирование URL с русскими символами
+function encodeLegacyUrl(urlOrPath: string): string {
+  // Если это уже полный URL
+  if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
+    try {
+      const url = new URL(urlOrPath)
+      // Перекодируем путь, сохраняя уже закодированные символы
+      const decodedPath = decodeURIComponent(url.pathname)
+      url.pathname = decodedPath.split('/').map(segment => encodeURIComponent(segment)).join('/')
+      return url.toString()
+    } catch {
+      // Если URL невалидный, пробуем закодировать как есть
+      return urlOrPath
+    }
+  }
+
+  // Относительный путь
+  const cleanPath = urlOrPath.startsWith('/') ? urlOrPath.slice(1) : urlOrPath
+  // Декодируем (на случай если уже закодировано) и кодируем заново
+  try {
+    const decoded = decodeURIComponent(cleanPath)
+    const encoded = decoded.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    return `${LEGACY_FILE_BASE_URL}/${encoded}`
+  } catch {
+    // Если декодирование не удалось, кодируем как есть
+    const encoded = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    return `${LEGACY_FILE_BASE_URL}/${encoded}`
+  }
+}
+
 interface LegacyFile {
   id: string
   application_id: string
@@ -63,17 +93,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Формируем URL для legacy-файла
-        let legacyUrl = ''
-        if (file.legacy_path) {
-          if (file.legacy_path.startsWith('http://') || file.legacy_path.startsWith('https://')) {
-            legacyUrl = file.legacy_path
-          } else {
-            const cleanPath = file.legacy_path.startsWith('/')
-              ? file.legacy_path.slice(1)
-              : file.legacy_path
-            legacyUrl = `${LEGACY_FILE_BASE_URL}/${cleanPath}`
-          }
-        }
+        const legacyUrl = file.legacy_path ? encodeLegacyUrl(file.legacy_path) : ''
 
         return {
           id: file.id,
@@ -167,26 +187,27 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Формируем URL
-        let legacyUrl: string
-        if (file.legacy_path.startsWith('http://') || file.legacy_path.startsWith('https://')) {
-          legacyUrl = file.legacy_path
-        } else {
-          const cleanPath = file.legacy_path.startsWith('/')
-            ? file.legacy_path.slice(1)
-            : file.legacy_path
-          legacyUrl = `${LEGACY_FILE_BASE_URL}/${cleanPath}`
+        // Формируем URL с правильным кодированием
+        const legacyUrl = encodeLegacyUrl(file.legacy_path)
+
+        console.log(`[Migrate] Downloading: ${legacyUrl} (original: ${file.legacy_path})`)
+
+        // Скачиваем файл с авторизацией (таймаут 30 секунд)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+        let response: Response
+        try {
+          response = await fetch(legacyUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; ZakazMigration/1.0)',
+              'Authorization': getLegacyAuthHeader(),
+            },
+            signal: controller.signal,
+          })
+        } finally {
+          clearTimeout(timeoutId)
         }
-
-        console.log(`[Migrate] Downloading: ${legacyUrl}`)
-
-        // Скачиваем файл с авторизацией
-        const response = await fetch(legacyUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; ZakazMigration/1.0)',
-            'Authorization': getLegacyAuthHeader(),
-          },
-        })
 
         if (!response.ok) {
           results.push({
