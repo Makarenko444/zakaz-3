@@ -56,12 +56,28 @@ const presenceColors: Record<string, string> = {
   not_present: 'bg-gray-100 text-gray-800',
 }
 
+const STORAGE_KEY_SORT = 'addresses-sort'
+const STORAGE_KEY_ITEMS_PER_PAGE = 'addresses_items_per_page'
+
 export default function AddressesPage() {
   const router = useRouter()
   const [addresses, setAddresses] = useState<Address[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 })
+
+  // Загружаем itemsPerPage из localStorage
+  const getInitialLimit = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY_ITEMS_PER_PAGE)
+      if (saved) {
+        const num = parseInt(saved, 10)
+        if (!isNaN(num) && num > 0) return num
+      }
+    }
+    return 50
+  }
+
+  const [pagination, setPagination] = useState({ page: 1, limit: getInitialLimit(), total: 0, totalPages: 0 })
 
   // Фильтры и поиск
   const [searchQuery, setSearchQuery] = useState('')
@@ -101,7 +117,7 @@ export default function AddressesPage() {
 
   useEffect(() => {
     // Загружаем сортировку из localStorage
-    const savedSort = localStorage.getItem('addresses-sort')
+    const savedSort = localStorage.getItem(STORAGE_KEY_SORT)
     if (savedSort) {
       try {
         const { field, direction } = JSON.parse(savedSort)
@@ -199,7 +215,7 @@ export default function AddressesPage() {
     setSortDirection(newDirection)
 
     // Сохраняем в localStorage
-    localStorage.setItem('addresses-sort', JSON.stringify({ field, direction: newDirection }))
+    localStorage.setItem(STORAGE_KEY_SORT, JSON.stringify({ field, direction: newDirection }))
   }
 
   function handleSearch() {
@@ -214,6 +230,8 @@ export default function AddressesPage() {
 
   function handleItemsPerPageChange(newLimit: number) {
     setPagination(p => ({ ...p, limit: newLimit, page: 1 }))
+    // Сохраняем в localStorage
+    localStorage.setItem(STORAGE_KEY_ITEMS_PER_PAGE, newLimit.toString())
   }
 
   function handlePageChange(newPage: number) {
