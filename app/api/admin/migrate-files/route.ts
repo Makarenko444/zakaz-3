@@ -137,48 +137,39 @@ export async function POST(request: NextRequest) {
 
     const supabase = createDirectClient()
 
-    // Получаем файлы для миграции
-    let query = supabase
-      .from('zakaz_files')
-      .select('id, application_id, legacy_path, stored_filename, original_filename, mime_type')
-      .not('legacy_path', 'is', null)
+    let legacyFiles: (LegacyFile & { mime_type: string })[] = []
 
     if (fileIds && fileIds.length > 0) {
-      query = query.in('id', fileIds)
-    }
+      // Если переданы конкретные ID, загружаем их пакетами по 50 (чтобы избежать URI too long)
+      const chunkSize = 50
+      for (let i = 0; i < fileIds.length; i += chunkSize) {
+        const chunk = fileIds.slice(i, i + chunkSize)
+        const { data: chunkFiles, error } = await supabase
+          .from('zakaz_files')
+          .select('id, application_id, legacy_path, stored_filename, original_filename, mime_type')
+          .not('legacy_path', 'is', null)
+          .in('id', chunk)
 
-    // Получаем больше файлов чтобы найти немигрированные
-    // (т.к. мы не можем на уровне БД узнать какие файлы существуют локально)
-    query = query.limit(Math.max(limit * 10, 500))
+        if (error) {
+          return NextResponse.json({ error: 'Failed to fetch files', details: error.message }, { status: 500 })
+        }
 
-    const { data: files, error } = await query
+        legacyFiles.push(...((chunkFiles || []) as (LegacyFile & { mime_type: string })[]))
+      }
+    } else {
+      // Если ID не переданы, используем limit
+      const { data: files, error } = await supabase
+        .from('zakaz_files')
+        .select('id, application_id, legacy_path, stored_filename, original_filename, mime_type')
+        .not('legacy_path', 'is', null)
+        .limit(limit)
 
-    if (error) {
-      return NextResponse.json({ error: 'Failed to fetch files', details: error.message }, { status: 500 })
-    }
-
-    const allFiles = (files || []) as (LegacyFile & { mime_type: string })[]
-
-    // Фильтруем - оставляем только файлы которые НЕ существуют локально
-    const filesToMigrate: (LegacyFile & { mime_type: string })[] = []
-    for (const file of allFiles) {
-      if (filesToMigrate.length >= limit) break
-
-      const filePath = getFilePath(file.application_id, file.stored_filename)
-      let exists = false
-      try {
-        await fs.access(filePath)
-        exists = true
-      } catch {
-        exists = false
+      if (error) {
+        return NextResponse.json({ error: 'Failed to fetch files', details: error.message }, { status: 500 })
       }
 
-      if (!exists) {
-        filesToMigrate.push(file)
-      }
+      legacyFiles = (files || []) as (LegacyFile & { mime_type: string })[]
     }
-
-    console.log(`[Migrate] Found ${filesToMigrate.length} files to migrate out of ${allFiles.length} checked`)
 
     const results: {
       id: string
