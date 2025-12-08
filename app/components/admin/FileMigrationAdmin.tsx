@@ -91,12 +91,17 @@ export default function FileMigrationAdmin() {
   }, [loadStatus])
 
   const handleMigrateAll = async () => {
-    if (!status || status.pending === 0) return
+    if (!status || status.pending === 0 || status.pendingFiles.length === 0) return
 
     setIsMigrating(true)
     setMigrationResults([])
     setError(null)
-    addLog('info', `Начинаем миграцию ${Math.min(batchSize, status.pending)} файлов...`)
+
+    // Берём ID файлов из списка pendingFiles (уже проверенных как немигрированные)
+    const filesToMigrate = status.pendingFiles.slice(0, batchSize)
+    const fileIds = filesToMigrate.map(f => f.id)
+
+    addLog('info', `Начинаем миграцию ${fileIds.length} файлов...`)
 
     try {
       const startTime = Date.now()
@@ -104,7 +109,7 @@ export default function FileMigrationAdmin() {
       const response = await fetch('/api/admin/migrate-files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: batchSize }),
+        body: JSON.stringify({ fileIds }),
       })
 
       const responseText = await response.text()
