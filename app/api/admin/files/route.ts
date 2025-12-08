@@ -8,6 +8,36 @@ import { execSync } from 'child_process'
 
 const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads')
 
+// Категоризация MIME типов для статистики
+function getCategoryFromMimeType(mimeType: string): string {
+  if (mimeType.startsWith('image/')) return 'image'
+  if (mimeType.startsWith('video/')) return 'video'
+  if (mimeType.startsWith('audio/')) return 'audio'
+  if (mimeType === 'application/pdf') return 'pdf'
+  if (mimeType.includes('word') || mimeType.includes('document')) return 'document'
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'spreadsheet'
+  if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z') || mimeType.includes('archive')) return 'archive'
+  if (mimeType.startsWith('text/')) return 'text'
+  return 'other'
+}
+
+// Человекочитаемые названия категорий
+function getCategoryLabel(category: string): string {
+  const labels: Record<string, string> = {
+    image: 'Изображения',
+    video: 'Видео',
+    audio: 'Аудио',
+    pdf: 'PDF документы',
+    document: 'Документы Word',
+    spreadsheet: 'Таблицы Excel',
+    archive: 'Архивы',
+    text: 'Текстовые файлы',
+    other: 'Другие',
+    unknown: 'Неизвестные',
+  }
+  return labels[category] || category
+}
+
 // Получить информацию о диске
 function getDiskInfo(): { total: number; used: number; free: number; percent: number } | null {
   try {
@@ -203,6 +233,58 @@ export async function GET(request: NextRequest) {
         mode: 'no-application',
         total: orphanDbFiles.length,
         files: orphanDbFiles,
+      })
+    }
+
+    if (mode === 'stats') {
+      // Статистика по типам файлов
+      const { data: allFiles, error } = await supabase
+        .from('zakaz_files')
+        .select('mime_type, file_size')
+
+      if (error) {
+        return NextResponse.json({ error: 'Failed to fetch files', details: error.message }, { status: 500 })
+      }
+
+      const files = (allFiles || []) as { mime_type: string | null; file_size: number }[]
+
+      // Группируем по типу файла
+      const statsByType: Record<string, { count: number; totalSize: number }> = {}
+      let totalCount = 0
+      let totalSize = 0
+
+      for (const file of files) {
+        const mimeType = file.mime_type || 'unknown'
+        // Упрощаем mime type для группировки (image/jpeg -> image)
+        const category = getCategoryFromMimeType(mimeType)
+
+        if (!statsByType[category]) {
+          statsByType[category] = { count: 0, totalSize: 0 }
+        }
+        statsByType[category].count++
+        statsByType[category].totalSize += file.file_size || 0
+        totalCount++
+        totalSize += file.file_size || 0
+      }
+
+      // Преобразуем в массив и сортируем по размеру
+      const statsArray = Object.entries(statsByType)
+        .map(([type, stats]) => ({
+          type,
+          label: getCategoryLabel(type),
+          count: stats.count,
+          totalSize: stats.totalSize,
+          percentByCount: totalCount > 0 ? Math.round((stats.count / totalCount) * 100) : 0,
+          percentBySize: totalSize > 0 ? Math.round((stats.totalSize / totalSize) * 100) : 0,
+        }))
+        .sort((a, b) => b.totalSize - a.totalSize)
+
+      return NextResponse.json({
+        mode: 'stats',
+        totalCount,
+        totalSize,
+        byType: statsArray,
+        diskInfo: getDiskInfo(),
       })
     }
 

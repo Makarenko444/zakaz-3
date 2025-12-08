@@ -36,7 +36,36 @@ interface DiskInfo {
   percent: number
 }
 
+interface FileTypeStats {
+  type: string
+  label: string
+  count: number
+  totalSize: number
+  percentByCount: number
+  percentBySize: number
+}
+
+interface StatsData {
+  totalCount: number
+  totalSize: number
+  byType: FileTypeStats[]
+}
+
 type ViewMode = 'list' | 'zombies' | 'orphans' | 'no-application'
+
+// Цвета для пирога
+const PIE_COLORS = [
+  '#4F46E5', // indigo-600
+  '#10B981', // emerald-500
+  '#F59E0B', // amber-500
+  '#EF4444', // red-500
+  '#8B5CF6', // violet-500
+  '#EC4899', // pink-500
+  '#06B6D4', // cyan-500
+  '#84CC16', // lime-500
+  '#F97316', // orange-500
+  '#6366F1', // indigo-500
+]
 
 export default function FileManagementAdmin() {
   const [mode, setMode] = useState<ViewMode>('list')
@@ -55,6 +84,8 @@ export default function FileManagementAdmin() {
   const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null)
   const [imageModalOpen, setImageModalOpen] = useState(false)
   const [selectedImage, setSelectedImage] = useState<FileRecord | null>(null)
+  const [stats, setStats] = useState<StatsData | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
 
   const loadFiles = useCallback(async () => {
     setIsLoading(true)
@@ -102,6 +133,32 @@ export default function FileManagementAdmin() {
   useEffect(() => {
     loadFiles()
   }, [loadFiles])
+
+  // Загрузка статистики при монтировании
+  useEffect(() => {
+    const loadStats = async () => {
+      setStatsLoading(true)
+      try {
+        const response = await fetch('/api/admin/files?mode=stats')
+        if (response.ok) {
+          const data = await response.json()
+          setStats({
+            totalCount: data.totalCount,
+            totalSize: data.totalSize,
+            byType: data.byType,
+          })
+          if (data.diskInfo) {
+            setDiskInfo(data.diskInfo)
+          }
+        }
+      } catch (err) {
+        console.error('Error loading stats:', err)
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+    loadStats()
+  }, [])
 
   // Закрытие модального окна по ESC
   useEffect(() => {
@@ -251,6 +308,30 @@ export default function FileManagementAdmin() {
     }
   }
 
+  // Генерация CSS градиента для пирога
+  const generatePieGradient = (data: FileTypeStats[], bySize: boolean = true): string => {
+    if (!data || data.length === 0) return 'conic-gradient(#e5e7eb 0deg 360deg)'
+
+    const segments: string[] = []
+    let currentAngle = 0
+
+    data.forEach((item, index) => {
+      const percent = bySize ? item.percentBySize : item.percentByCount
+      const angle = (percent / 100) * 360
+      const color = PIE_COLORS[index % PIE_COLORS.length]
+      segments.push(`${color} ${currentAngle}deg ${currentAngle + angle}deg`)
+      currentAngle += angle
+    })
+
+    // Добавляем заполнение до 360 градусов если есть погрешность округления
+    if (currentAngle < 360) {
+      const lastColor = PIE_COLORS[(data.length - 1) % PIE_COLORS.length]
+      segments.push(`${lastColor} ${currentAngle}deg 360deg`)
+    }
+
+    return `conic-gradient(${segments.join(', ')})`
+  }
+
   return (
     <div className="space-y-6">
       {/* Заголовок и информация о диске */}
@@ -288,6 +369,70 @@ export default function FileManagementAdmin() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Статистика по типам файлов */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Статистика по типам файлов</h3>
+        {statsLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        ) : stats && stats.byType.length > 0 ? (
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Пирог */}
+            <div className="flex-shrink-0">
+              <div className="relative">
+                <div
+                  className="w-48 h-48 rounded-full"
+                  style={{ background: generatePieGradient(stats.byType, true) }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-24 h-24 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-xl font-bold text-gray-900">{stats.totalCount}</span>
+                    <span className="text-xs text-gray-500">файлов</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-center text-sm text-gray-500 mt-2">
+                Всего: {formatFileSize(stats.totalSize)}
+              </p>
+            </div>
+
+            {/* Легенда */}
+            <div className="flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {stats.byType.map((item, index) => (
+                  <div
+                    key={item.type}
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {item.label}
+                        </span>
+                        <span className="text-sm text-gray-500 ml-2">
+                          {item.count}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs text-gray-500">
+                        <span>{formatFileSize(item.totalSize)}</span>
+                        <span>{item.percentBySize}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-gray-500 text-center py-4">Нет данных для отображения</p>
+        )}
       </div>
 
       {/* Режимы просмотра */}
