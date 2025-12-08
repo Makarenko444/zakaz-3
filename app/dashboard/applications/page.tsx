@@ -70,6 +70,13 @@ const serviceTypeLabels: Record<ServiceType, string> = {
 
 const DEFAULT_ITEMS_PER_PAGE = 20
 
+// Тип для режима отображения
+type ViewMode = 'cards' | 'table'
+
+// Тип для сортировки
+type SortField = 'application_number' | 'created_at' | 'status' | 'customer_fullname' | 'street_and_house'
+type SortDirection = 'asc' | 'desc'
+
 function ApplicationsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -78,6 +85,13 @@ function ApplicationsContent() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE)
+
+  // Режим отображения
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
+
+  // Сортировка (для таблицы)
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
@@ -151,6 +165,12 @@ function ApplicationsContent() {
         params.append('date_to', dateTo)
       }
 
+      // Сортировка
+      if (sortField) {
+        params.append('sort_by', sortField)
+        params.append('sort_dir', sortDirection)
+      }
+
       const response = await fetch(`/api/applications?${params.toString()}`)
 
       if (!response.ok) {
@@ -165,7 +185,7 @@ function ApplicationsContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, itemsPerPage, selectedStatuses, searchQuery, applicationNumberSearch, selectedUrgency, selectedServiceType, selectedNodeId, selectedAddressId, selectedAssignedTo, dateFrom, dateTo])
+  }, [page, itemsPerPage, selectedStatuses, searchQuery, applicationNumberSearch, selectedUrgency, selectedServiceType, selectedNodeId, selectedAddressId, selectedAssignedTo, dateFrom, dateTo, sortField, sortDirection])
 
   // Инициализация фильтров из URL при монтировании
   useEffect(() => {
@@ -283,6 +303,39 @@ function ApplicationsContent() {
     setPage(1)
   }
 
+  // Обработка сортировки по столбцу
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Если уже сортируем по этому полю - меняем направление
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Иначе устанавливаем новое поле и направление по умолчанию
+      setSortField(field)
+      setSortDirection(field === 'created_at' ? 'desc' : 'asc')
+    }
+    setPage(1)
+  }
+
+  // Иконка сортировки
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return (
+        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      )
+    }
+    return sortDirection === 'asc' ? (
+      <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    )
+  }
+
   const totalPages = Math.ceil(total / itemsPerPage)
 
   const formatDate = (dateString: string) => {
@@ -306,9 +359,41 @@ function ApplicationsContent() {
   return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Page Header */}
-        <div className="flex items-center gap-2 mb-4">
-          <h1 className="text-xl font-bold text-gray-900">Все заявки</h1>
-          <span className="text-sm text-gray-500">({total})</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900">Все заявки</h1>
+            <span className="text-sm text-gray-500">({total})</span>
+          </div>
+
+          {/* Переключатель режима отображения */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`p-1.5 rounded-md transition ${
+                viewMode === 'cards'
+                  ? 'bg-white shadow text-indigo-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="Карточки"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-md transition ${
+                viewMode === 'table'
+                  ? 'bg-white shadow text-indigo-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="Таблица"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Фильтр по узлу */}
@@ -613,7 +698,8 @@ function ApplicationsContent() {
             <h3 className="text-base font-medium text-gray-900 mb-1">Заявки не найдены</h3>
             <p className="text-sm text-gray-500">Попробуйте изменить фильтры или создайте новую заявку</p>
           </div>
-        ) : (
+        ) : viewMode === 'cards' ? (
+          /* Карточный вид */
           <div className="space-y-2">
             {applications.map((app) => (
               <div
@@ -654,6 +740,121 @@ function ApplicationsContent() {
                 )}
               </div>
             ))}
+          </div>
+        ) : (
+          /* Табличный вид */
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th
+                      scope="col"
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('application_number')}
+                    >
+                      <div className="flex items-center gap-1">
+                        №
+                        <SortIcon field="application_number" />
+                      </div>
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('created_at')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Дата
+                        <SortIcon field="created_at" />
+                      </div>
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Статус
+                        <SortIcon field="status" />
+                      </div>
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('customer_fullname')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Клиент
+                        <SortIcon field="customer_fullname" />
+                      </div>
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('street_and_house')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Адрес
+                        <SortIcon field="street_and_house" />
+                      </div>
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Тип
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Срочность
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {applications.map((app) => (
+                    <tr
+                      key={app.id}
+                      onClick={() => router.push(`/dashboard/applications/${app.id}`)}
+                      className="hover:bg-gray-50 cursor-pointer transition"
+                    >
+                      <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {app.application_number}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(app.created_at)}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${statusColors[app.status]}`}>
+                          {statusLabels[app.status]}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 max-w-xs">
+                        <div className="truncate" title={app.customer_fullname}>
+                          {app.customer_fullname}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {customerTypeLabels[app.customer_type]}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 max-w-xs">
+                        <div className="truncate" title={app.street_and_house || ''}>
+                          {app.street_and_house || '—'}
+                        </div>
+                        {app.address_details && (
+                          <div className="text-xs text-gray-500 truncate" title={app.address_details}>
+                            {app.address_details}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                        {serviceTypeLabels[app.service_type]}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className={`text-sm font-medium ${urgencyColors[app.urgency]}`}>
+                          {urgencyLabels[app.urgency]}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
