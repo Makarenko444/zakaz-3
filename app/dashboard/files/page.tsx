@@ -5,6 +5,16 @@ import { useRouter } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth-client'
 import { User } from '@/lib/types'
 
+interface FileStats {
+  totalFiles: number
+  totalSize: number
+  typeStats: Record<string, { count: number; size: number }>
+  migratedCount: number
+  pendingMigration: number
+  recentFiles: number
+  monthFiles: number
+}
+
 interface FileItem {
   id: string
   application_id: string
@@ -37,6 +47,7 @@ export default function FilesPage() {
   const [total, setTotal] = useState(0)
   const [sortBy, setSortBy] = useState('uploaded_at')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [stats, setStats] = useState<FileStats | null>(null)
 
   const loadFiles = useCallback(async () => {
     try {
@@ -65,6 +76,18 @@ export default function FilesPage() {
     }
   }, [page, search, sortBy, sortDir])
 
+  const loadStats = useCallback(async () => {
+    try {
+      const response = await fetch('/api/files/stats')
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
+    } catch (error) {
+      console.error('Error loading file stats:', error)
+    }
+  }, [])
+
   useEffect(() => {
     async function loadUser() {
       try {
@@ -85,8 +108,9 @@ export default function FilesPage() {
   useEffect(() => {
     if (user) {
       loadFiles()
+      loadStats()
     }
-  }, [user, loadFiles])
+  }, [user, loadFiles, loadStats])
 
   function formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 B'
@@ -152,11 +176,66 @@ export default function FilesPage() {
 
   return (
     <div className="space-y-6">
+      {/* Статистика */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-500">Всего файлов</div>
+            <div className="text-2xl font-bold text-gray-900">{stats.totalFiles}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-500">Общий размер</div>
+            <div className="text-2xl font-bold text-gray-900">{formatFileSize(stats.totalSize)}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-500">За 7 дней</div>
+            <div className="text-2xl font-bold text-green-600">{stats.recentFiles}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-500">За 30 дней</div>
+            <div className="text-2xl font-bold text-blue-600">{stats.monthFiles}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-500">В хранилище</div>
+            <div className="text-2xl font-bold text-indigo-600">{stats.migratedCount}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-500">На сервере</div>
+            <div className="text-2xl font-bold text-amber-600">{stats.pendingMigration}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Статистика по типам файлов */}
+      {stats && Object.keys(stats.typeStats).length > 0 && (
+        <div className="bg-white rounded-lg shadow p-4">
+          <h2 className="text-sm font-medium text-gray-700 mb-3">По типам файлов</h2>
+          <div className="flex flex-wrap gap-4">
+            {Object.entries(stats.typeStats).map(([type, data]) => (
+              <div key={type} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                <span className="text-lg">
+                  {type === 'Изображения' && '🖼️'}
+                  {type === 'PDF' && '📄'}
+                  {type === 'Документы' && '📝'}
+                  {type === 'Таблицы' && '📊'}
+                  {type === 'Архивы' && '📦'}
+                  {type === 'Другие' && '📎'}
+                </span>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{type}</div>
+                  <div className="text-xs text-gray-500">{data.count} шт. • {formatFileSize(data.size)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Заголовок и поиск */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Файлы</h1>
-          <p className="text-sm text-gray-500 mt-1">Всего файлов: {total}</p>
+          <h1 className="text-2xl font-bold text-gray-900">Список файлов</h1>
+          <p className="text-sm text-gray-500 mt-1">Найдено: {total}</p>
         </div>
         <div className="w-full sm:w-auto">
           <input
