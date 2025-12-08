@@ -400,7 +400,7 @@ export default function FileMigrationAdmin() {
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">Нет legacy-файлов</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Не найдено файлов для миграции. Сначала импортируйте файлы через раздел "Импорт данных".
+            Не найдено файлов для миграции. Сначала импортируйте файлы через раздел &laquo;Импорт данных&raquo;.
           </p>
         </div>
       )}
