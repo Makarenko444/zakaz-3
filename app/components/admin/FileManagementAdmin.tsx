@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface FileRecord {
   id: string
@@ -28,6 +29,13 @@ interface OrphanFile {
   size: number
 }
 
+interface DiskInfo {
+  total: number
+  used: number
+  free: number
+  percent: number
+}
+
 type ViewMode = 'list' | 'zombies' | 'orphans' | 'no-application'
 
 export default function FileManagementAdmin() {
@@ -44,6 +52,9 @@ export default function FileManagementAdmin() {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
   const [selectedOrphans, setSelectedOrphans] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
+  const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null)
+  const [imageModalOpen, setImageModalOpen] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<FileRecord | null>(null)
 
   const loadFiles = useCallback(async () => {
     setIsLoading(true)
@@ -78,6 +89,9 @@ export default function FileManagementAdmin() {
 
       setTotal(data.total || 0)
       setTotalPages(data.totalPages || 1)
+      if (data.diskInfo) {
+        setDiskInfo(data.diskInfo)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки')
     } finally {
@@ -88,6 +102,17 @@ export default function FileManagementAdmin() {
   useEffect(() => {
     loadFiles()
   }, [loadFiles])
+
+  // Закрытие модального окна по ESC
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && imageModalOpen) {
+        setImageModalOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [imageModalOpen])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -153,6 +178,28 @@ export default function FileManagementAdmin() {
     })
   }
 
+  const getFileIcon = (mimeType: string | null | undefined): string => {
+    if (!mimeType) return '📎'
+    if (mimeType.startsWith('image/')) return '🖼️'
+    if (mimeType === 'application/pdf') return '📄'
+    if (mimeType.includes('word')) return '📝'
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '📊'
+    if (mimeType.includes('zip') || mimeType.includes('rar')) return '📦'
+    if (mimeType.startsWith('text/')) return '📃'
+    return '📎'
+  }
+
+  const handleImageClick = (file: FileRecord) => {
+    if (file.mime_type?.startsWith('image/') && file.existsLocally) {
+      setSelectedImage(file)
+      setImageModalOpen(true)
+    }
+  }
+
+  const handleDownload = (file: FileRecord) => {
+    window.open(`/api/applications/${file.application_id}/files/${file.id}`, '_blank')
+  }
+
   const toggleFileSelection = (id: string) => {
     const newSelected = new Set(selectedFiles)
     if (newSelected.has(id)) {
@@ -206,12 +253,41 @@ export default function FileManagementAdmin() {
 
   return (
     <div className="space-y-6">
-      {/* Заголовок */}
+      {/* Заголовок и информация о диске */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Управление файлами</h2>
-        <p className="text-sm text-gray-600">
-          Просмотр всех файлов, поиск зомби-файлов и файлов-сирот.
-        </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Управление файлами</h2>
+            <p className="text-sm text-gray-600">
+              Просмотр всех файлов, поиск зомби-файлов и файлов-сирот.
+            </p>
+          </div>
+          {diskInfo && (
+            <div className="text-right">
+              <div className="text-sm text-gray-600 mb-1">Место на диске</div>
+              <div className="flex items-center gap-3">
+                <div className="w-32 bg-gray-200 rounded-full h-3">
+                  <div
+                    className={`h-3 rounded-full transition-all ${
+                      diskInfo.percent > 90 ? 'bg-red-500' :
+                      diskInfo.percent > 70 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                    style={{ width: `${diskInfo.percent}%` }}
+                  ></div>
+                </div>
+                <span className={`text-sm font-medium ${
+                  diskInfo.percent > 90 ? 'text-red-600' :
+                  diskInfo.percent > 70 ? 'text-yellow-600' : 'text-green-600'
+                }`}>
+                  {diskInfo.percent}%
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {formatFileSize(diskInfo.free)} свободно из {formatFileSize(diskInfo.total)}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Режимы просмотра */}
@@ -395,6 +471,7 @@ export default function FileManagementAdmin() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Размер</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Дата</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Статус</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20"></th>
                   {(mode === 'zombies' || mode === 'no-application') && (
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Причина</th>
                   )}
@@ -403,7 +480,7 @@ export default function FileManagementAdmin() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {files.length === 0 ? (
                   <tr>
-                    <td colSpan={mode === 'zombies' || mode === 'no-application' ? 7 : 5} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={mode === 'zombies' || mode === 'no-application' ? 8 : 7} className="px-4 py-8 text-center text-gray-500">
                       {mode === 'zombies' ? 'Зомби-файлов не найдено' :
                        mode === 'no-application' ? 'Файлов без заявки не найдено' :
                        'Файлы не найдены'}
@@ -421,8 +498,30 @@ export default function FileManagementAdmin() {
                           />
                         </td>
                       )}
-                      <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate" title={file.original_filename}>
-                        {file.original_filename}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {/* Миниатюра для изображений */}
+                          {file.mime_type?.startsWith('image/') && file.existsLocally ? (
+                            <div
+                              className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-gray-200 cursor-pointer hover:ring-2 hover:ring-indigo-500 transition relative"
+                              onClick={() => handleImageClick(file)}
+                              title="Нажмите для просмотра"
+                            >
+                              <Image
+                                src={`/api/applications/${file.application_id}/files/${file.id}`}
+                                alt={file.original_filename}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-2xl flex-shrink-0">{getFileIcon(file.mime_type)}</span>
+                          )}
+                          <span className="text-sm text-gray-900 truncate max-w-[200px]" title={file.original_filename}>
+                            {file.original_filename}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         {file.application ? (
@@ -460,6 +559,35 @@ export default function FileManagementAdmin() {
                           </span>
                         )}
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          {file.existsLocally && (
+                            <>
+                              {file.mime_type?.startsWith('image/') && (
+                                <button
+                                  onClick={() => handleImageClick(file)}
+                                  className="p-1 text-gray-600 hover:bg-gray-100 rounded"
+                                  title="Просмотреть"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDownload(file)}
+                                className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
+                                title="Скачать"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                       {(mode === 'zombies' || mode === 'no-application') && (
                         <td className="px-4 py-3 text-sm text-red-600">
                           {file.reason}
@@ -496,6 +624,49 @@ export default function FileManagementAdmin() {
           </div>
         )}
       </div>
+
+      {/* Модальное окно для просмотра изображения */}
+      {imageModalOpen && selectedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
+          onClick={() => setImageModalOpen(false)}
+        >
+          <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            {/* Кнопка закрытия */}
+            <button
+              onClick={() => setImageModalOpen(false)}
+              className="absolute top-4 right-4 p-2 bg-gray-800 hover:bg-gray-700 rounded-full transition text-white shadow-lg z-10"
+              title="Закрыть (ESC)"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Изображение */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/applications/${selectedImage.application_id}/files/${selectedImage.id}`}
+              alt={selectedImage.original_filename}
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {/* Информация о файле */}
+            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-60 text-white p-4 rounded-lg">
+              <p className="font-medium text-lg">{selectedImage.original_filename}</p>
+              <p className="text-xs text-gray-400 mt-2">
+                {formatFileSize(selectedImage.file_size)} • {formatDate(selectedImage.uploaded_at)}
+                {selectedImage.application && (
+                  <span className="ml-2">
+                    • Заявка №{selectedImage.application.application_number}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
