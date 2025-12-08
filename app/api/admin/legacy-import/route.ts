@@ -336,11 +336,16 @@ export async function POST(request: NextRequest) {
         // Получаем существующие legacy_id
         const { data: existingOrders } = await supabase
           .from('zakaz_applications')
-          .select('legacy_id')
+          .select('legacy_id, application_number')
           .not('legacy_id', 'is', null)
 
         const existingLegacyIds = new Set(
           (existingOrders || []).map((o: { legacy_id: number | null }) => o.legacy_id?.toString())
+        )
+
+        // Множество занятых номеров заявок (для избежания дублей)
+        const usedApplicationNumbers = new Set<number>(
+          (existingOrders || []).map((o: { application_number: number }) => o.application_number)
         )
 
         sendProgress({
@@ -492,10 +497,21 @@ export async function POST(request: NextRequest) {
               const creatorLegacyUid = order.node_uid?.trim()
               const createdBy = creatorLegacyUid ? legacyUserMapping.get(creatorLegacyUid) || null : null
 
+              // Генерируем уникальный номер заявки (если дубль - добавляем суффикс)
+              let baseNumber = parseInt(getValueOrNull(order.field_all_number_value) || '') || parseInt(legacyId)
+              let applicationNumber = baseNumber
+              let suffix = 1
+              while (usedApplicationNumbers.has(applicationNumber)) {
+                suffix++
+                // Используем формат: baseNumber * 1000 + suffix (например 8643002, 8643003)
+                applicationNumber = baseNumber * 1000 + suffix
+              }
+              usedApplicationNumbers.add(applicationNumber)
+
               const applicationData = {
                 legacy_id: parseInt(legacyId),
                 legacy_stage: stageValue,
-                application_number: parseInt(getValueOrNull(order.field_all_number_value) || '') || parseInt(legacyId),
+                application_number: applicationNumber,
                 customer_type: customerType,
                 customer_fullname: customerFullname,
                 customer_phone: customerPhone,
