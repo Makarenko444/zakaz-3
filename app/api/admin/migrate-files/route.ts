@@ -179,8 +179,28 @@ export async function POST(request: NextRequest) {
       skipped?: boolean
     }[] = []
 
-    for (const file of filesToMigrate) {
+    for (const file of legacyFiles) {
       try {
+        // Проверяем, существует ли файл локально
+        const filePath = getFilePath(file.application_id, file.stored_filename)
+        let exists = false
+        try {
+          await fs.access(filePath)
+          exists = true
+        } catch {
+          exists = false
+        }
+
+        if (exists) {
+          results.push({
+            id: file.id,
+            filename: file.original_filename,
+            success: true,
+            skipped: true,
+          })
+          continue
+        }
+
         // Формируем URL с правильным кодированием
         const legacyUrl = encodeLegacyUrl(file.legacy_path)
 
@@ -220,7 +240,6 @@ export async function POST(request: NextRequest) {
         await ensureUploadDirExists(file.application_id)
 
         // Сохраняем файл
-        const filePath = getFilePath(file.application_id, file.stored_filename)
         await fs.writeFile(filePath, buffer)
 
         // Обновляем размер файла в БД если он изменился
