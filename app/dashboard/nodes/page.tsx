@@ -70,19 +70,8 @@ export default function NodesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Загружаем itemsPerPage из localStorage
-  const getInitialLimit = () => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY_ITEMS_PER_PAGE)
-      if (saved) {
-        const num = parseInt(saved, 10)
-        if (!isNaN(num) && num > 0) return num
-      }
-    }
-    return 50
-  }
-
-  const [pagination, setPagination] = useState({ page: 1, limit: getInitialLimit(), total: 0, totalPages: 0 })
+  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 })
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   // Импорт
   const [isImporting, setIsImporting] = useState(false)
@@ -126,7 +115,15 @@ export default function NodesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
-    // Загружаем сортировку из localStorage
+    // Загружаем настройки из localStorage
+    const savedItemsPerPage = localStorage.getItem(STORAGE_KEY_ITEMS_PER_PAGE)
+    if (savedItemsPerPage) {
+      const num = parseInt(savedItemsPerPage, 10)
+      if (!isNaN(num) && num > 0) {
+        setPagination(p => ({ ...p, limit: num }))
+      }
+    }
+
     const savedSort = localStorage.getItem(STORAGE_KEY_SORT)
     if (savedSort) {
       try {
@@ -138,6 +135,7 @@ export default function NodesPage() {
       }
     }
 
+    setSettingsLoaded(true)
     void loadNodes()
     void loadCurrentUser()
     void loadAddresses()
@@ -266,8 +264,10 @@ export default function NodesPage() {
 
   function handleItemsPerPageChange(newLimit: number) {
     setPagination(p => ({ ...p, limit: newLimit, page: 1 }))
-    // Сохраняем в localStorage
-    localStorage.setItem(STORAGE_KEY_ITEMS_PER_PAGE, newLimit.toString())
+    // Сохраняем в localStorage (только после загрузки настроек)
+    if (settingsLoaded) {
+      localStorage.setItem(STORAGE_KEY_ITEMS_PER_PAGE, newLimit.toString())
+    }
   }
 
   function handlePageChange(newPage: number) {
