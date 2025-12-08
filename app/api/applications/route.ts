@@ -19,8 +19,15 @@ export async function GET(request: NextRequest) {
     const applicationNumber = searchParams.get('application_number')
     const dateFrom = searchParams.get('date_from')
     const dateTo = searchParams.get('date_to')
+    const sortBy = searchParams.get('sort_by') || 'created_at'
+    const sortDir = searchParams.get('sort_dir') || 'desc'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
+
+    // Валидация полей сортировки
+    const allowedSortFields = ['application_number', 'created_at', 'status', 'customer_fullname', 'street_and_house']
+    const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at'
+    const validSortDir = sortDir === 'asc' || sortDir === 'desc' ? sortDir : 'desc'
 
     // Базовый запрос
     // После миграции 028: адреса теперь в zakaz_addresses
@@ -42,7 +49,7 @@ export async function GET(request: NextRequest) {
           )
         )
       `, { count: 'exact' })
-      .order('created_at', { ascending: false })
+      .order(validSortBy, { ascending: validSortDir === 'asc' })
 
     // Применяем фильтры
     if (status) {
@@ -145,7 +152,9 @@ export async function GET(request: NextRequest) {
       search,
       applicationNumber,
       dateFrom,
-      dateTo
+      dateTo,
+      sortBy: validSortBy,
+      sortDir: validSortDir
     })
 
     return NextResponse.json({
