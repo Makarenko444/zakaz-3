@@ -32,6 +32,9 @@ interface Filters {
   source: 'all' | 'legacy' | 'new'
 }
 
+type SortField = 'full_name' | 'email' | 'role' | 'active' | 'created_at' | 'legacy_last_login'
+type SortDir = 'asc' | 'desc'
+
 export default function UsersAdmin() {
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -52,6 +55,8 @@ export default function UsersAdmin() {
     status: 'all',
     source: 'all',
   })
+  const [sortField, setSortField] = useState<SortField>('full_name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   useEffect(() => {
     loadUsers()
@@ -73,9 +78,9 @@ export default function UsersAdmin() {
     }
   }
 
-  // Фильтрация пользователей
+  // Фильтрация и сортировка пользователей
   const filteredUsers = useMemo(() => {
-    return users.filter(user => {
+    const filtered = users.filter(user => {
       // Поиск по имени или email
       if (filters.search) {
         const searchLower = filters.search.toLowerCase()
@@ -101,7 +106,45 @@ export default function UsersAdmin() {
 
       return true
     })
-  }, [users, filters])
+
+    // Сортировка
+    return filtered.sort((a, b) => {
+      let aVal: string | boolean | null = null
+      let bVal: string | boolean | null = null
+
+      switch (sortField) {
+        case 'full_name':
+          aVal = a.full_name.toLowerCase()
+          bVal = b.full_name.toLowerCase()
+          break
+        case 'email':
+          aVal = a.email.toLowerCase()
+          bVal = b.email.toLowerCase()
+          break
+        case 'role':
+          aVal = roleNames[a.role]
+          bVal = roleNames[b.role]
+          break
+        case 'active':
+          aVal = a.active
+          bVal = b.active
+          break
+        case 'created_at':
+          aVal = a.created_at
+          bVal = b.created_at
+          break
+        case 'legacy_last_login':
+          aVal = a.legacy_last_login || ''
+          bVal = b.legacy_last_login || ''
+          break
+      }
+
+      if (aVal === null || bVal === null) return 0
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [users, filters, sortField, sortDir])
 
   function openCreateModal() {
     setEditingUser(null)
@@ -175,25 +218,6 @@ export default function UsersAdmin() {
     }
   }
 
-  async function handleToggleActive(user: User) {
-    try {
-      const response = await fetch(`/api/admin/users/${user.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ active: !user.active }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Ошибка изменения статуса')
-      }
-
-      loadUsers()
-    } catch (error) {
-      console.error('Error toggling user status:', error)
-      setError('Ошибка изменения статуса пользователя')
-    }
-  }
-
   function formatDate(dateString: string | null): string {
     if (!dateString) return '—'
     try {
@@ -219,6 +243,34 @@ export default function UsersAdmin() {
   }
 
   const hasActiveFilters = filters.search || filters.role !== 'all' || filters.status !== 'all' || filters.source !== 'all'
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) {
+      return (
+        <svg className="w-4 h-4 ml-1 inline text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      )
+    }
+    return (
+      <svg className="w-4 h-4 ml-1 inline text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {sortDir === 'asc' ? (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        ) : (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        )}
+      </svg>
+    )
+  }
 
   if (isLoading) {
     return <div className="text-center py-8">Загрузка...</div>
@@ -337,23 +389,38 @@ export default function UsersAdmin() {
           <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Имя
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('full_name')}
+              >
+                Имя <SortIcon field="full_name" />
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Email
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('email')}
+              >
+                Email <SortIcon field="email" />
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Телефон
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Роль
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('role')}
+              >
+                Роль <SortIcon field="role" />
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Статус
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('active')}
+              >
+                Статус <SortIcon field="active" />
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Источник
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('legacy_last_login')}
+              >
+                Последний вход <SortIcon field="legacy_last_login" />
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Действия
@@ -392,28 +459,16 @@ export default function UsersAdmin() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {user.legacy_uid ? (
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
-                      Legacy
-                    </span>
-                  ) : (
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-600">
-                      Новый
-                    </span>
-                  )}
+                  <div className="text-sm text-gray-500">
+                    {formatDate(user.legacy_last_login)}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
                     onClick={() => openEditModal(user)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-4"
+                    className="text-indigo-600 hover:text-indigo-900"
                   >
                     Редактировать
-                  </button>
-                  <button
-                    onClick={() => handleToggleActive(user)}
-                    className={user.active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}
-                  >
-                    {user.active ? 'Деактивировать' : 'Активировать'}
                   </button>
                 </td>
               </tr>
