@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface PendingFile {
   id: string
@@ -26,6 +26,12 @@ interface MigrationResult {
   skipped?: boolean
 }
 
+interface LogEntry {
+  time: string
+  type: 'info' | 'success' | 'error' | 'warning'
+  message: string
+}
+
 export default function FileMigrationAdmin() {
   const [status, setStatus] = useState<MigrationStatus | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -33,23 +39,52 @@ export default function FileMigrationAdmin() {
   const [isMigrating, setIsMigrating] = useState(false)
   const [migrationResults, setMigrationResults] = useState<MigrationResult[]>([])
   const [batchSize, setBatchSize] = useState(10)
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const logRef = useRef<HTMLDivElement>(null)
+
+  const addLog = useCallback((type: LogEntry['type'], message: string) => {
+    const time = new Date().toLocaleTimeString('ru-RU')
+    setLogs((prev) => [...prev, { time, type, message }])
+    // Auto-scroll to bottom
+    setTimeout(() => {
+      if (logRef.current) {
+        logRef.current.scrollTop = logRef.current.scrollHeight
+      }
+    }, 10)
+  }, [])
 
   const loadStatus = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
+      addLog('info', 'Загрузка статуса миграции...')
+
       const response = await fetch('/api/admin/migrate-files')
+      const responseText = await response.text()
+
       if (!response.ok) {
-        throw new Error('Не удалось загрузить статус миграции')
+        addLog('error', `Ошибка загрузки: HTTP ${response.status} - ${responseText}`)
+        throw new Error(`HTTP ${response.status}: ${responseText}`)
       }
-      const data = await response.json()
+
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch {
+        addLog('error', `Ошибка парсинга JSON: ${responseText.substring(0, 200)}`)
+        throw new Error('Невалидный JSON ответ')
+      }
+
       setStatus(data)
+      addLog('success', `Статус загружен: ${data.migrated}/${data.total} мигрировано, ${data.pending} ожидает`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка')
+      const errorMsg = err instanceof Error ? err.message : 'Неизвестная ошибка'
+      setError(errorMsg)
+      addLog('error', `Ошибка: ${errorMsg}`)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [addLog])
 
   useEffect(() => {
     loadStatus()
@@ -61,33 +96,66 @@ export default function FileMigrationAdmin() {
     setIsMigrating(true)
     setMigrationResults([])
     setError(null)
+    addLog('info', `Начинаем миграцию ${Math.min(batchSize, status.pending)} файлов...`)
 
     try {
+      const startTime = Date.now()
+
       const response = await fetch('/api/admin/migrate-files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ limit: batchSize }),
       })
 
+      const responseText = await response.text()
+      addLog('info', `Ответ сервера (${Date.now() - startTime}мс): статус ${response.status}`)
+
       if (!response.ok) {
-        throw new Error('Ошибка миграции')
+        addLog('error', `Ошибка HTTP ${response.status}: ${responseText.substring(0, 500)}`)
+        throw new Error(`HTTP ${response.status}: ${responseText}`)
       }
 
-      const data = await response.json()
-      setMigrationResults(data.results)
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch {
+        addLog('error', `Ошибка парсинга JSON: ${responseText.substring(0, 500)}`)
+        throw new Error('Невалидный JSON ответ от сервера')
+      }
+
+      // Логируем результаты
+      if (data.results && Array.isArray(data.results)) {
+        const successful = data.results.filter((r: MigrationResult) => r.success && !r.skipped).length
+        const skipped = data.results.filter((r: MigrationResult) => r.skipped).length
+        const failed = data.results.filter((r: MigrationResult) => !r.success)
+
+        addLog('success', `Завершено: ${successful} загружено, ${skipped} пропущено, ${failed.length} ошибок`)
+
+        // Логируем каждую ошибку отдельно
+        failed.forEach((f: MigrationResult) => {
+          addLog('error', `Файл "${f.filename}": ${f.error || 'неизвестная ошибка'}`)
+        })
+
+        setMigrationResults(data.results)
+      } else {
+        addLog('warning', `Неожиданный формат ответа: ${JSON.stringify(data).substring(0, 300)}`)
+      }
 
       // Обновляем статус
       await loadStatus()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка миграции')
+      const errorMsg = err instanceof Error ? err.message : 'Неизвестная ошибка'
+      setError(errorMsg)
+      addLog('error', `Критическая ошибка: ${errorMsg}`)
     } finally {
       setIsMigrating(false)
     }
   }
 
-  const handleMigrateOne = async (fileId: string) => {
+  const handleMigrateOne = async (fileId: string, filename: string) => {
     setIsMigrating(true)
     setError(null)
+    addLog('info', `Миграция файла: ${filename}`)
 
     try {
       const response = await fetch('/api/admin/migrate-files', {
@@ -96,23 +164,46 @@ export default function FileMigrationAdmin() {
         body: JSON.stringify({ fileIds: [fileId] }),
       })
 
+      const responseText = await response.text()
+
       if (!response.ok) {
-        throw new Error('Ошибка миграции')
+        addLog('error', `Ошибка HTTP ${response.status}: ${responseText.substring(0, 300)}`)
+        throw new Error(`HTTP ${response.status}`)
       }
 
-      const data = await response.json()
-      setMigrationResults((prev) => [...data.results, ...prev])
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch {
+        addLog('error', `Ошибка парсинга: ${responseText.substring(0, 200)}`)
+        throw new Error('Невалидный JSON')
+      }
 
-      // Обновляем статус
+      if (data.results?.[0]) {
+        const result = data.results[0]
+        if (result.success) {
+          addLog('success', `Файл "${filename}" успешно мигрирован`)
+        } else {
+          addLog('error', `Файл "${filename}": ${result.error || 'ошибка'}`)
+        }
+        setMigrationResults((prev) => [result, ...prev])
+      }
+
       await loadStatus()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка миграции')
+      const errorMsg = err instanceof Error ? err.message : 'Ошибка'
+      setError(errorMsg)
+      addLog('error', `Ошибка миграции "${filename}": ${errorMsg}`)
     } finally {
       setIsMigrating(false)
     }
   }
 
-  if (isLoading) {
+  const clearLogs = () => {
+    setLogs([])
+  }
+
+  if (isLoading && logs.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-center py-8">
@@ -130,14 +221,55 @@ export default function FileMigrationAdmin() {
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Миграция файлов со старого сервера</h2>
         <p className="text-sm text-gray-600">
           Загрузка файлов с сервера zakaz.tomica.ru в локальное хранилище. До миграции файлы
-          открываются через редирект на старый сервер.
+          открываются через проксирование со старого сервера.
         </p>
+      </div>
+
+      {/* Лог */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg font-medium text-gray-900">Лог операций</h3>
+          <button
+            onClick={clearLogs}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            Очистить
+          </button>
+        </div>
+        <div
+          ref={logRef}
+          className="bg-gray-900 text-gray-100 font-mono text-xs p-4 rounded-lg h-48 overflow-y-auto"
+        >
+          {logs.length === 0 ? (
+            <div className="text-gray-500">Лог пуст</div>
+          ) : (
+            logs.map((log, idx) => (
+              <div key={idx} className="mb-1">
+                <span className="text-gray-500">[{log.time}]</span>{' '}
+                <span
+                  className={
+                    log.type === 'error'
+                      ? 'text-red-400'
+                      : log.type === 'success'
+                      ? 'text-green-400'
+                      : log.type === 'warning'
+                      ? 'text-yellow-400'
+                      : 'text-blue-400'
+                  }
+                >
+                  {log.message}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Ошибка */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
-          <span className="block sm:inline">{error}</span>
+          <strong className="font-bold">Ошибка: </strong>
+          <span className="block sm:inline whitespace-pre-wrap break-all">{error}</span>
           <button
             onClick={() => setError(null)}
             className="absolute top-0 bottom-0 right-0 px-4 py-3"
@@ -185,7 +317,7 @@ export default function FileMigrationAdmin() {
           )}
 
           {/* Кнопки управления */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <label htmlFor="batchSize" className="text-sm text-gray-600">
                 Файлов за раз:
@@ -197,11 +329,11 @@ export default function FileMigrationAdmin() {
                 className="border border-gray-300 rounded-md px-2 py-1 text-sm"
                 disabled={isMigrating}
               >
+                <option value={1}>1</option>
+                <option value={3}>3</option>
                 <option value={5}>5</option>
                 <option value={10}>10</option>
                 <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
               </select>
             </div>
 
@@ -269,9 +401,9 @@ export default function FileMigrationAdmin() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {migrationResults.map((result) => (
-                  <tr key={result.id}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                {migrationResults.map((result, idx) => (
+                  <tr key={`${result.id}-${idx}`}>
+                    <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate" title={result.filename}>
                       {result.filename}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -291,10 +423,12 @@ export default function FileMigrationAdmin() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {result.skipped
-                        ? 'Файл уже существует'
-                        : result.error || (result.success ? 'Загружен успешно' : '')}
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-md">
+                      <span className="break-all">
+                        {result.skipped
+                          ? 'Файл уже существует'
+                          : result.error || (result.success ? 'Загружен успешно' : '')}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -328,15 +462,15 @@ export default function FileMigrationAdmin() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {status.pendingFiles.map((file) => (
                   <tr key={file.id}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate" title={file.original_filename}>
                       {file.original_filename}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 max-w-md truncate">
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-md">
                       <a
                         href={file.legacy_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-900"
+                        className="text-indigo-600 hover:text-indigo-900 break-all"
                         title={file.legacy_url}
                       >
                         {file.legacy_path}
@@ -344,7 +478,7 @@ export default function FileMigrationAdmin() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <button
-                        onClick={() => handleMigrateOne(file.id)}
+                        onClick={() => handleMigrateOne(file.id, file.original_filename)}
                         disabled={isMigrating}
                         className="text-indigo-600 hover:text-indigo-900 disabled:opacity-50"
                       >
