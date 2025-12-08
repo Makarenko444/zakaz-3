@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
     const addressId = searchParams.get('address_id')
     const assignedTo = searchParams.get('assigned_to')
     const search = searchParams.get('search')
+    const applicationNumber = searchParams.get('application_number')
+    const dateFrom = searchParams.get('date_from')
+    const dateTo = searchParams.get('date_to')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
@@ -99,6 +102,24 @@ export async function GET(request: NextRequest) {
       console.log('[Applications API] Search conditions applied')
     }
 
+    // Поиск по номеру заявки
+    if (applicationNumber) {
+      const appNum = parseInt(applicationNumber)
+      if (!isNaN(appNum)) {
+        query = query.eq('application_number', appNum)
+      }
+    }
+
+    // Фильтр по дате создания (от)
+    if (dateFrom) {
+      query = query.gte('created_at', `${dateFrom}T00:00:00`)
+    }
+
+    // Фильтр по дате создания (до)
+    if (dateTo) {
+      query = query.lte('created_at', `${dateTo}T23:59:59`)
+    }
+
     // Пагинация
     const from = (page - 1) * limit
     const to = from + limit - 1
@@ -121,7 +142,10 @@ export async function GET(request: NextRequest) {
       customerType,
       nodeId,
       assignedTo,
-      search
+      search,
+      applicationNumber,
+      dateFrom,
+      dateTo
     })
 
     return NextResponse.json({

@@ -86,6 +86,7 @@ function ApplicationsContent() {
   // Фильтры
   const [selectedStatuses, setSelectedStatuses] = useState<ApplicationStatus[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [applicationNumberSearch, setApplicationNumberSearch] = useState('')
   const [selectedUrgency, setSelectedUrgency] = useState<Urgency | ''>('')
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('')
   const [selectedNodeId, setSelectedNodeId] = useState<string>('')
@@ -93,6 +94,11 @@ function ApplicationsContent() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
   const [addressInfo, setAddressInfo] = useState<string | null>(null)
   const [selectedAssignedTo, setSelectedAssignedTo] = useState<string>('')
+
+  // Фильтры по дате
+  const [datePreset, setDatePreset] = useState<string>('')
+  const [dateFrom, setDateFrom] = useState<string>('')
+  const [dateTo, setDateTo] = useState<string>('')
 
   // Список пользователей для фильтра
   const [users, setUsers] = useState<{ id: string; full_name: string; role: string }[]>([])
@@ -111,6 +117,10 @@ function ApplicationsContent() {
 
       if (searchQuery.trim()) {
         params.append('search', searchQuery.trim())
+      }
+
+      if (applicationNumberSearch.trim()) {
+        params.append('application_number', applicationNumberSearch.trim())
       }
 
       if (selectedUrgency) {
@@ -133,6 +143,14 @@ function ApplicationsContent() {
         params.append('assigned_to', selectedAssignedTo)
       }
 
+      if (dateFrom) {
+        params.append('date_from', dateFrom)
+      }
+
+      if (dateTo) {
+        params.append('date_to', dateTo)
+      }
+
       const response = await fetch(`/api/applications?${params.toString()}`)
 
       if (!response.ok) {
@@ -147,7 +165,7 @@ function ApplicationsContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, itemsPerPage, selectedStatuses, searchQuery, selectedUrgency, selectedServiceType, selectedNodeId, selectedAddressId, selectedAssignedTo])
+  }, [page, itemsPerPage, selectedStatuses, searchQuery, applicationNumberSearch, selectedUrgency, selectedServiceType, selectedNodeId, selectedAddressId, selectedAssignedTo, dateFrom, dateTo])
 
   // Инициализация фильтров из URL при монтировании
   useEffect(() => {
@@ -350,13 +368,20 @@ function ApplicationsContent() {
 
         {/* Поиск */}
         <div className="mb-3">
-          <form onSubmit={handleSearch} className="flex gap-2">
+          <form onSubmit={handleSearch} className="flex flex-wrap gap-2">
+            <input
+              type="text"
+              placeholder="№ заявки"
+              value={applicationNumberSearch}
+              onChange={(e) => setApplicationNumberSearch(e.target.value)}
+              className="w-28 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
             <input
               type="text"
               placeholder="Поиск по ФИО, телефону или адресу..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="flex-1 min-w-48 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             <button
               type="submit"
@@ -364,20 +389,24 @@ function ApplicationsContent() {
             >
               Найти
             </button>
-            {(searchQuery || selectedStatuses.length > 0 || selectedUrgency || selectedServiceType || selectedAssignedTo) && (
+            {(searchQuery || applicationNumberSearch || selectedStatuses.length > 0 || selectedUrgency || selectedServiceType || selectedAssignedTo || datePreset || dateFrom || dateTo) && (
               <button
                 type="button"
                 onClick={() => {
                   setSearchQuery('')
+                  setApplicationNumberSearch('')
                   setSelectedStatuses([])
                   setSelectedUrgency('')
                   setSelectedServiceType('')
                   setSelectedAssignedTo('')
+                  setDatePreset('')
+                  setDateFrom('')
+                  setDateTo('')
                   setPage(1)
                 }}
                 className="px-4 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
               >
-                Сбросить
+                Сбросить всё
               </button>
             )}
           </form>
@@ -463,6 +492,97 @@ function ApplicationsContent() {
                 ))}
               </select>
             </div>
+          </div>
+        </div>
+
+        {/* Фильтр по дате */}
+        <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
+          <h3 className="text-xs font-medium text-gray-700 mb-2">Фильтр по дате создания:</h3>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {[
+              { label: 'Сегодня', value: 'today' },
+              { label: 'Вчера', value: 'yesterday' },
+              { label: 'Неделя', value: 'week' },
+              { label: 'Месяц', value: 'month' },
+              { label: 'Год', value: 'year' },
+            ].map((preset) => (
+              <button
+                key={preset.value}
+                onClick={() => {
+                  const today = new Date()
+                  let from = new Date()
+                  const to = new Date()
+
+                  switch (preset.value) {
+                    case 'today':
+                      from = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                      break
+                    case 'yesterday':
+                      from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
+                      to.setDate(today.getDate() - 1)
+                      break
+                    case 'week':
+                      from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)
+                      break
+                    case 'month':
+                      from = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate())
+                      break
+                    case 'year':
+                      from = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate())
+                      break
+                  }
+
+                  setDatePreset(preset.value)
+                  setDateFrom(from.toISOString().split('T')[0])
+                  setDateTo(to.toISOString().split('T')[0])
+                  setPage(1)
+                }}
+                className={`px-3 py-1 text-xs font-medium rounded-full transition ${
+                  datePreset === preset.value
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+            {(datePreset || dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setDatePreset('')
+                  setDateFrom('')
+                  setDateTo('')
+                  setPage(1)
+                }}
+                className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition"
+              >
+                Сбросить
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-gray-500">Период:</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value)
+                setDatePreset('')
+                setPage(1)
+              }}
+              className="px-2 py-1 text-sm bg-white border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+            <span className="text-xs text-gray-500">—</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value)
+                setDatePreset('')
+                setPage(1)
+              }}
+              className="px-2 py-1 text-sm bg-white border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
           </div>
         </div>
 
