@@ -38,6 +38,23 @@ function getCategoryLabel(category: string): string {
   return labels[category] || category
 }
 
+// Получить паттерны MIME-типов для фильтрации по категории
+function getMimePatternsForCategory(category: string): string[] {
+  switch (category) {
+    case 'image': return ['image/%']
+    case 'video': return ['video/%']
+    case 'audio': return ['audio/%']
+    case 'pdf': return ['application/pdf']
+    case 'document': return ['%word%', '%document%']
+    case 'spreadsheet': return ['%excel%', '%spreadsheet%']
+    case 'archive': return ['%zip%', '%rar%', '%7z%', '%archive%']
+    case 'text': return ['text/%']
+    case 'other': return [] // Для "other" нужна специальная обработка
+    case 'unknown': return [] // Для unknown тоже
+    default: return []
+  }
+}
+
 // Получить информацию о диске
 function getDiskInfo(): { total: number; used: number; free: number; percent: number } | null {
   try {
@@ -90,6 +107,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const search = searchParams.get('search') || ''
+    const fileType = searchParams.get('fileType') || '' // Фильтр по категории типа файла
 
     const supabase = createDirectClient()
 
@@ -305,6 +323,16 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       query = query.ilike('original_filename', `%${search}%`)
+    }
+
+    // Фильтрация по типу файла
+    if (fileType) {
+      const mimePatterns = getMimePatternsForCategory(fileType)
+      if (mimePatterns.length > 0) {
+        // Используем or для фильтрации по нескольким шаблонам mime_type
+        const orConditions = mimePatterns.map(p => `mime_type.ilike.${p}`).join(',')
+        query = query.or(orConditions)
+      }
     }
 
     query = query

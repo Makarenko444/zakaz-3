@@ -86,6 +86,7 @@ export default function FileManagementAdmin() {
   const [selectedImage, setSelectedImage] = useState<FileRecord | null>(null)
   const [stats, setStats] = useState<StatsData | null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
+  const [selectedType, setSelectedType] = useState<string | null>(null)
 
   const loadFiles = useCallback(async () => {
     setIsLoading(true)
@@ -101,6 +102,9 @@ export default function FileManagementAdmin() {
       })
       if (search) {
         params.set('search', search)
+      }
+      if (selectedType) {
+        params.set('fileType', selectedType)
       }
 
       const response = await fetch(`/api/admin/files?${params}`)
@@ -128,7 +132,7 @@ export default function FileManagementAdmin() {
     } finally {
       setIsLoading(false)
     }
-  }, [mode, page, search])
+  }, [mode, page, search, selectedType])
 
   useEffect(() => {
     loadFiles()
@@ -308,8 +312,8 @@ export default function FileManagementAdmin() {
     }
   }
 
-  // Генерация CSS градиента для пирога
-  const generatePieGradient = (data: FileTypeStats[], bySize: boolean = true): string => {
+  // Генерация CSS градиента для пирога с поддержкой выделения выбранного типа
+  const generatePieGradient = (data: FileTypeStats[], bySize: boolean = true, highlightType: string | null = null): string => {
     if (!data || data.length === 0) return 'conic-gradient(#e5e7eb 0deg 360deg)'
 
     const segments: string[] = []
@@ -318,18 +322,39 @@ export default function FileManagementAdmin() {
     data.forEach((item, index) => {
       const percent = bySize ? item.percentBySize : item.percentByCount
       const angle = (percent / 100) * 360
-      const color = PIE_COLORS[index % PIE_COLORS.length]
+      const baseColor = PIE_COLORS[index % PIE_COLORS.length]
+      // Если выбран тип, затеняем невыбранные сегменты
+      const color = highlightType && highlightType !== item.type ? '#d1d5db' : baseColor
       segments.push(`${color} ${currentAngle}deg ${currentAngle + angle}deg`)
       currentAngle += angle
     })
 
     // Добавляем заполнение до 360 градусов если есть погрешность округления
     if (currentAngle < 360) {
-      const lastColor = PIE_COLORS[(data.length - 1) % PIE_COLORS.length]
+      const lastIndex = data.length - 1
+      const lastItem = data[lastIndex]
+      const baseColor = PIE_COLORS[lastIndex % PIE_COLORS.length]
+      const lastColor = highlightType && highlightType !== lastItem?.type ? '#d1d5db' : baseColor
       segments.push(`${lastColor} ${currentAngle}deg 360deg`)
     }
 
     return `conic-gradient(${segments.join(', ')})`
+  }
+
+  // Обработчик клика по типу файла в статистике
+  const handleTypeClick = (type: string) => {
+    if (selectedType === type) {
+      // Сбросить фильтр
+      setSelectedType(null)
+    } else {
+      // Установить фильтр и сбросить страницу
+      setSelectedType(type)
+      setPage(1)
+      // Переключаемся на режим list для отображения файлов
+      if (mode !== 'list') {
+        setMode('list')
+      }
+    }
   }
 
   return (
@@ -373,7 +398,20 @@ export default function FileManagementAdmin() {
 
       {/* Статистика по типам файлов */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Статистика по типам файлов</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Статистика по типам файлов</h3>
+          {selectedType && (
+            <button
+              onClick={() => setSelectedType(null)}
+              className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Сбросить фильтр
+            </button>
+          )}
+        </div>
         {statsLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -384,31 +422,57 @@ export default function FileManagementAdmin() {
             <div className="flex-shrink-0">
               <div className="relative">
                 <div
-                  className="w-48 h-48 rounded-full"
-                  style={{ background: generatePieGradient(stats.byType, true) }}
+                  className="w-48 h-48 rounded-full transition-all duration-300"
+                  style={{ background: generatePieGradient(stats.byType, true, selectedType) }}
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-24 h-24 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
-                    <span className="text-xl font-bold text-gray-900">{stats.totalCount}</span>
-                    <span className="text-xs text-gray-500">файлов</span>
+                    {selectedType ? (
+                      <>
+                        <span className="text-xl font-bold text-gray-900">
+                          {stats.byType.find(t => t.type === selectedType)?.count || 0}
+                        </span>
+                        <span className="text-xs text-gray-500 text-center px-1">
+                          {stats.byType.find(t => t.type === selectedType)?.label || ''}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-xl font-bold text-gray-900">{stats.totalCount}</span>
+                        <span className="text-xs text-gray-500">файлов</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
               <p className="text-center text-sm text-gray-500 mt-2">
-                Всего: {formatFileSize(stats.totalSize)}
+                {selectedType
+                  ? formatFileSize(stats.byType.find(t => t.type === selectedType)?.totalSize || 0)
+                  : `Всего: ${formatFileSize(stats.totalSize)}`
+                }
               </p>
             </div>
 
             {/* Легенда */}
             <div className="flex-1">
+              <p className="text-xs text-gray-500 mb-2">Нажмите на тип для фильтрации:</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {stats.byType.map((item, index) => (
                   <div
                     key={item.type}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                    onClick={() => handleTypeClick(item.type)}
+                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                      selectedType === item.type
+                        ? 'bg-indigo-100 ring-2 ring-indigo-500'
+                        : selectedType
+                          ? 'bg-gray-100 opacity-50 hover:opacity-75'
+                          : 'bg-gray-50 hover:bg-gray-100'
+                    }`}
                   >
                     <div
-                      className="w-4 h-4 rounded-full flex-shrink-0"
+                      className={`w-4 h-4 rounded-full flex-shrink-0 transition-all ${
+                        selectedType && selectedType !== item.type ? 'opacity-30' : ''
+                      }`}
                       style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
                     />
                     <div className="flex-1 min-w-0">
@@ -671,7 +735,7 @@ export default function FileManagementAdmin() {
                       <td className="px-4 py-3 text-sm">
                         {file.application ? (
                           <Link
-                            href={`/applications/${file.application_id}`}
+                            href={`/dashboard/applications/${file.application_id}`}
                             className="text-indigo-600 hover:text-indigo-900"
                           >
                             №{file.application.application_number}
