@@ -147,7 +147,9 @@ export async function POST(request: NextRequest) {
       query = query.in('id', fileIds)
     }
 
-    query = query.limit(limit)
+    // Получаем больше файлов чтобы найти немигрированные
+    // (т.к. мы не можем на уровне БД узнать какие файлы существуют локально)
+    query = query.limit(Math.max(limit * 10, 500))
 
     const { data: files, error } = await query
 
@@ -155,7 +157,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch files', details: error.message }, { status: 500 })
     }
 
-    const legacyFiles = (files || []) as (LegacyFile & { mime_type: string })[]
+    const allFiles = (files || []) as (LegacyFile & { mime_type: string })[]
+
+    // Фильтруем - оставляем только файлы которые НЕ существуют локально
+    const filesToMigrate: (LegacyFile & { mime_type: string })[] = []
+    for (const file of allFiles) {
+      if (filesToMigrate.length >= limit) break
+
+      const filePath = getFilePath(file.application_id, file.stored_filename)
+      let exists = false
+      try {
+        await fs.access(filePath)
+        exists = true
+      } catch {
+        exists = false
+      }
+
+      if (!exists) {
+        filesToMigrate.push(file)
+      }
+    }
+
+    console.log(`[Migrate] Found ${filesToMigrate.length} files to migrate out of ${allFiles.length} checked`)
 
     const results: {
       id: string
@@ -165,28 +188,8 @@ export async function POST(request: NextRequest) {
       skipped?: boolean
     }[] = []
 
-    for (const file of legacyFiles) {
+    for (const file of filesToMigrate) {
       try {
-        // Проверяем, существует ли файл локально
-        const filePath = getFilePath(file.application_id, file.stored_filename)
-        let exists = false
-        try {
-          await fs.access(filePath)
-          exists = true
-        } catch {
-          exists = false
-        }
-
-        if (exists) {
-          results.push({
-            id: file.id,
-            filename: file.original_filename,
-            success: true,
-            skipped: true,
-          })
-          continue
-        }
-
         // Формируем URL с правильным кодированием
         const legacyUrl = encodeLegacyUrl(file.legacy_path)
 
@@ -226,6 +229,7 @@ export async function POST(request: NextRequest) {
         await ensureUploadDirExists(file.application_id)
 
         // Сохраняем файл
+        const filePath = getFilePath(file.application_id, file.stored_filename)
         await fs.writeFile(filePath, buffer)
 
         // Обновляем размер файла в БД если он изменился
