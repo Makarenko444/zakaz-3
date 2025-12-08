@@ -348,6 +348,13 @@ export async function POST(request: NextRequest) {
           (existingOrders || []).map((o: { application_number: number }) => o.application_number)
         )
 
+        // Счётчик для дублирующихся номеров (начинаем с 25000)
+        let duplicateNumberCounter = 25000
+        // Пропускаем уже занятые номера в диапазоне 25000-29999
+        while (usedApplicationNumbers.has(duplicateNumberCounter) && duplicateNumberCounter < 30000) {
+          duplicateNumberCounter++
+        }
+
         sendProgress({
           phase: 'init',
           current: 0,
@@ -497,14 +504,18 @@ export async function POST(request: NextRequest) {
               const creatorLegacyUid = order.node_uid?.trim()
               const createdBy = creatorLegacyUid ? legacyUserMapping.get(creatorLegacyUid) || null : null
 
-              // Генерируем уникальный номер заявки (если дубль - добавляем суффикс)
-              let baseNumber = parseInt(getValueOrNull(order.field_all_number_value) || '') || parseInt(legacyId)
+              // Генерируем уникальный номер заявки
+              // Если номер уже занят - берём следующий из диапазона 25000-29999
+              const baseNumber = parseInt(getValueOrNull(order.field_all_number_value) || '') || parseInt(legacyId)
               let applicationNumber = baseNumber
-              let suffix = 1
-              while (usedApplicationNumbers.has(applicationNumber)) {
-                suffix++
-                // Используем формат: baseNumber * 1000 + suffix (например 8643002, 8643003)
-                applicationNumber = baseNumber * 1000 + suffix
+              if (usedApplicationNumbers.has(applicationNumber)) {
+                // Номер занят - используем номер из диапазона дублей
+                applicationNumber = duplicateNumberCounter
+                duplicateNumberCounter++
+                // Пропускаем занятые номера
+                while (usedApplicationNumbers.has(duplicateNumberCounter) && duplicateNumberCounter < 30000) {
+                  duplicateNumberCounter++
+                }
               }
               usedApplicationNumbers.add(applicationNumber)
 
