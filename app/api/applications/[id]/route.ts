@@ -264,12 +264,13 @@ export async function DELETE(
     }
 
     // 2. Удаляем файлы (сначала с диска, потом из БД)
-    const { data: files } = await supabase
+    const { data: filesData } = await supabase
       .from('zakaz_files')
       .select('stored_filename')
       .eq('application_id', id)
 
-    if (files && files.length > 0) {
+    const files = (filesData || []) as { stored_filename: string }[]
+    if (files.length > 0) {
       // Удаляем физические файлы с диска
       for (const file of files) {
         try {
