@@ -177,8 +177,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[Applications POST] Starting request...')
     const supabase = createDirectClient()
     const body = await request.json()
+    console.log('[Applications POST] Body received:', JSON.stringify(body, null, 2))
 
     // Валидация обязательных полей
     const requiredFields = [
@@ -227,6 +229,8 @@ export async function POST(request: NextRequest) {
       created_by: body.created_by || null,
     }
 
+    console.log('[Applications POST] Inserting application data:', JSON.stringify(applicationData, null, 2))
+
     // Обходим проблемы с автогенерируемыми типами Supabase через unknown
     const table = supabase.from('zakaz_applications') as unknown
     const builder = (table as { insert: (data: Record<string, unknown>) => unknown }).insert(applicationData) as unknown
@@ -235,8 +239,10 @@ export async function POST(request: NextRequest) {
     const result = await query
     const { data, error } = result as { data: { id: string; application_number: string; [key: string]: unknown } | null; error: { message?: string; [key: string]: unknown } | null }
 
+    console.log('[Applications POST] Insert result - data:', data, 'error:', error)
+
     if (error) {
-      console.error('Database error:', error)
+      console.error('[Applications POST] Database error:', error)
       return NextResponse.json(
         { error: 'Failed to create application', details: error.message },
         { status: 500 }
