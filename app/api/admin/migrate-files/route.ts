@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       total: totalFiles,
       migrated: migratedFiles,
       pending: pendingFiles.length,
-      pendingFiles: pendingFiles.slice(0, 50), // Показываем первые 50 ожидающих
+      pendingFiles: pendingFiles.slice(0, 500), // Показываем первые 500 ожидающих
     })
   } catch (error) {
     console.error('Error getting migration status:', error)

@@ -8,8 +8,9 @@ import UsersAdmin from '@/app/components/admin/UsersAdmin'
 import StatusesAdmin from '@/app/components/admin/StatusesAdmin'
 import LegacyImportAdmin from '@/app/components/admin/LegacyImportAdmin'
 import FileMigrationAdmin from '@/app/components/admin/FileMigrationAdmin'
+import FileManagementAdmin from '@/app/components/admin/FileManagementAdmin'
 
-type AdminTab = 'users' | 'statuses' | 'legacy-import' | 'file-migration'
+type AdminTab = 'users' | 'statuses' | 'legacy-import' | 'file-migration' | 'file-management'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -125,6 +126,22 @@ export default function AdminPage() {
                 Миграция файлов
               </div>
             </button>
+
+            <button
+              onClick={() => setActiveTab('file-management')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+                activeTab === 'file-management'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                Файлы
+              </div>
+            </button>
           </nav>
         </div>
       </div>
@@ -135,6 +152,7 @@ export default function AdminPage() {
         {activeTab === 'statuses' && <StatusesAdmin />}
         {activeTab === 'legacy-import' && <LegacyImportAdmin />}
         {activeTab === 'file-migration' && <FileMigrationAdmin />}
+        {activeTab === 'file-management' && <FileManagementAdmin />}
       </main>
     </>
   )
