@@ -18,6 +18,33 @@ function getLegacyAuthHeader(): string {
   return `Basic ${credentials}`
 }
 
+// Правильное кодирование URL с русскими символами
+function encodeLegacyUrl(urlOrPath: string): string {
+  // Если это уже полный URL
+  if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
+    try {
+      const url = new URL(urlOrPath)
+      // Перекодируем путь, сохраняя уже закодированные символы
+      const decodedPath = decodeURIComponent(url.pathname)
+      url.pathname = decodedPath.split('/').map(segment => encodeURIComponent(segment)).join('/')
+      return url.toString()
+    } catch {
+      return urlOrPath
+    }
+  }
+
+  // Относительный путь
+  const cleanPath = urlOrPath.startsWith('/') ? urlOrPath.slice(1) : urlOrPath
+  try {
+    const decoded = decodeURIComponent(cleanPath)
+    const encoded = decoded.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    return `${LEGACY_FILE_BASE_URL}/${encoded}`
+  } catch {
+    const encoded = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    return `${LEGACY_FILE_BASE_URL}/${encoded}`
+  }
+}
+
 // GET /api/applications/[id]/files/[fileId] - Скачивание файла
 export async function GET(
   request: NextRequest,
@@ -53,29 +80,26 @@ export async function GET(
     // Если файл не существует локально, проверяем legacy_path
     if (!exists) {
       if (file.legacy_path) {
-        // Формируем URL к файлу на старом сервере
-        // legacy_path может быть:
-        // - полным URL: http://zakaz.tomica.ru/sites/default/files/...
-        // - относительным путём: sites/default/files/...
-        let legacyUrl: string
-        if (file.legacy_path.startsWith('http://') || file.legacy_path.startsWith('https://')) {
-          legacyUrl = file.legacy_path
-        } else {
-          // Убираем начальный слеш если есть
-          const cleanPath = file.legacy_path.startsWith('/')
-            ? file.legacy_path.slice(1)
-            : file.legacy_path
-          legacyUrl = `${LEGACY_FILE_BASE_URL}/${cleanPath}`
-        }
+        // Формируем URL к файлу на старом сервере с правильным кодированием
+        const legacyUrl = encodeLegacyUrl(file.legacy_path)
 
-        // Проксируем файл со старого сервера (с авторизацией)
+        // Проксируем файл со старого сервера (с авторизацией, таймаут 30 сек)
         try {
-          const legacyResponse = await fetch(legacyUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; ZakazProxy/1.0)',
-              'Authorization': getLegacyAuthHeader(),
-            },
-          })
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+          let legacyResponse: Response
+          try {
+            legacyResponse = await fetch(legacyUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; ZakazProxy/1.0)',
+                'Authorization': getLegacyAuthHeader(),
+              },
+              signal: controller.signal,
+            })
+          } finally {
+            clearTimeout(timeoutId)
+          }
 
           if (!legacyResponse.ok) {
             console.error(`Legacy file fetch failed: ${legacyResponse.status} ${legacyResponse.statusText}`)
