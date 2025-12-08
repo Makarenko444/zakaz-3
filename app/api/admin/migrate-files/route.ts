@@ -137,25 +137,39 @@ export async function POST(request: NextRequest) {
 
     const supabase = createDirectClient()
 
-    // Получаем файлы для миграции
-    let query = supabase
-      .from('zakaz_files')
-      .select('id, application_id, legacy_path, stored_filename, original_filename, mime_type')
-      .not('legacy_path', 'is', null)
+    let legacyFiles: (LegacyFile & { mime_type: string })[] = []
 
     if (fileIds && fileIds.length > 0) {
-      query = query.in('id', fileIds)
+      // Если переданы конкретные ID, загружаем их пакетами по 50 (чтобы избежать URI too long)
+      const chunkSize = 50
+      for (let i = 0; i < fileIds.length; i += chunkSize) {
+        const chunk = fileIds.slice(i, i + chunkSize)
+        const { data: chunkFiles, error } = await supabase
+          .from('zakaz_files')
+          .select('id, application_id, legacy_path, stored_filename, original_filename, mime_type')
+          .not('legacy_path', 'is', null)
+          .in('id', chunk)
+
+        if (error) {
+          return NextResponse.json({ error: 'Failed to fetch files', details: error.message }, { status: 500 })
+        }
+
+        legacyFiles.push(...((chunkFiles || []) as (LegacyFile & { mime_type: string })[]))
+      }
+    } else {
+      // Если ID не переданы, используем limit
+      const { data: files, error } = await supabase
+        .from('zakaz_files')
+        .select('id, application_id, legacy_path, stored_filename, original_filename, mime_type')
+        .not('legacy_path', 'is', null)
+        .limit(limit)
+
+      if (error) {
+        return NextResponse.json({ error: 'Failed to fetch files', details: error.message }, { status: 500 })
+      }
+
+      legacyFiles = (files || []) as (LegacyFile & { mime_type: string })[]
     }
-
-    query = query.limit(limit)
-
-    const { data: files, error } = await query
-
-    if (error) {
-      return NextResponse.json({ error: 'Failed to fetch files', details: error.message }, { status: 500 })
-    }
-
-    const legacyFiles = (files || []) as (LegacyFile & { mime_type: string })[]
 
     const results: {
       id: string
