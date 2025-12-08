@@ -13,6 +13,7 @@ interface ApplicationWithAddress extends Application {
     address: string
     presence_type: string
   } | null
+  files_count?: { count: number }[]
 }
 
 // Тип для статуса из БД
@@ -69,6 +70,9 @@ const serviceTypeLabels: Record<ServiceType, string> = {
 }
 
 const DEFAULT_ITEMS_PER_PAGE = 20
+const STORAGE_KEY_VIEW_MODE = 'applications_view_mode'
+const STORAGE_KEY_ITEMS_PER_PAGE = 'applications_items_per_page'
+const STORAGE_KEY_SORT = 'applications_sort'
 
 // Тип для режима отображения
 type ViewMode = 'cards' | 'table'
@@ -84,12 +88,23 @@ function ApplicationsContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE)
+
+  // Количество элементов на странице (загружаем из localStorage)
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY_ITEMS_PER_PAGE)
+      if (saved) {
+        const num = parseInt(saved, 10)
+        if (!isNaN(num) && num > 0) return num
+      }
+    }
+    return DEFAULT_ITEMS_PER_PAGE
+  })
 
   // Режим отображения (загружаем из localStorage)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('applications_view_mode')
+      const saved = localStorage.getItem(STORAGE_KEY_VIEW_MODE)
       if (saved === 'cards' || saved === 'table') {
         return saved
       }
@@ -97,14 +112,51 @@ function ApplicationsContent() {
     return 'cards'
   })
 
+  // Сортировка (загружаем из localStorage)
+  const [sortField, setSortField] = useState<SortField>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY_SORT)
+      if (saved) {
+        try {
+          const { field } = JSON.parse(saved)
+          if (['application_number', 'created_at', 'status', 'customer_fullname', 'street_and_house'].includes(field)) {
+            return field as SortField
+          }
+        } catch { /* ignore */ }
+      }
+    }
+    return 'created_at'
+  })
+
+  const [sortDirection, setSortDirection] = useState<SortDirection>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY_SORT)
+      if (saved) {
+        try {
+          const { direction } = JSON.parse(saved)
+          if (direction === 'asc' || direction === 'desc') {
+            return direction as SortDirection
+          }
+        } catch { /* ignore */ }
+      }
+    }
+    return 'desc'
+  })
+
   // Сохраняем режим отображения в localStorage при изменении
   useEffect(() => {
-    localStorage.setItem('applications_view_mode', viewMode)
+    localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode)
   }, [viewMode])
 
-  // Сортировка (для таблицы)
-  const [sortField, setSortField] = useState<SortField>('created_at')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  // Сохраняем количество элементов на странице в localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_ITEMS_PER_PAGE, itemsPerPage.toString())
+  }, [itemsPerPage])
+
+  // Сохраняем сортировку в localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_SORT, JSON.stringify({ field: sortField, direction: sortDirection }))
+  }, [sortField, sortDirection])
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
@@ -733,7 +785,17 @@ function ApplicationsContent() {
                       {urgencyLabels[app.urgency]}
                     </span>
                   </div>
-                  <span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(app.created_at)}</span>
+                  <div className="flex items-center gap-2">
+                    {/* Иконка скрепочки если есть файлы */}
+                    {app.files_count && app.files_count[0]?.count > 0 && (
+                      <span className="text-gray-400" title={`Файлов: ${app.files_count[0].count}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(app.created_at)}</span>
+                  </div>
                 </div>
 
                 {/* Вторая строка: Клиент и тип услуги */}
@@ -827,7 +889,17 @@ function ApplicationsContent() {
                       className="hover:bg-gray-50 cursor-pointer transition"
                     >
                       <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {app.application_number}
+                        <div className="flex items-center gap-1">
+                          {app.application_number}
+                          {/* Иконка скрепочки если есть файлы */}
+                          {app.files_count && app.files_count[0]?.count > 0 && (
+                            <span className="text-gray-400" title={`Файлов: ${app.files_count[0].count}`}>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(app.created_at)}

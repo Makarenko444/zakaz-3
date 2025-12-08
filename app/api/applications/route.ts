@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     // Базовый запрос
     // После миграции 028: адреса теперь в zakaz_addresses
+    // Добавляем подсчёт файлов для иконки скрепочки
     let query = supabase
       .from('zakaz_applications')
       .select(`
@@ -47,7 +48,8 @@ export async function GET(request: NextRequest) {
             building,
             address
           )
-        )
+        ),
+        files_count:zakaz_files(count)
       `, { count: 'exact' })
       .order(validSortBy, { ascending: validSortDir === 'asc' })
 

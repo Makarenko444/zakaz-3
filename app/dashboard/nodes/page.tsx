@@ -61,12 +61,28 @@ const statusColors: Record<NodeStatus, string> = {
   not_present: 'bg-gray-100 text-gray-800',
 }
 
+const STORAGE_KEY_SORT = 'nodes-sort'
+const STORAGE_KEY_ITEMS_PER_PAGE = 'nodes_items_per_page'
+
 export default function NodesPage() {
   const router = useRouter()
   const [nodes, setNodes] = useState<Node[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 })
+
+  // Загружаем itemsPerPage из localStorage
+  const getInitialLimit = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY_ITEMS_PER_PAGE)
+      if (saved) {
+        const num = parseInt(saved, 10)
+        if (!isNaN(num) && num > 0) return num
+      }
+    }
+    return 50
+  }
+
+  const [pagination, setPagination] = useState({ page: 1, limit: getInitialLimit(), total: 0, totalPages: 0 })
 
   // Импорт
   const [isImporting, setIsImporting] = useState(false)
@@ -111,7 +127,7 @@ export default function NodesPage() {
 
   useEffect(() => {
     // Загружаем сортировку из localStorage
-    const savedSort = localStorage.getItem('nodes-sort')
+    const savedSort = localStorage.getItem(STORAGE_KEY_SORT)
     if (savedSort) {
       try {
         const { field, direction } = JSON.parse(savedSort)
@@ -245,11 +261,13 @@ export default function NodesPage() {
     setSortDirection(newDirection)
 
     // Сохраняем в localStorage
-    localStorage.setItem('nodes-sort', JSON.stringify({ field, direction: newDirection }))
+    localStorage.setItem(STORAGE_KEY_SORT, JSON.stringify({ field, direction: newDirection }))
   }
 
   function handleItemsPerPageChange(newLimit: number) {
     setPagination(p => ({ ...p, limit: newLimit, page: 1 }))
+    // Сохраняем в localStorage
+    localStorage.setItem(STORAGE_KEY_ITEMS_PER_PAGE, newLimit.toString())
   }
 
   function handlePageChange(newPage: number) {
