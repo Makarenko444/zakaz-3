@@ -137,6 +137,8 @@ export default function ApplicationDetailPage() {
   const [showUserInfoModal, setShowUserInfoModal] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedUserName, setSelectedUserName] = useState<string>('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [installers, setInstallers] = useState<InstallerProfile[]>([])
   const [showWorkOrderModal, setShowWorkOrderModal] = useState(false)
   const [workOrderWindow, setWorkOrderWindow] = useState('Завтра 10:00–14:00')
@@ -430,6 +432,30 @@ export default function ApplicationDetailPage() {
     }
   }
 
+  async function handleDeleteApplication() {
+    if (!application) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/applications/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete application')
+      }
+
+      // Перенаправляем на список заявок после удаления
+      router.push('/dashboard/applications')
+    } catch (error) {
+      console.error('Error deleting application:', error)
+      alert(`Не удалось удалить заявку: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`)
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+    }
+  }
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('ru-RU', {
@@ -606,6 +632,18 @@ export default function ApplicationDetailPage() {
                 </svg>
                 <span className="hidden lg:inline">Редактировать</span>
               </button>
+              {currentUserRole === 'admin' && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3 lg:px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition font-medium flex items-center gap-2 text-sm"
+                  title="Удалить заявку"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span className="hidden lg:inline">Удалить</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -640,6 +678,14 @@ export default function ApplicationDetailPage() {
                 >
                   Редактировать
                 </button>
+                {currentUserRole === 'admin' && (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-3 py-1.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition text-xs font-medium"
+                  >
+                    Удалить
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1206,6 +1252,64 @@ export default function ApplicationDetailPage() {
             setSelectedUserName('')
           }}
         />
+      )}
+
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Удалить заявку?</h3>
+                <p className="text-sm text-gray-500">Это действие нельзя отменить</p>
+              </div>
+            </div>
+
+            <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Заявка №{application?.application_number}</span>
+                {application?.customer_fullname && (
+                  <span className="block text-gray-500">{application.customer_fullname}</span>
+                )}
+                {application?.street_and_house && (
+                  <span className="block text-gray-500">{application.street_and_house}</span>
+                )}
+              </p>
+              <p className="text-xs text-red-600 mt-2">
+                Будут удалены все связанные комментарии и файлы.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium disabled:opacity-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleDeleteApplication}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Удаление...
+                  </>
+                ) : (
+                  'Удалить'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

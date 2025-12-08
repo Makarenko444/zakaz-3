@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
+import { validateSession } from '@/lib/session'
 
 export async function GET(
   request: NextRequest,
@@ -196,6 +197,121 @@ export async function PATCH(
 
     return NextResponse.json(
       { application: data, message: 'Application updated successfully' },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // Проверяем авторизацию и права администратора
+    const session = await validateSession(request)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (session.user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Только администратор может удалять заявки' },
+        { status: 403 }
+      )
+    }
+
+    const supabase = createDirectClient()
+    const { id } = await params
+
+    // Получаем данные заявки перед удалением (для лога)
+    const { data: application, error: fetchError } = await supabase
+      .from('zakaz_applications')
+      .select('application_number, customer_fullname, street_and_house')
+      .eq('id', id)
+      .single() as { data: { application_number: number; customer_fullname: string; street_and_house: string | null } | null; error: { code?: string; message?: string } | null }
+
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Заявка не найдена' },
+          { status: 404 }
+        )
+      }
+      console.error('Database error:', fetchError)
+      return NextResponse.json(
+        { error: 'Failed to fetch application', details: fetchError.message },
+        { status: 500 }
+      )
+    }
+
+    // Удаляем связанные данные в правильном порядке
+
+    // 1. Удаляем комментарии
+    const { error: commentsError } = await supabase
+      .from('zakaz_application_comments')
+      .delete()
+      .eq('application_id', id)
+
+    if (commentsError) {
+      console.error('Error deleting comments:', commentsError)
+    }
+
+    // 2. Удаляем файлы
+    const { error: filesError } = await supabase
+      .from('zakaz_files')
+      .delete()
+      .eq('application_id', id)
+
+    if (filesError) {
+      console.error('Error deleting files:', filesError)
+    }
+
+    // 3. Удаляем логи
+    const { error: logsError } = await supabase
+      .from('zakaz_application_logs')
+      .delete()
+      .eq('application_id', id)
+
+    if (logsError) {
+      console.error('Error deleting logs:', logsError)
+    }
+
+    // 4. Удаляем саму заявку
+    const { error: deleteError } = await supabase
+      .from('zakaz_applications')
+      .delete()
+      .eq('id', id)
+
+    if (deleteError) {
+      console.error('Error deleting application:', deleteError)
+      return NextResponse.json(
+        { error: 'Failed to delete application', details: deleteError.message },
+        { status: 500 }
+      )
+    }
+
+    // Логируем удаление
+    const userData = await getUserData(session.user.id)
+
+    await logAudit({
+      ...userData,
+      actionType: 'delete',
+      entityType: 'application',
+      entityId: id,
+      description: `Удалена заявка №${application?.application_number}: ${application?.customer_fullname} (${application?.street_and_house || 'адрес не указан'})`,
+      oldValues: application || undefined,
+      ipAddress: getClientIP(request),
+      userAgent: getUserAgent(request),
+    })
+
+    return NextResponse.json(
+      { message: 'Заявка успешно удалена' },
       { status: 200 }
     )
   } catch (error) {
