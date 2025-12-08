@@ -335,10 +335,13 @@ export default function FileMigrationAdmin() {
                 disabled={isMigrating}
               >
                 <option value={1}>1</option>
-                <option value={3}>3</option>
                 <option value={5}>5</option>
                 <option value={10}>10</option>
                 <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={300}>300</option>
+                <option value={500}>500</option>
               </select>
             </div>
 
@@ -447,7 +450,7 @@ export default function FileMigrationAdmin() {
       {status && status.pendingFiles.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Файлы ожидающие миграции ({status.pending > 50 ? `показаны первые 50 из ${status.pending}` : status.pending})
+            Файлы ожидающие миграции ({status.pending > 500 ? `показаны первые 500 из ${status.pending}` : status.pending})
           </h3>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
