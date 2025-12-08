@@ -3,7 +3,6 @@ import { createDirectClient } from '@/lib/supabase-direct'
 import { getUserBySessionToken, SESSION_COOKIE_OPTIONS } from '@/lib/session'
 import { ensureUploadDirExists, getFilePath } from '@/lib/file-upload'
 import { promises as fs } from 'fs'
-import path from 'path'
 
 // Базовый URL старого сервера для legacy-файлов
 const LEGACY_FILE_BASE_URL = process.env.LEGACY_FILE_URL || 'http://zakaz.tomica.ru'
