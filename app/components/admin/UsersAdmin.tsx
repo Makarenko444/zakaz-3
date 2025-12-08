@@ -9,6 +9,11 @@ const roleNames: Record<UserRole, string> = {
   engineer: 'Инженер',
   installer: 'Монтажник',
   supply: 'Снабжение',
+  director: 'Директор',
+  accountant: 'Бухгалтер',
+  support: 'Тех.поддержка',
+  maintenance: 'Эксплуатация',
+  approval: 'Согласование',
 }
 
 interface UserFormData {
@@ -270,6 +275,11 @@ export default function UsersAdmin() {
               <option value="engineer">Инженер</option>
               <option value="installer">Монтажник</option>
               <option value="supply">Снабжение</option>
+              <option value="director">Директор</option>
+              <option value="accountant">Бухгалтер</option>
+              <option value="support">Тех.поддержка</option>
+              <option value="maintenance">Эксплуатация</option>
+              <option value="approval">Согласование</option>
             </select>
           </div>
 
@@ -484,6 +494,11 @@ export default function UsersAdmin() {
                     <option value="engineer">Инженер</option>
                     <option value="installer">Монтажник</option>
                     <option value="supply">Снабжение</option>
+                    <option value="director">Директор</option>
+                    <option value="accountant">Бухгалтер</option>
+                    <option value="support">Тех.поддержка</option>
+                    <option value="maintenance">Эксплуатация</option>
+                    <option value="approval">Согласование</option>
                   </select>
                 </div>
 

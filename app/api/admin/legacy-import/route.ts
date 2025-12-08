@@ -212,6 +212,9 @@ function getValueOrNull(value: string | undefined | null): string | null {
 
 // Streaming response для прогресса
 export async function POST(request: NextRequest) {
+  // Получаем AbortSignal для обработки отключения клиента
+  const abortSignal = request.signal
+
   // Проверка авторизации
   const session = await validateSession(request)
   if (!session || session.user.role !== 'admin') {
@@ -305,6 +308,11 @@ export async function POST(request: NextRequest) {
         }
         logs.push(entry)
         return entry
+      }
+
+      // Функция проверки отмены запроса
+      function isAborted(): boolean {
+        return abortSignal?.aborted === true
       }
 
       try {
@@ -420,6 +428,20 @@ export async function POST(request: NextRequest) {
         })
 
         for (let i = 0; i < orders.length; i++) {
+          // Проверяем отмену запроса клиентом
+          if (isAborted()) {
+            sendProgress({
+              phase: 'orders',
+              current: i,
+              total: orders.length,
+              stats: { ...stats },
+              log: log('warning', 'Импорт прерван: клиент отключился'),
+              done: true,
+            })
+            controller.close()
+            return
+          }
+
           const order = orders[i]
           // Используем nid как основной ID
           const legacyId = order.nid?.trim()
@@ -631,6 +653,20 @@ export async function POST(request: NextRequest) {
           )
 
           for (let i = 0; i < comments.length; i++) {
+            // Проверяем отмену запроса клиентом
+            if (isAborted()) {
+              sendProgress({
+                phase: 'comments',
+                current: i,
+                total: comments.length,
+                stats: { ...stats },
+                log: log('warning', 'Импорт прерван: клиент отключился'),
+                done: true,
+              })
+              controller.close()
+              return
+            }
+
             const comment = comments[i]
             const legacyCid = comment.cid?.trim()
             const legacyNid = comment.nid?.trim()
@@ -755,6 +791,20 @@ export async function POST(request: NextRequest) {
           )
 
           for (let i = 0; i < files.length; i++) {
+            // Проверяем отмену запроса клиентом
+            if (isAborted()) {
+              sendProgress({
+                phase: 'files',
+                current: i,
+                total: files.length,
+                stats: { ...stats },
+                log: log('warning', 'Импорт прерван: клиент отключился'),
+                done: true,
+              })
+              controller.close()
+              return
+            }
+
             const file = files[i]
             const legacyFid = file.fid?.trim()
             const legacyNid = file.nid?.trim()
@@ -885,6 +935,20 @@ export async function POST(request: NextRequest) {
           const userIdMapping: Map<string, string> = new Map()
 
           for (let i = 0; i < users.length; i++) {
+            // Проверяем отмену запроса клиентом
+            if (isAborted()) {
+              sendProgress({
+                phase: 'users',
+                current: i,
+                total: users.length,
+                stats: { ...stats },
+                log: log('warning', 'Импорт прерван: клиент отключился'),
+                done: true,
+              })
+              controller.close()
+              return
+            }
+
             const user = users[i]
             // Поддержка обоих форматов: uid (старый) и id (новый экспорт)
             const legacyUid = (user.uid || (user as unknown as Record<string, string>)['id'])?.trim()

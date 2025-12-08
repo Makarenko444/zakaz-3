@@ -181,6 +181,11 @@ export default function Sidebar({ user, applicationsCount, isCollapsed, setIsCol
                 {user.role === 'engineer' && 'Инженер'}
                 {user.role === 'installer' && 'Монтажник'}
                 {user.role === 'supply' && 'Снабжение'}
+                {user.role === 'director' && 'Директор'}
+                {user.role === 'accountant' && 'Бухгалтер'}
+                {user.role === 'support' && 'Тех.поддержка'}
+                {user.role === 'maintenance' && 'Эксплуатация'}
+                {user.role === 'approval' && 'Согласование'}
               </p>
             </div>
           </div>
