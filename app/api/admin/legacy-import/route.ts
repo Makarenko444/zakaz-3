@@ -333,19 +333,23 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Получаем существующие legacy_id
-        const { data: existingOrders } = await supabase
+        // Получаем существующие legacy_id (только для пропуска уже импортированных)
+        const { data: existingLegacyOrders } = await supabase
           .from('zakaz_applications')
-          .select('legacy_id, application_number')
+          .select('legacy_id')
           .not('legacy_id', 'is', null)
 
         const existingLegacyIds = new Set(
-          (existingOrders || []).map((o: { legacy_id: number | null }) => o.legacy_id?.toString())
+          (existingLegacyOrders || []).map((o: { legacy_id: number | null }) => o.legacy_id?.toString())
         )
 
-        // Множество занятых номеров заявок (для избежания дублей)
+        // Получаем ВСЕ занятые номера заявок (включая созданные в новой системе)
+        const { data: allOrders } = await supabase
+          .from('zakaz_applications')
+          .select('application_number')
+
         const usedApplicationNumbers = new Set<number>(
-          (existingOrders || []).map((o: { application_number: number }) => o.application_number)
+          (allOrders || []).map((o: { application_number: number }) => o.application_number)
         )
 
         // Счётчик для дублирующихся номеров (начинаем с 25000)
