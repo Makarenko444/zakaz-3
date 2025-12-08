@@ -309,6 +309,11 @@ export default function DashboardPage() {
                       engineer: 'Инженер',
                       installer: 'Монтажник',
                       supply: 'Снабжение',
+                      director: 'Директор',
+                      accountant: 'Бухгалтер',
+                      support: 'Тех.поддержка',
+                      maintenance: 'Эксплуатация',
+                      approval: 'Согласование',
                       user: 'Пользователь',
                     }
 
@@ -318,6 +323,11 @@ export default function DashboardPage() {
                       engineer: 'bg-green-100 text-green-800',
                       installer: 'bg-orange-100 text-orange-800',
                       supply: 'bg-cyan-100 text-cyan-800',
+                      director: 'bg-red-100 text-red-800',
+                      accountant: 'bg-amber-100 text-amber-800',
+                      support: 'bg-teal-100 text-teal-800',
+                      maintenance: 'bg-slate-100 text-slate-800',
+                      approval: 'bg-emerald-100 text-emerald-800',
                       user: 'bg-gray-100 text-gray-800',
                     }
 
