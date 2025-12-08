@@ -86,8 +86,21 @@ function ApplicationsContent() {
   const [page, setPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE)
 
-  // Режим отображения
-  const [viewMode, setViewMode] = useState<ViewMode>('cards')
+  // Режим отображения (загружаем из localStorage)
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('applications_view_mode')
+      if (saved === 'cards' || saved === 'table') {
+        return saved
+      }
+    }
+    return 'cards'
+  })
+
+  // Сохраняем режим отображения в localStorage при изменении
+  useEffect(() => {
+    localStorage.setItem('applications_view_mode', viewMode)
+  }, [viewMode])
 
   // Сортировка (для таблицы)
   const [sortField, setSortField] = useState<SortField>('created_at')
