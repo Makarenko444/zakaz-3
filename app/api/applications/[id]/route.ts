@@ -113,6 +113,7 @@ export async function PATCH(
 
     // Подготовка данных для обновления
     const updateData: Record<string, unknown> = {
+      city: body.city || 'Томск',
       street_and_house: body.street_and_house || null,
       address_details: body.address_details || null,
       customer_type: body.customer_type,

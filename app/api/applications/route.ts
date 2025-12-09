@@ -212,6 +212,7 @@ export async function POST(request: NextRequest) {
     // Подготовка данных для вставки
     const applicationData = {
       address_id: body.address_id || null,
+      city: body.city || 'Томск',
       street_and_house: body.street_and_house,
       address_details: body.address_details || null,
       customer_type: body.customer_type,
