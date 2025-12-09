@@ -48,6 +48,7 @@ export default function FilesPage() {
   const [sortBy, setSortBy] = useState('uploaded_at')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [stats, setStats] = useState<FileStats | null>(null)
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null)
 
   const loadFiles = useCallback(async () => {
     try {
@@ -134,13 +135,54 @@ export default function FilesPage() {
     }
   }
 
-  function getFileIcon(mimeType: string): string {
-    if (mimeType.startsWith('image/')) return '🖼️'
-    if (mimeType === 'application/pdf') return '📄'
-    if (mimeType.includes('word') || mimeType.includes('document')) return '📝'
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '📊'
-    if (mimeType.includes('zip') || mimeType.includes('archive')) return '📦'
-    return '📎'
+  function FileIcon({ mimeType }: { mimeType: string }) {
+    const className = "w-8 h-8"
+
+    if (mimeType.startsWith('image/')) {
+      return (
+        <svg className={className} fill="none" stroke="#10B981" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      )
+    }
+    if (mimeType === 'application/pdf') {
+      return (
+        <svg className={className} fill="none" stroke="#EF4444" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6M9 17h4" />
+        </svg>
+      )
+    }
+    if (mimeType.includes('word') || mimeType.includes('document')) {
+      return (
+        <svg className={className} fill="none" stroke="#3B82F6" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    }
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
+      return (
+        <svg className={className} fill="none" stroke="#8B5CF6" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M3 14h18M9 4v16M15 4v16M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+        </svg>
+      )
+    }
+    if (mimeType.includes('zip') || mimeType.includes('archive') || mimeType.includes('rar')) {
+      return (
+        <svg className={className} fill="none" stroke="#F59E0B" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        </svg>
+      )
+    }
+    return (
+      <svg className={className} fill="none" stroke="#6B7280" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    )
+  }
+
+  function canPreview(mimeType: string): boolean {
+    return mimeType.startsWith('image/') || mimeType === 'application/pdf'
   }
 
   function handleSort(field: string) {
@@ -357,8 +399,8 @@ export default function FilesPage() {
                 {files.map((file) => (
                   <tr key={file.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{getFileIcon(file.mime_type)}</span>
+                      <div className="flex items-center gap-3">
+                        <FileIcon mimeType={file.mime_type} />
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate max-w-xs" title={file.original_filename}>
                             {file.original_filename}
@@ -388,7 +430,15 @@ export default function FilesPage() {
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {formatDate(file.uploaded_at)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right space-x-3">
+                      {canPreview(file.mime_type) && (
+                        <button
+                          onClick={() => setPreviewFile(file)}
+                          className="text-green-600 hover:text-green-900 text-sm font-medium"
+                        >
+                          Просмотр
+                        </button>
+                      )}
                       <a
                         href={`/api/applications/${file.application_id}/files/${file.id}`}
                         target="_blank"
@@ -427,6 +477,69 @@ export default function FilesPage() {
             >
               Вперёд
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно просмотра */}
+      {previewFile && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setPreviewFile(null)}
+        >
+          <div
+            className="bg-white rounded-lg max-w-5xl max-h-[90vh] w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Заголовок */}
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div className="flex items-center gap-3 min-w-0">
+                <FileIcon mimeType={previewFile.mime_type} />
+                <div className="min-w-0">
+                  <div className="font-medium text-gray-900 truncate">{previewFile.original_filename}</div>
+                  <div className="text-sm text-gray-500">{formatFileSize(previewFile.file_size)}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/api/applications/${previewFile.application_id}/files/${previewFile.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
+                >
+                  Скачать
+                </a>
+                <button
+                  onClick={() => setPreviewFile(null)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Контент */}
+            <div className="p-4 overflow-auto max-h-[calc(90vh-80px)] flex items-center justify-center bg-gray-100">
+              {previewFile.mime_type.startsWith('image/') ? (
+                <img
+                  src={`/api/applications/${previewFile.application_id}/files/${previewFile.id}`}
+                  alt={previewFile.original_filename}
+                  className="max-w-full max-h-[calc(90vh-120px)] object-contain"
+                />
+              ) : previewFile.mime_type === 'application/pdf' ? (
+                <iframe
+                  src={`/api/applications/${previewFile.application_id}/files/${previewFile.id}`}
+                  className="w-full h-[calc(90vh-120px)]"
+                  title={previewFile.original_filename}
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-12">
+                  Предпросмотр недоступен для этого типа файла
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
