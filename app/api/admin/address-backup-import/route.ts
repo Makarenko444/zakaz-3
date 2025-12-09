@@ -100,6 +100,13 @@ export async function POST(request: NextRequest) {
   })
 }
 
+// Тип для статистики оригинальных адресов
+interface OriginalAddressRow {
+  id: string
+  street_and_house_original: string | null
+  address_details_original: string | null
+}
+
 // GET - получить статистику заполненности полей
 export async function GET(request: NextRequest) {
   const session = await validateSession(request)
@@ -111,7 +118,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('zakaz_applications')
-    .select('id, street_and_house_original, address_details_original')
+    .select('id, street_and_house_original, address_details_original') as { data: OriginalAddressRow[] | null; error: { message: string } | null }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
