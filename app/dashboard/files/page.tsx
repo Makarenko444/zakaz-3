@@ -308,7 +308,7 @@ export default function FilesPage() {
               </svg>
             </div>
 
-            {/* Легенда */}
+            {/* Легенда - кликабельная для фильтрации */}
             <div className="flex flex-wrap gap-3">
               {Object.entries(stats.typeStats).map(([type, data]) => {
                 const typeColors: Record<string, string> = {
@@ -319,17 +319,39 @@ export default function FilesPage() {
                   'Архивы': 'bg-amber-500',
                   'Другие': 'bg-gray-500',
                 }
+                const typeFilterMap: Record<string, FileTypeFilter> = {
+                  'Изображения': 'images',
+                  'PDF': 'pdf',
+                  'Документы': 'documents',
+                  'Таблицы': 'spreadsheets',
+                  'Архивы': 'archives',
+                  'Другие': 'other',
+                }
                 const percentage = stats.totalFiles > 0
                   ? ((data.count / stats.totalFiles) * 100).toFixed(1)
                   : '0'
+                const filterValue = typeFilterMap[type] || 'all'
+                const isActive = typeFilter === filterValue
                 return (
-                  <div key={type} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setTypeFilter(isActive ? 'all' : filterValue)
+                      setPage(1)
+                    }}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 transition cursor-pointer ${
+                      isActive
+                        ? 'bg-indigo-100 ring-2 ring-indigo-500'
+                        : 'bg-gray-50 hover:bg-gray-100'
+                    }`}
+                    title={isActive ? 'Сбросить фильтр' : `Показать только: ${type}`}
+                  >
                     <div className={`w-3 h-3 rounded-full ${typeColors[type] || 'bg-gray-500'}`}></div>
-                    <div>
+                    <div className="text-left">
                       <div className="text-sm font-medium text-gray-900">{type}</div>
                       <div className="text-xs text-gray-500">{data.count} шт. ({percentage}%) • {formatFileSize(data.size)}</div>
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
