@@ -206,27 +206,84 @@ export default function FilesPage() {
         </div>
       )}
 
-      {/* Статистика по типам файлов */}
+      {/* Статистика по типам файлов с пирогом */}
       {stats && Object.keys(stats.typeStats).length > 0 && (
         <div className="bg-white rounded-lg shadow p-4">
           <h2 className="text-sm font-medium text-gray-700 mb-3">По типам файлов</h2>
-          <div className="flex flex-wrap gap-4">
-            {Object.entries(stats.typeStats).map(([type, data]) => (
-              <div key={type} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                <span className="text-lg">
-                  {type === 'Изображения' && '🖼️'}
-                  {type === 'PDF' && '📄'}
-                  {type === 'Документы' && '📝'}
-                  {type === 'Таблицы' && '📊'}
-                  {type === 'Архивы' && '📦'}
-                  {type === 'Другие' && '📎'}
-                </span>
-                <div>
-                  <div className="text-sm font-medium text-gray-900">{type}</div>
-                  <div className="text-xs text-gray-500">{data.count} шт. • {formatFileSize(data.size)}</div>
-                </div>
-              </div>
-            ))}
+          <div className="flex flex-col md:flex-row gap-6 items-center">
+            {/* Круговая диаграмма */}
+            <div className="relative">
+              <svg width="180" height="180" viewBox="0 0 180 180">
+                {(() => {
+                  const typeColors: Record<string, string> = {
+                    'Изображения': '#10B981',
+                    'PDF': '#EF4444',
+                    'Документы': '#3B82F6',
+                    'Таблицы': '#8B5CF6',
+                    'Архивы': '#F59E0B',
+                    'Другие': '#6B7280',
+                  }
+                  const entries = Object.entries(stats.typeStats)
+                  const total = entries.reduce((sum, [, d]) => sum + d.count, 0)
+                  let currentAngle = -90
+
+                  return entries.map(([type, data]) => {
+                    const percentage = (data.count / total) * 100
+                    const angle = (percentage / 100) * 360
+                    const startAngle = currentAngle
+                    const endAngle = currentAngle + angle
+                    currentAngle = endAngle
+
+                    const startRad = (startAngle * Math.PI) / 180
+                    const endRad = (endAngle * Math.PI) / 180
+                    const largeArc = angle > 180 ? 1 : 0
+
+                    const x1 = 90 + 80 * Math.cos(startRad)
+                    const y1 = 90 + 80 * Math.sin(startRad)
+                    const x2 = 90 + 80 * Math.cos(endRad)
+                    const y2 = 90 + 80 * Math.sin(endRad)
+
+                    const pathD = `M 90 90 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`
+
+                    return (
+                      <path
+                        key={type}
+                        d={pathD}
+                        fill={typeColors[type] || '#6B7280'}
+                        stroke="white"
+                        strokeWidth="2"
+                      />
+                    )
+                  })
+                })()}
+              </svg>
+            </div>
+
+            {/* Легенда */}
+            <div className="flex flex-wrap gap-3">
+              {Object.entries(stats.typeStats).map(([type, data]) => {
+                const typeColors: Record<string, string> = {
+                  'Изображения': 'bg-green-500',
+                  'PDF': 'bg-red-500',
+                  'Документы': 'bg-blue-500',
+                  'Таблицы': 'bg-purple-500',
+                  'Архивы': 'bg-amber-500',
+                  'Другие': 'bg-gray-500',
+                }
+                const percentage = stats.totalFiles > 0
+                  ? ((data.count / stats.totalFiles) * 100).toFixed(1)
+                  : '0'
+                return (
+                  <div key={type} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                    <div className={`w-3 h-3 rounded-full ${typeColors[type] || 'bg-gray-500'}`}></div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{type}</div>
+                      <div className="text-xs text-gray-500">{data.count} шт. ({percentage}%) • {formatFileSize(data.size)}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
