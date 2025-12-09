@@ -5,7 +5,7 @@ interface FileRow {
   file_size: number
   mime_type: string
   uploaded_at: string
-  migrated: boolean
+  stored_filename: string | null
 }
 
 export async function GET() {
@@ -15,7 +15,7 @@ export async function GET() {
     // Получаем все файлы для статистики
     const { data, error } = await supabase
       .from('zakaz_files')
-      .select('file_size, mime_type, uploaded_at, migrated')
+      .select('file_size, mime_type, uploaded_at, stored_filename')
 
     if (error) {
       console.error('Database error:', error)
@@ -34,12 +34,13 @@ export async function GET() {
     // Статистика по типам
     const typeStats: Record<string, { count: number; size: number }> = {}
     files.forEach((f) => {
+      const mimeType = f.mime_type || ''
       let type = 'Другие'
-      if (f.mime_type.startsWith('image/')) type = 'Изображения'
-      else if (f.mime_type === 'application/pdf') type = 'PDF'
-      else if (f.mime_type.includes('word') || f.mime_type.includes('document')) type = 'Документы'
-      else if (f.mime_type.includes('excel') || f.mime_type.includes('spreadsheet')) type = 'Таблицы'
-      else if (f.mime_type.includes('zip') || f.mime_type.includes('archive') || f.mime_type.includes('rar')) type = 'Архивы'
+      if (mimeType.startsWith('image/')) type = 'Изображения'
+      else if (mimeType === 'application/pdf') type = 'PDF'
+      else if (mimeType.includes('word') || mimeType.includes('document')) type = 'Документы'
+      else if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) type = 'Таблицы'
+      else if (mimeType.includes('zip') || mimeType.includes('archive') || mimeType.includes('rar')) type = 'Архивы'
 
       if (!typeStats[type]) {
         typeStats[type] = { count: 0, size: 0 }
@@ -48,8 +49,8 @@ export async function GET() {
       typeStats[type].size += f.file_size || 0
     })
 
-    // Статистика по миграции
-    const migratedCount = files.filter(f => f.migrated).length
+    // Статистика по миграции (файлы с stored_filename = в хранилище)
+    const migratedCount = files.filter(f => f.stored_filename).length
     const pendingMigration = totalFiles - migratedCount
 
     // Файлы за последние 7 дней
