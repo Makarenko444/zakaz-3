@@ -105,7 +105,8 @@ export async function GET(request: NextRequest) {
       query = query.or(
         `customer_fullname.ilike.${searchPattern},` +
         `customer_phone.ilike.${searchPattern},` +
-        `street_and_house.ilike.${searchPattern}`
+        `street_and_house.ilike.${searchPattern},` +
+        `address_details.ilike.${searchPattern}`
       )
 
       console.log('[Applications API] Search conditions applied')

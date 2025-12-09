@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ThemeToggle from '@/components/ThemeToggle'
 
@@ -11,12 +12,20 @@ interface HeaderProps {
 
 export default function Header({ onLogout, isLoggingOut, isCollapsed }: HeaderProps) {
   const router = useRouter()
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push(`/dashboard/applications?search=${encodeURIComponent(searchQuery.trim())}`)
+    }
+  }
 
   return (
     <header className={`h-14 bg-white border-b border-gray-200 fixed top-0 right-0 z-20 transition-all ${isCollapsed ? 'left-16' : 'left-64'}`}>
       <div className="h-full px-4 flex items-center justify-between">
         {/* Поиск */}
-        <div className="flex-1 max-w-xl">
+        <form onSubmit={handleSearch} className="flex-1 max-w-xl">
           <div className="relative">
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
@@ -33,11 +42,13 @@ export default function Header({ onLogout, isLoggingOut, isCollapsed }: HeaderPr
             </svg>
             <input
               type="text"
-              placeholder="Поиск..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск по ФИО, телефону, адресу..."
               className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
             />
           </div>
-        </div>
+        </form>
 
         {/* Правая часть */}
         <div className="flex items-center gap-3 ml-4">
