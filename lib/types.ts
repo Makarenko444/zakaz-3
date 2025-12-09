@@ -70,6 +70,9 @@ export interface Application {
   // Legacy-поля для импорта из старой системы
   legacy_id: number | null
   legacy_stage: string | null
+  // Оригинальные адреса (backup для сравнения с нормализованными)
+  street_and_house_original: string | null
+  address_details_original: string | null
 }
 
 export interface ApplicationStatusInfo {

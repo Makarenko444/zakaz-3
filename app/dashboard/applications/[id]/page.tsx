@@ -808,6 +808,17 @@ export default function ApplicationDetailPage() {
                     </div>
                   </div>
 
+                  {/* Оригинальные адреса (старые поля) */}
+                  {(application.street_and_house_original || application.address_details_original) && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-200">
+                      <p className="text-xs text-gray-500 mb-1">Старые поля адреса (из импорта):</p>
+                      <p className="text-sm text-gray-600">
+                        {application.street_and_house_original}
+                        {application.address_details_original && ` | ${application.address_details_original}`}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Привязка к формализованному адресу */}
                   <div className="flex items-center gap-2">
                     {application.address_id && application.zakaz_addresses ? (
