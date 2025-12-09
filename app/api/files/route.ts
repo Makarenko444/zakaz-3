@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50')
     const sortBy = searchParams.get('sort_by') || 'uploaded_at'
     const sortDir = searchParams.get('sort_dir') || 'desc'
+    const typeFilter = searchParams.get('type')
 
     // Валидация полей сортировки
     const allowedSortFields = ['uploaded_at', 'original_filename', 'file_size']
@@ -50,6 +51,39 @@ export async function GET(request: NextRequest) {
     // Поиск по имени файла
     if (search) {
       query = query.ilike('original_filename', `%${search}%`)
+    }
+
+    // Фильтр по типу файла
+    if (typeFilter) {
+      switch (typeFilter) {
+        case 'images':
+          query = query.like('mime_type', 'image/%')
+          break
+        case 'pdf':
+          query = query.eq('mime_type', 'application/pdf')
+          break
+        case 'documents':
+          query = query.or('mime_type.ilike.%word%,mime_type.ilike.%document%')
+          break
+        case 'spreadsheets':
+          query = query.or('mime_type.ilike.%excel%,mime_type.ilike.%spreadsheet%')
+          break
+        case 'archives':
+          query = query.or('mime_type.ilike.%zip%,mime_type.ilike.%archive%,mime_type.ilike.%rar%')
+          break
+        case 'other':
+          query = query
+            .not('mime_type', 'like', 'image/%')
+            .neq('mime_type', 'application/pdf')
+            .not('mime_type', 'ilike', '%word%')
+            .not('mime_type', 'ilike', '%document%')
+            .not('mime_type', 'ilike', '%excel%')
+            .not('mime_type', 'ilike', '%spreadsheet%')
+            .not('mime_type', 'ilike', '%zip%')
+            .not('mime_type', 'ilike', '%archive%')
+            .not('mime_type', 'ilike', '%rar%')
+          break
+      }
     }
 
     // Пагинация
