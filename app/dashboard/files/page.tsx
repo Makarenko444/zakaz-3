@@ -255,12 +255,25 @@ export default function FilesPage() {
         </div>
       )}
 
-      {/* Статистика по типам файлов с пирогом */}
+      {/* Статистика по типам файлов с donut-диаграммой */}
       {stats && Object.keys(stats.typeStats).length > 0 && (
         <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-sm font-medium text-gray-700 mb-3">По типам файлов</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-medium text-gray-700">По типам файлов</h2>
+            {typeFilter !== 'all' && (
+              <button
+                onClick={() => { setTypeFilter('all'); setPage(1) }}
+                className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Сбросить фильтр
+              </button>
+            )}
+          </div>
           <div className="flex flex-col md:flex-row gap-6 items-center">
-            {/* Круговая диаграмма */}
+            {/* Donut-диаграмма */}
             <div className="relative">
               <svg width="180" height="180" viewBox="0 0 180 180">
                 {(() => {
@@ -272,8 +285,18 @@ export default function FilesPage() {
                     'Архивы': '#F59E0B',
                     'Другие': '#6B7280',
                   }
+                  const typeFilterMap: Record<string, FileTypeFilter> = {
+                    'Изображения': 'images',
+                    'PDF': 'pdf',
+                    'Документы': 'documents',
+                    'Таблицы': 'spreadsheets',
+                    'Архивы': 'archives',
+                    'Другие': 'other',
+                  }
                   const entries = Object.entries(stats.typeStats)
                   const total = entries.reduce((sum, [, d]) => sum + d.count, 0)
+                  const outerRadius = 85
+                  const innerRadius = 55
                   let currentAngle = -90
 
                   return entries.map(([type, data]) => {
@@ -287,12 +310,25 @@ export default function FilesPage() {
                     const endRad = (endAngle * Math.PI) / 180
                     const largeArc = angle > 180 ? 1 : 0
 
-                    const x1 = 90 + 80 * Math.cos(startRad)
-                    const y1 = 90 + 80 * Math.sin(startRad)
-                    const x2 = 90 + 80 * Math.cos(endRad)
-                    const y2 = 90 + 80 * Math.sin(endRad)
+                    // Outer arc points
+                    const x1 = 90 + outerRadius * Math.cos(startRad)
+                    const y1 = 90 + outerRadius * Math.sin(startRad)
+                    const x2 = 90 + outerRadius * Math.cos(endRad)
+                    const y2 = 90 + outerRadius * Math.sin(endRad)
 
-                    const pathD = `M 90 90 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`
+                    // Inner arc points
+                    const x3 = 90 + innerRadius * Math.cos(endRad)
+                    const y3 = 90 + innerRadius * Math.sin(endRad)
+                    const x4 = 90 + innerRadius * Math.cos(startRad)
+                    const y4 = 90 + innerRadius * Math.sin(startRad)
+
+                    // Donut path: outer arc → line to inner → inner arc (reverse) → close
+                    const pathD = `M ${x1} ${y1} A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4} Z`
+
+                    const filterValue = typeFilterMap[type] || 'all'
+                    const isActive = typeFilter === filterValue
+                    const isFiltered = typeFilter !== 'all'
+                    const opacity = isFiltered ? (isActive ? 1 : 0.25) : 1
 
                     return (
                       <path
@@ -301,10 +337,24 @@ export default function FilesPage() {
                         fill={typeColors[type] || '#6B7280'}
                         stroke="white"
                         strokeWidth="2"
+                        opacity={opacity}
+                        className="cursor-pointer transition-all duration-200 hover:opacity-80"
+                        onClick={() => {
+                          setTypeFilter(isActive ? 'all' : filterValue)
+                          setPage(1)
+                        }}
                       />
                     )
                   })
                 })()}
+                {/* Центр donut с общим количеством */}
+                <circle cx="90" cy="90" r="45" fill="white" />
+                <text x="90" y="85" textAnchor="middle" className="text-2xl font-bold fill-gray-900">
+                  {stats.totalFiles}
+                </text>
+                <text x="90" y="102" textAnchor="middle" className="text-xs fill-gray-500">
+                  файлов
+                </text>
               </svg>
             </div>
 
@@ -332,6 +382,8 @@ export default function FilesPage() {
                   : '0'
                 const filterValue = typeFilterMap[type] || 'all'
                 const isActive = typeFilter === filterValue
+                const isFiltered = typeFilter !== 'all'
+                const isDimmed = isFiltered && !isActive
                 return (
                   <button
                     key={type}
@@ -339,17 +391,19 @@ export default function FilesPage() {
                       setTypeFilter(isActive ? 'all' : filterValue)
                       setPage(1)
                     }}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2 transition cursor-pointer ${
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all duration-200 cursor-pointer ${
                       isActive
-                        ? 'bg-indigo-100 ring-2 ring-indigo-500'
-                        : 'bg-gray-50 hover:bg-gray-100'
+                        ? 'bg-indigo-100 ring-2 ring-indigo-500 shadow-md scale-105'
+                        : isDimmed
+                        ? 'bg-gray-50 opacity-40'
+                        : 'bg-gray-50 hover:bg-gray-100 hover:shadow-sm'
                     }`}
                     title={isActive ? 'Сбросить фильтр' : `Показать только: ${type}`}
                   >
-                    <div className={`w-3 h-3 rounded-full ${typeColors[type] || 'bg-gray-500'}`}></div>
+                    <div className={`w-3 h-3 rounded-full ${typeColors[type] || 'bg-gray-500'} ${isDimmed ? 'opacity-50' : ''}`}></div>
                     <div className="text-left">
-                      <div className="text-sm font-medium text-gray-900">{type}</div>
-                      <div className="text-xs text-gray-500">{data.count} шт. ({percentage}%) • {formatFileSize(data.size)}</div>
+                      <div className={`text-sm font-medium ${isDimmed ? 'text-gray-400' : 'text-gray-900'}`}>{type}</div>
+                      <div className={`text-xs ${isDimmed ? 'text-gray-300' : 'text-gray-500'}`}>{data.count} шт. ({percentage}%) • {formatFileSize(data.size)}</div>
                     </div>
                   </button>
                 )
