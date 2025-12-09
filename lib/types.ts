@@ -48,6 +48,7 @@ export interface Application {
   id: string
   address_id: string | null
   node_id: string | null
+  city: string
   street_and_house: string | null
   address_details: string | null
   address_match_status: AddressMatchStatus
