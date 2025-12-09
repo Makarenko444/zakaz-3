@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const supabase = createDirectClient()
     await supabase
       .from('zakaz_users')
-      .update({ legacy_last_login: new Date().toISOString() })
+      .update({ legacy_last_login: new Date().toISOString() } as Record<string, unknown>)
       .eq('id', user.id)
 
     // Создаем response с cookie
