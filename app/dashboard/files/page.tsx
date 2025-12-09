@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { getCurrentUser } from '@/lib/auth-client'
 import { User } from '@/lib/types'
+
+type FileTypeFilter = 'all' | 'images' | 'pdf' | 'documents' | 'spreadsheets' | 'archives' | 'other'
 
 interface FileStats {
   totalFiles: number
@@ -49,6 +52,7 @@ export default function FilesPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [stats, setStats] = useState<FileStats | null>(null)
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null)
+  const [typeFilter, setTypeFilter] = useState<FileTypeFilter>('all')
 
   const loadFiles = useCallback(async () => {
     try {
@@ -61,6 +65,9 @@ export default function FilesPage() {
       })
       if (search) {
         params.set('search', search)
+      }
+      if (typeFilter !== 'all') {
+        params.set('type', typeFilter)
       }
 
       const response = await fetch(`/api/files?${params}`)
@@ -75,7 +82,7 @@ export default function FilesPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, search, sortBy, sortDir])
+  }, [page, search, sortBy, sortDir, typeFilter])
 
   const loadStats = useCallback(async () => {
     try {
@@ -330,23 +337,43 @@ export default function FilesPage() {
         </div>
       )}
 
-      {/* Заголовок и поиск */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Список файлов</h1>
-          <p className="text-sm text-gray-500 mt-1">Найдено: {total}</p>
-        </div>
-        <div className="w-full sm:w-auto">
-          <input
-            type="text"
-            placeholder="Поиск по имени файла..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              setPage(1)
-            }}
-            className="w-full sm:w-80 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
+      {/* Заголовок, поиск и фильтры */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Список файлов</h1>
+            <p className="text-sm text-gray-500 mt-1">Найдено: {total}</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            {/* Фильтр по типу */}
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value as FileTypeFilter)
+                setPage(1)
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+            >
+              <option value="all">Все типы</option>
+              <option value="images">Изображения</option>
+              <option value="pdf">PDF</option>
+              <option value="documents">Документы</option>
+              <option value="spreadsheets">Таблицы</option>
+              <option value="archives">Архивы</option>
+              <option value="other">Другие</option>
+            </select>
+            {/* Поиск */}
+            <input
+              type="text"
+              placeholder="Поиск по имени файла..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setPage(1)
+              }}
+              className="w-full sm:w-80 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
         </div>
       </div>
 
@@ -400,7 +427,30 @@ export default function FilesPage() {
                   <tr key={file.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <FileIcon mimeType={file.mime_type} />
+                        {/* Миниатюра для изображений или иконка */}
+                        {file.mime_type?.startsWith('image/') ? (
+                          <div
+                            className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-200 cursor-pointer hover:ring-2 hover:ring-indigo-500 transition relative"
+                            onClick={() => setPreviewFile(file)}
+                            title="Нажмите для просмотра"
+                          >
+                            <Image
+                              src={`/api/applications/${file.application_id}/files/${file.id}`}
+                              alt={file.original_filename}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                                if (e.currentTarget.parentElement) {
+                                  e.currentTarget.parentElement.innerHTML = '<div class="flex items-center justify-center w-full h-full"><svg class="w-8 h-8" fill="none" stroke="#10B981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>'
+                                }
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <FileIcon mimeType={file.mime_type} />
+                        )}
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate max-w-xs" title={file.original_filename}>
                             {file.original_filename}
