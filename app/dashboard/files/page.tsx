@@ -649,6 +649,7 @@ export default function FilesPage() {
             {/* Контент */}
             <div className="p-4 overflow-auto max-h-[calc(90vh-80px)] flex items-center justify-center bg-gray-100">
               {previewFile.mime_type.startsWith('image/') ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={`/api/applications/${previewFile.application_id}/files/${previewFile.id}`}
                   alt={previewFile.original_filename}
