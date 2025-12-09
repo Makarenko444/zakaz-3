@@ -34,9 +34,10 @@ export async function POST(request: NextRequest) {
 
     // Обновляем дату последнего входа
     const supabase = createDirectClient()
-    await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
       .from('zakaz_users')
-      .update({ legacy_last_login: new Date().toISOString() } as Record<string, unknown>)
+      .update({ legacy_last_login: new Date().toISOString() })
       .eq('id', user.id)
 
     // Создаем response с cookie
