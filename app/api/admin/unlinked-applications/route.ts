@@ -202,7 +202,11 @@ export async function GET(request: NextRequest) {
       }
 
       if (search) {
-        addressQuery = addressQuery.ilike('address', `%${search}%`)
+        // Разбиваем поиск на слова и ищем каждое слово отдельно (AND логика)
+        const searchWords = search.trim().split(/\s+/).filter(w => w.length >= 1)
+        for (const word of searchWords) {
+          addressQuery = addressQuery.ilike('address', `%${word}%`)
+        }
       }
 
       // Сортировка по полю (для полей из БД)
@@ -350,7 +354,11 @@ export async function GET(request: NextRequest) {
 
     // Поиск по адресу или клиенту
     if (search) {
-      query = query.or(`street_and_house.ilike.%${search}%,customer_fullname.ilike.%${search}%`)
+      // Разбиваем поиск на слова и ищем каждое слово отдельно (AND логика)
+      const searchWords = search.trim().split(/\s+/).filter(w => w.length >= 1)
+      for (const word of searchWords) {
+        query = query.ilike('street_and_house', `%${word}%`)
+      }
     }
 
     // Пагинация
