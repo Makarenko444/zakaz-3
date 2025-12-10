@@ -857,6 +857,7 @@ export default function AddressLinkWizard({
                                   <div className="flex-1">
                                     <p className="font-medium text-gray-900">
                                       {address.street}, {address.house}
+                                      {address.building && `, стр. ${address.building}`}
                                     </p>
                                     {address.comment && (
                                       <p className="text-sm text-gray-600 mt-1">{address.comment}</p>

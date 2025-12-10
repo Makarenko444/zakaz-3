@@ -5,6 +5,7 @@ interface NodeSearchResult {
   id: string
   street: string | null
   house: string | null
+  building?: string | null
   comment: string | null
   presence_type?: string
   code?: string
