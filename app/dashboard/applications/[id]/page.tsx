@@ -376,13 +376,28 @@ export default function ApplicationDetailPage() {
     if (!application) return
 
     try {
+      // Отправляем только примитивные поля, без вложенных объектов
+      // (zakaz_addresses, assigned_user и т.д. нельзя отправлять в PATCH)
       const response = await fetch(`/api/applications/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...application,
+          // Обязательные поля
+          city: application.city,
+          street_and_house: application.street_and_house,
+          address_details: application.address_details,
+          customer_type: application.customer_type,
+          service_type: application.service_type,
+          customer_fullname: application.customer_fullname,
+          customer_phone: application.customer_phone,
+          contact_person: application.contact_person,
+          contact_phone: application.contact_phone,
+          urgency: application.urgency,
+          client_comment: application.client_comment,
+          assigned_to: application.assigned_to,
+          // Поля для привязки адреса
           address_id: addressId,
           address_match_status: 'manual_matched',
           updated_by: currentUserId,
@@ -390,7 +405,8 @@ export default function ApplicationDetailPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to link address')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to link address')
       }
 
       const data = await response.json()
@@ -406,13 +422,27 @@ export default function ApplicationDetailPage() {
     if (!application) return
 
     try {
+      // Отправляем только примитивные поля, без вложенных объектов
       const response = await fetch(`/api/applications/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...application,
+          // Обязательные поля
+          city: application.city,
+          street_and_house: application.street_and_house,
+          address_details: application.address_details,
+          customer_type: application.customer_type,
+          service_type: application.service_type,
+          customer_fullname: application.customer_fullname,
+          customer_phone: application.customer_phone,
+          contact_person: application.contact_person,
+          contact_phone: application.contact_phone,
+          urgency: application.urgency,
+          client_comment: application.client_comment,
+          assigned_to: application.assigned_to,
+          // Поля для отвязки адреса
           address_id: null,
           address_match_status: 'unmatched',
           updated_by: currentUserId,
@@ -420,7 +450,8 @@ export default function ApplicationDetailPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to unlink address')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to unlink address')
       }
 
       const data = await response.json()
