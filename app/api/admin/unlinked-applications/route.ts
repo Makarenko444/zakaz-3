@@ -97,7 +97,145 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const cityFilter = searchParams.get('city')
     const search = searchParams.get('search')
+    const mode = searchParams.get('mode') || 'applications' // 'applications' или 'addresses'
+    const addressId = searchParams.get('address_id') // для режима addresses
 
+    // Получаем общую статистику по заявкам
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count: totalApplications } = await (supabase.from('zakaz_applications') as any)
+      .select('id', { count: 'exact', head: true })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count: linkedApplications } = await (supabase.from('zakaz_applications') as any)
+      .select('id', { count: 'exact', head: true })
+      .not('address_id', 'is', null)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count: unlinkedApplications } = await (supabase.from('zakaz_applications') as any)
+      .select('id', { count: 'exact', head: true })
+      .is('address_id', null)
+      .not('street_and_house', 'is', null)
+
+    const globalStats = {
+      total_applications: totalApplications || 0,
+      linked: linkedApplications || 0,
+      unlinked: unlinkedApplications || 0
+    }
+
+    // Режим "от адреса к заявкам"
+    if (mode === 'addresses') {
+      // Получаем адреса с количеством потенциальных заявок для привязки
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let addressQuery = (supabase.from('zakaz_addresses') as any)
+        .select('id, city, street, house, building, address', { count: 'exact' })
+        .order('address')
+
+      if (cityFilter) {
+        addressQuery = addressQuery.eq('city', cityFilter)
+      }
+
+      if (search) {
+        addressQuery = addressQuery.ilike('address', `%${search}%`)
+      }
+
+      // Если выбран конкретный адрес - возвращаем заявки для него
+      if (addressId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: addressData } = await (supabase.from('zakaz_addresses') as any)
+          .select('id, city, street, house, building, address')
+          .eq('id', addressId)
+          .single()
+
+        if (!addressData) {
+          return NextResponse.json({ error: 'Address not found' }, { status: 404 })
+        }
+
+        // Получаем все непривязанные заявки
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: allUnlinked } = await (supabase.from('zakaz_applications') as any)
+          .select('id, application_number, city, street_and_house, address_details, customer_type, customer_fullname, created_at')
+          .is('address_id', null)
+          .not('street_and_house', 'is', null)
+          .order('created_at', { ascending: false })
+
+        // Фильтруем по схожести с выбранным адресом
+        const matchingApplications = (allUnlinked || [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((app: any) => {
+            const similarity = calculateSimilarity(app.street_and_house || '', addressData.address || '')
+            const searchTerms = extractSearchTerms(app.street_and_house || '')
+            const addrNormalized = normalizeForComparison(addressData.address || '')
+            const hasTermMatch = searchTerms.some(term => addrNormalized.includes(term.toLowerCase()))
+
+            // Проверяем совпадение города
+            const cityMatch = !app.city || !addressData.city ||
+              app.city.toLowerCase() === addressData.city.toLowerCase()
+
+            return {
+              ...app,
+              similarity: Math.max(similarity, hasTermMatch ? 0.3 : 0),
+              cityMatch
+            }
+          })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((app: any) => app.cityMatch && (app.similarity >= 0.2))
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .sort((a: any, b: any) => b.similarity - a.similarity)
+
+        return NextResponse.json({
+          mode: 'address_detail',
+          address: addressData,
+          applications: matchingApplications,
+          stats: globalStats
+        })
+      }
+
+      // Пагинация для списка адресов
+      const offset = (page - 1) * limit
+      addressQuery = addressQuery.range(offset, offset + limit - 1)
+
+      const { data: addresses, error: addrError, count: addrCount } = await addressQuery
+
+      if (addrError) {
+        return NextResponse.json({ error: addrError.message }, { status: 500 })
+      }
+
+      // Для каждого адреса подсчитываем потенциальные заявки
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: allUnlinked } = await (supabase.from('zakaz_applications') as any)
+        .select('id, city, street_and_house')
+        .is('address_id', null)
+        .not('street_and_house', 'is', null)
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const addressesWithCounts = (addresses || []).map((addr: any) => {
+        const potentialCount = (allUnlinked || []).filter((app: any) => {
+          const similarity = calculateSimilarity(app.street_and_house || '', addr.address || '')
+          const cityMatch = !app.city || !addr.city ||
+            app.city.toLowerCase() === addr.city.toLowerCase()
+          return cityMatch && similarity >= 0.2
+        }).length
+
+        return {
+          ...addr,
+          potential_applications: potentialCount
+        }
+      })
+
+      return NextResponse.json({
+        mode: 'addresses',
+        addresses: addressesWithCounts,
+        stats: globalStats,
+        pagination: {
+          page,
+          limit,
+          total: addrCount || 0,
+          totalPages: Math.ceil((addrCount || 0) / limit)
+        }
+      })
+    }
+
+    // Режим по умолчанию - "от заявок к адресам"
     // Получаем непривязанные заявки (address_id IS NULL или address_match_status = 'unmatched')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabase.from('zakaz_applications') as any)
@@ -129,8 +267,14 @@ export async function GET(request: NextRequest) {
 
     if (!applications || applications.length === 0) {
       return NextResponse.json({
+        mode: 'applications',
         applications: [],
-        stats: { total: 0, with_suggestions: 0, without_suggestions: 0 },
+        stats: {
+          ...globalStats,
+          total: 0,
+          with_suggestions: 0,
+          without_suggestions: 0
+        },
         pagination: { page, limit, total: 0, totalPages: 0 }
       })
     }
@@ -190,8 +334,10 @@ export async function GET(request: NextRequest) {
     const withoutSuggestions = applicationsWithSuggestions.length - withSuggestions
 
     return NextResponse.json({
+      mode: 'applications',
       applications: applicationsWithSuggestions,
       stats: {
+        ...globalStats,
         total: count || 0,
         with_suggestions: withSuggestions,
         without_suggestions: withoutSuggestions
