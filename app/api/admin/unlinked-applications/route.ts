@@ -209,6 +209,7 @@ export async function GET(request: NextRequest) {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const addressesWithCounts = (addresses || []).map((addr: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const potentialCount = (allUnlinked || []).filter((app: any) => {
           const similarity = calculateSimilarity(app.street_and_house || '', addr.address || '')
           const cityMatch = !app.city || !addr.city ||
