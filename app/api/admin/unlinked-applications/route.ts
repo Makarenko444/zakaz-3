@@ -11,6 +11,17 @@ interface Address {
   address: string
 }
 
+interface AddressWithCounts {
+  id: string
+  city: string
+  street: string | null
+  house: string | null
+  building: string | null
+  address: string
+  linked_applications: number
+  potential_applications: number
+}
+
 interface ApplicationWithSuggestions {
   id: string
   application_number: number
@@ -99,6 +110,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const mode = searchParams.get('mode') || 'applications' // 'applications' или 'addresses'
     const addressId = searchParams.get('address_id') // для режима addresses
+    const sortField = searchParams.get('sort_field') || 'address' // поле сортировки
+    const sortDirection = searchParams.get('sort_direction') || 'asc' // направление сортировки
 
     // Получаем общую статистику по заявкам
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,11 +137,13 @@ export async function GET(request: NextRequest) {
 
     // Режим "от адреса к заявкам"
     if (mode === 'addresses') {
-      // Получаем адреса с количеством потенциальных заявок для привязки
+      // Получаем адреса с количеством привязанных заявок
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let addressQuery = (supabase.from('zakaz_addresses') as any)
-        .select('id, city, street, house, building, address', { count: 'exact' })
-        .order('address')
+        .select(`
+          id, city, street, house, building, address,
+          zakaz_applications(id)
+        `, { count: 'exact' })
 
       if (cityFilter) {
         addressQuery = addressQuery.eq('city', cityFilter)
@@ -136,6 +151,14 @@ export async function GET(request: NextRequest) {
 
       if (search) {
         addressQuery = addressQuery.ilike('address', `%${search}%`)
+      }
+
+      // Сортировка по полю (для полей из БД)
+      if (sortField === 'address' || sortField === 'city') {
+        addressQuery = addressQuery.order(sortField, { ascending: sortDirection === 'asc' })
+      } else {
+        // Для вычисляемых полей сортируем после получения данных
+        addressQuery = addressQuery.order('address', { ascending: true })
       }
 
       // Если выбран конкретный адрес - возвращаем заявки для него
@@ -208,7 +231,10 @@ export async function GET(request: NextRequest) {
         .not('street_and_house', 'is', null)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const addressesWithCounts = (addresses || []).map((addr: any) => {
+      let addressesWithCounts: AddressWithCounts[] = (addresses || []).map((addr: any) => {
+        // Количество привязанных заявок
+        const linkedCount = addr.zakaz_applications?.length || 0
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const potentialCount = (allUnlinked || []).filter((app: any) => {
           const similarity = calculateSimilarity(app.street_and_house || '', addr.address || '')
@@ -218,10 +244,25 @@ export async function GET(request: NextRequest) {
         }).length
 
         return {
-          ...addr,
+          id: addr.id,
+          city: addr.city,
+          street: addr.street,
+          house: addr.house,
+          building: addr.building,
+          address: addr.address,
+          linked_applications: linkedCount,
           potential_applications: potentialCount
         }
       })
+
+      // Сортировка по вычисляемым полям
+      if (sortField === 'linked_applications' || sortField === 'potential_applications') {
+        addressesWithCounts = addressesWithCounts.sort((a: AddressWithCounts, b: AddressWithCounts) => {
+          const aVal = a[sortField] || 0
+          const bVal = b[sortField] || 0
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
+        })
+      }
 
       return NextResponse.json({
         mode: 'addresses',

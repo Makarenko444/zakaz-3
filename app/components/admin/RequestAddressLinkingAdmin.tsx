@@ -9,7 +9,16 @@ interface Address {
   house: string | null
   building: string | null
   address: string
+  linked_applications?: number
   potential_applications?: number
+}
+
+type SortField = 'address' | 'city' | 'linked_applications' | 'potential_applications'
+type SortDirection = 'asc' | 'desc'
+
+interface SortState {
+  field: SortField
+  direction: SortDirection
 }
 
 interface Application {
@@ -76,6 +85,21 @@ export default function RequestAddressLinkingAdmin() {
   const [cityFilter, setCityFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState<string>('')
 
+  // Сортировка (с сохранением в localStorage)
+  const [addressSort, setAddressSort] = useState<SortState>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin_address_linking_sort')
+      if (saved) {
+        try {
+          return JSON.parse(saved) as SortState
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return { field: 'address', direction: 'asc' }
+  })
+
   // Поиск адреса для конкретной заявки (режим applications)
   const [searchingForApp, setSearchingForApp] = useState<string | null>(null)
   const [addressSearchQuery, setAddressSearchQuery] = useState<string>('')
@@ -100,6 +124,19 @@ export default function RequestAddressLinkingAdmin() {
   // Состояние привязки
   const [linkingAppId, setLinkingAppId] = useState<string | null>(null)
 
+  // Сохранение сортировки в localStorage
+  const handleSortChange = (field: SortField) => {
+    setAddressSort(prev => {
+      const newSort: SortState = {
+        field,
+        direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
+      }
+      localStorage.setItem('admin_address_linking_sort', JSON.stringify(newSort))
+      return newSort
+    })
+    setPagination(prev => ({ ...prev, page: 1 }))
+  }
+
   // Загрузка данных
   const loadData = useCallback(async () => {
     try {
@@ -112,6 +149,12 @@ export default function RequestAddressLinkingAdmin() {
       params.set('limit', pagination.limit.toString())
       if (cityFilter) params.set('city', cityFilter)
       if (searchQuery) params.set('search', searchQuery)
+
+      // Параметры сортировки для режима адресов
+      if (viewMode === 'addresses') {
+        params.set('sort_field', addressSort.field)
+        params.set('sort_direction', addressSort.direction)
+      }
 
       const response = await fetch(`/api/admin/unlinked-applications?${params}`)
       const data = await response.json()
@@ -142,7 +185,7 @@ export default function RequestAddressLinkingAdmin() {
     } finally {
       setIsLoading(false)
     }
-  }, [viewMode, pagination.page, pagination.limit, cityFilter, searchQuery])
+  }, [viewMode, pagination.page, pagination.limit, cityFilter, searchQuery, addressSort])
 
   // Загрузка заявок для выбранного адреса
   const loadAddressApplications = useCallback(async (addressId: string) => {
@@ -864,10 +907,33 @@ export default function RequestAddressLinkingAdmin() {
           {/* Список адресов */}
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center gap-4">
-              <div className="flex-1 text-xs font-medium text-gray-500 uppercase">Адрес</div>
-              <div className="w-48 text-xs font-medium text-gray-500 uppercase text-center">
-                Потенциальных заявок
-              </div>
+              <button
+                onClick={() => handleSortChange('address')}
+                className="flex-1 text-xs font-medium text-gray-500 uppercase text-left hover:text-gray-700 flex items-center gap-1"
+              >
+                Адрес
+                {addressSort.field === 'address' && (
+                  <span className="text-indigo-600">{addressSort.direction === 'asc' ? '↑' : '↓'}</span>
+                )}
+              </button>
+              <button
+                onClick={() => handleSortChange('linked_applications')}
+                className="w-32 text-xs font-medium text-gray-500 uppercase text-center hover:text-gray-700 flex items-center justify-center gap-1"
+              >
+                Привязано
+                {addressSort.field === 'linked_applications' && (
+                  <span className="text-indigo-600">{addressSort.direction === 'asc' ? '↑' : '↓'}</span>
+                )}
+              </button>
+              <button
+                onClick={() => handleSortChange('potential_applications')}
+                className="w-40 text-xs font-medium text-gray-500 uppercase text-center hover:text-gray-700 flex items-center justify-center gap-1"
+              >
+                К привязке
+                {addressSort.field === 'potential_applications' && (
+                  <span className="text-indigo-600">{addressSort.direction === 'asc' ? '↑' : '↓'}</span>
+                )}
+              </button>
               <div className="w-32 text-xs font-medium text-gray-500 uppercase">Действие</div>
             </div>
 
@@ -883,7 +949,16 @@ export default function RequestAddressLinkingAdmin() {
                       <div className="font-medium text-gray-900">{addr.address}</div>
                       <div className="text-xs text-gray-400">{addr.city}</div>
                     </div>
-                    <div className="w-48 text-center">
+                    <div className="w-32 text-center">
+                      {addr.linked_applications && addr.linked_applications > 0 ? (
+                        <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
+                          {addr.linked_applications}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">0</span>
+                      )}
+                    </div>
+                    <div className="w-40 text-center">
                       {addr.potential_applications && addr.potential_applications > 0 ? (
                         <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-amber-100 text-amber-800">
                           {addr.potential_applications}
