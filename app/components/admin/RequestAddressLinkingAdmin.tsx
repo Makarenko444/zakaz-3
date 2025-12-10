@@ -650,8 +650,6 @@ export default function RequestAddressLinkingAdmin() {
                       <div className="w-20">
                         <a
                           href={`/dashboard/applications/${app.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
                           className="text-indigo-600 hover:text-indigo-800 font-medium"
                         >
                           #{app.application_number}
@@ -1136,8 +1134,6 @@ export default function RequestAddressLinkingAdmin() {
                     <div className="w-20">
                       <a
                         href={`/dashboard/applications/${app.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="text-indigo-600 hover:text-indigo-800 font-medium"
                       >
                         #{app.application_number}
