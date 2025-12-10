@@ -10,6 +10,7 @@ import { getCurrentUser } from '@/lib/auth-client'
 
 // Схема валидации
 const applicationSchema = z.object({
+  city: z.string().min(1, 'Укажите город'),
   street_and_house: z.string().min(3, 'Укажите улицу и номер дома'),
   address_details: z.string().optional(),
   customer_type: z.enum(['individual', 'business']),
@@ -39,6 +40,7 @@ type ApplicationFormData = z.infer<typeof applicationSchema>
 interface Application {
   id: string
   node_id: string | null
+  city: string
   street_and_house: string | null
   address_details: string | null
   customer_type: CustomerType
@@ -71,6 +73,7 @@ export default function EditApplicationPage() {
   } = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
+      city: 'Томск',
       customer_type: 'individual',
       service_type: 'apartment',
       urgency: 'normal',
@@ -96,6 +99,7 @@ export default function EditApplicationPage() {
 
       // Заполняем форму данными заявки
       reset({
+        city: app.city || 'Томск',
         street_and_house: app.street_and_house || '',
         address_details: app.address_details || '',
         customer_type: app.customer_type,
@@ -212,6 +216,21 @@ export default function EditApplicationPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg border border-gray-200 p-6">
           {/* Адрес подключения */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Город <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              {...register('city')}
+              placeholder="Томск"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+            {errors.city && (
+              <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
+            )}
+          </div>
+
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Улица и номер дома <span className="text-red-500">*</span>

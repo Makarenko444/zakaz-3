@@ -9,6 +9,7 @@ import { getCurrentUser } from '@/lib/auth-client'
 
 // Схема валидации
 const applicationSchema = z.object({
+  city: z.string().min(1, 'Укажите город'),
   street_and_house: z.string().min(3, 'Укажите улицу и номер дома'),
   address_details: z.string().optional(),
   customer_type: z.enum(['individual', 'business']),
@@ -49,6 +50,7 @@ export default function NewApplicationPage() {
   } = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
+      city: 'Томск',
       customer_type: 'individual',
       service_type: 'apartment',
       urgency: 'normal',
@@ -141,6 +143,21 @@ export default function NewApplicationPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg border border-gray-200 p-6">
           {/* Адрес подключения */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Город <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              {...register('city')}
+              placeholder="Томск"
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+            {errors.city && (
+              <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
+            )}
+          </div>
+
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Улица и номер дома <span className="text-red-500">*</span>

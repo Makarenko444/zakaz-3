@@ -8,8 +8,10 @@ import UsersAdmin from '@/app/components/admin/UsersAdmin'
 import StatusesAdmin from '@/app/components/admin/StatusesAdmin'
 import LegacyImportAdmin from '@/app/components/admin/LegacyImportAdmin'
 import FileMigrationAdmin from '@/app/components/admin/FileMigrationAdmin'
+import FileManagementAdmin from '@/app/components/admin/FileManagementAdmin'
+import AddressBackupImportAdmin from '@/app/components/admin/AddressBackupImportAdmin'
 
-type AdminTab = 'users' | 'statuses' | 'legacy-import' | 'file-migration'
+type AdminTab = 'users' | 'statuses' | 'legacy-import' | 'address-backup' | 'file-migration' | 'file-management'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -111,6 +113,23 @@ export default function AdminPage() {
             </button>
 
             <button
+              onClick={() => setActiveTab('address-backup')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+                activeTab === 'address-backup'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Адреса (backup)
+              </div>
+            </button>
+
+            <button
               onClick={() => setActiveTab('file-migration')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
                 activeTab === 'file-migration'
@@ -125,6 +144,22 @@ export default function AdminPage() {
                 Миграция файлов
               </div>
             </button>
+
+            <button
+              onClick={() => setActiveTab('file-management')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+                activeTab === 'file-management'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                Файлы
+              </div>
+            </button>
           </nav>
         </div>
       </div>
@@ -134,7 +169,9 @@ export default function AdminPage() {
         {activeTab === 'users' && <UsersAdmin />}
         {activeTab === 'statuses' && <StatusesAdmin />}
         {activeTab === 'legacy-import' && <LegacyImportAdmin />}
+        {activeTab === 'address-backup' && <AddressBackupImportAdmin />}
         {activeTab === 'file-migration' && <FileMigrationAdmin />}
+        {activeTab === 'file-management' && <FileManagementAdmin />}
       </main>
     </>
   )

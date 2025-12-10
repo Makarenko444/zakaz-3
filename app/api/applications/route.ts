@@ -105,7 +105,8 @@ export async function GET(request: NextRequest) {
       query = query.or(
         `customer_fullname.ilike.${searchPattern},` +
         `customer_phone.ilike.${searchPattern},` +
-        `street_and_house.ilike.${searchPattern}`
+        `street_and_house.ilike.${searchPattern},` +
+        `address_details.ilike.${searchPattern}`
       )
 
       console.log('[Applications API] Search conditions applied')
@@ -212,6 +213,7 @@ export async function POST(request: NextRequest) {
     // Подготовка данных для вставки
     const applicationData = {
       address_id: body.address_id || null,
+      city: body.city || 'Томск',
       street_and_house: body.street_and_house,
       address_details: body.address_details || null,
       customer_type: body.customer_type,
