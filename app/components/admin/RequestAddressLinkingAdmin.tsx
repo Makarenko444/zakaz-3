@@ -141,12 +141,13 @@ export default function RequestAddressLinkingAdmin() {
     setError(null)
 
     try {
-      const response = await fetch(`/api/applications/${applicationId}`, {
-        method: 'PATCH',
+      // Используем API массовой привязки для одной заявки
+      const response = await fetch('/api/admin/unlinked-applications', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          address_id: addressId,
-          address_match_status: 'manual_matched'
+          application_ids: [applicationId],
+          address_id: addressId
         })
       })
 
