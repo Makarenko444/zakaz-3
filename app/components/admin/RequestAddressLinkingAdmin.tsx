@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import Link from 'next/link'
 
 interface Address {
   id: string
@@ -649,12 +648,18 @@ export default function RequestAddressLinkingAdmin() {
                       </div>
 
                       <div className="w-20">
-                        <Link
+                        <a
                           href={`/dashboard/applications/${app.id}`}
                           className="text-indigo-600 hover:text-indigo-800 font-medium"
+                          onClick={(e) => {
+                            if (e.ctrlKey || e.metaKey) {
+                              e.preventDefault()
+                              window.open(`/dashboard/applications/${app.id}`, '_blank')
+                            }
+                          }}
                         >
                           #{app.application_number}
-                        </Link>
+                        </a>
                       </div>
 
                       <div className="flex-1">
@@ -1133,12 +1138,18 @@ export default function RequestAddressLinkingAdmin() {
                     </div>
 
                     <div className="w-20">
-                      <Link
+                      <a
                         href={`/dashboard/applications/${app.id}`}
                         className="text-indigo-600 hover:text-indigo-800 font-medium"
+                        onClick={(e) => {
+                          if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault()
+                            window.open(`/dashboard/applications/${app.id}`, '_blank')
+                          }
+                        }}
                       >
                         #{app.application_number}
-                      </Link>
+                      </a>
                     </div>
 
                     <div className="flex-1">
