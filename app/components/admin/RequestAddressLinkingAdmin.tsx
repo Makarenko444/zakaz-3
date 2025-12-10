@@ -199,8 +199,15 @@ export default function RequestAddressLinkingAdmin() {
       }
 
       setSelectedAddress(data.address)
-      setAddressApplications(data.applications || [])
+      const apps: Application[] = data.applications || []
+      setAddressApplications(apps)
       setStats(prev => ({ ...prev, ...data.stats }))
+
+      // Автоматически выбираем заявки с похожестью более 50%
+      const highSimilarityIds = apps
+        .filter((app) => app.similarity !== undefined && app.similarity > 0.5)
+        .map((app) => app.id)
+      setSelectedApps(new Set(highSimilarityIds))
     } catch (err) {
       console.error('Error loading address applications:', err)
       setError(err instanceof Error ? err.message : 'Ошибка загрузки')
