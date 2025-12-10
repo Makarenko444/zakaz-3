@@ -186,20 +186,21 @@ async function searchOpenStreetMap(query: string): Promise<SearchResult[]> {
 
 /**
  * Нормализует название улицы для поиска
- * Удаляет типы улиц (проспект, улица, и т.д.) для более гибкого поиска
+ * Удаляет типы улиц (проспект, улица, тракт и т.д.) для более гибкого поиска
+ * Работает как с типом в начале, так и в конце названия
  *
  * Примеры:
- * - "проспект Ленина" -> "Ленина" (удаляем полный тип)
- * - "пр. Ленина" -> "Ленина" (удаляем сокращённый тип)
+ * - "проспект Ленина" -> "Ленина" (тип в начале)
+ * - "пр. Ленина" -> "Ленина" (сокращение в начале)
+ * - "Иркутский тракт" -> "Иркутский" (тип в конце)
  * - "ул. Кирова" -> "Кирова"
  * - "Кирова" -> "Кирова" (без изменений)
  */
 function normalizeStreetName(street: string): string {
-  const trimmed = street.trim()
+  let result = street.trim()
 
-  // Паттерны типов улиц (полные и сокращённые формы)
-  // Порядок важен: сначала более длинные паттерны
-  const streetTypePrefixes = [
+  // Типы улиц для удаления из НАЧАЛА (с пробелом после)
+  const prefixes = [
     // Полные формы
     'проспект ', 'улица ', 'переулок ', 'площадь ', 'бульвар ',
     'шоссе ', 'тракт ', 'аллея ', 'набережная ', 'микрорайон ', 'проезд ', 'тупик ',
@@ -210,16 +211,33 @@ function normalizeStreetName(street: string): string {
     'пр ', 'ул ',
   ]
 
-  const lowerTrimmed = trimmed.toLowerCase()
+  // Типы улиц для удаления из КОНЦА (с пробелом перед)
+  const suffixes = [
+    ' проспект', ' улица', ' переулок', ' площадь', ' бульвар',
+    ' шоссе', ' тракт', ' аллея', ' набережная', ' микрорайон', ' проезд', ' тупик',
+    ' пр-т', ' пр.', ' ул.', ' пер.', ' пл.', ' б-р', ' ш.', ' наб.', ' мкр.',
+  ]
 
-  for (const prefix of streetTypePrefixes) {
-    if (lowerTrimmed.startsWith(prefix)) {
-      // Удаляем префикс и возвращаем остаток
-      return trimmed.substring(prefix.length).trim()
+  const lowerResult = result.toLowerCase()
+
+  // Удаляем тип из начала
+  for (const prefix of prefixes) {
+    if (lowerResult.startsWith(prefix)) {
+      result = result.substring(prefix.length).trim()
+      break
     }
   }
 
-  return trimmed
+  // Удаляем тип из конца
+  const lowerResultAfterPrefix = result.toLowerCase()
+  for (const suffix of suffixes) {
+    if (lowerResultAfterPrefix.endsWith(suffix)) {
+      result = result.substring(0, result.length - suffix.length).trim()
+      break
+    }
+  }
+
+  return result
 }
 
 export async function GET(request: Request) {
@@ -241,8 +259,9 @@ export async function GET(request: Request) {
     const trimmedQuery = query.trim()
 
     // Попробуем разделить запрос на улицу и номер дома
-    // Ищем паттерны вида "Кирова 555", "Кирова, 555", "Кирова,555"
-    const streetHousePattern = /^(.+?)[\s,]+(\d+[а-яА-Яa-zA-Z]*)$/
+    // Ищем паттерны вида "Кирова 555", "Кирова, 555", "Кирова,555", "Иркутский тракт, 193а, 244"
+    // Важно: берём ПЕРВЫЙ номер дома (без $ в конце), чтобы "193а, 244" дало "193а", а не "244"
+    const streetHousePattern = /^(.+?)[\s,]+(\d+[а-яА-Яa-zA-Z]*)/
     const match = trimmedQuery.match(streetHousePattern)
 
     let nodes: NodeSearchResult[] = []
