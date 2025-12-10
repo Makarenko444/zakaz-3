@@ -184,6 +184,44 @@ async function searchOpenStreetMap(query: string): Promise<SearchResult[]> {
   }
 }
 
+/**
+ * Нормализует название улицы для поиска
+ * Удаляет типы улиц (проспект, улица, и т.д.) для более гибкого поиска
+ *
+ * Примеры:
+ * - "проспект Ленина" -> "Ленина" (удаляем полный тип)
+ * - "пр. Ленина" -> "Ленина" (удаляем сокращённый тип)
+ * - "ул. Кирова" -> "Кирова"
+ * - "Кирова" -> "Кирова" (без изменений)
+ */
+function normalizeStreetName(street: string): string {
+  const trimmed = street.trim()
+
+  // Паттерны типов улиц (полные и сокращённые формы)
+  // Порядок важен: сначала более длинные паттерны
+  const streetTypePrefixes = [
+    // Полные формы
+    'проспект ', 'улица ', 'переулок ', 'площадь ', 'бульвар ',
+    'шоссе ', 'тракт ', 'аллея ', 'набережная ', 'микрорайон ', 'проезд ', 'тупик ',
+    // Сокращённые формы с точкой
+    'пр-т. ', 'пр-т ', 'пр. ', 'ул. ', 'пер. ', 'пл. ', 'б-р. ', 'б-р ',
+    'ш. ', 'наб. ', 'мкр. ', 'пр-д. ', 'пр-д ',
+    // Короткие сокращения
+    'пр ', 'ул ',
+  ]
+
+  const lowerTrimmed = trimmed.toLowerCase()
+
+  for (const prefix of streetTypePrefixes) {
+    if (lowerTrimmed.startsWith(prefix)) {
+      // Удаляем префикс и возвращаем остаток
+      return trimmed.substring(prefix.length).trim()
+    }
+  }
+
+  return trimmed
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -212,14 +250,18 @@ export async function GET(request: Request) {
 
     if (match) {
       // Запрос содержит и улицу и номер дома
-      const streetPart = match[1].trim()
+      const streetPartRaw = match[1].trim()
       const housePart = match[2].trim()
 
-      // Ищем по двум условиям: улица содержит первую часть И дом содержит вторую часть
+      // Нормализуем название улицы - удаляем тип улицы для более гибкого поиска
+      // "проспект Ленина" -> "Ленина", "ул. Кирова" -> "Кирова"
+      const streetPartNormalized = normalizeStreetName(streetPartRaw)
+
+      // Ищем по двум условиям: улица содержит название И дом содержит номер
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from('zakaz_addresses') as any)
         .select('id, city, street, house, building, address, comment, created_at, updated_at')
-        .ilike('street', `%${streetPart}%`)
+        .ilike('street', `%${streetPartNormalized}%`)
         .ilike('house', `%${housePart}%`)
         .order('street', { ascending: true })
         .order('house', { ascending: true })
@@ -228,13 +270,16 @@ export async function GET(request: Request) {
       nodes = data || []
       searchError = error
 
-      console.log(`Search with split query: street="${streetPart}" AND house="${housePart}" -> ${nodes.length} results`)
+      console.log(`Search with split query: street="${streetPartRaw}" (normalized: "${streetPartNormalized}") AND house="${housePart}" -> ${nodes.length} results`)
     } else {
       // Обычный поиск по всем полям
+      // Нормализуем запрос - удаляем тип улицы для более гибкого поиска
+      const normalizedQuery = normalizeStreetName(trimmedQuery)
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from('zakaz_addresses') as any)
         .select('id, city, street, house, building, address, comment, created_at, updated_at')
-        .or(`city.ilike.%${trimmedQuery}%,street.ilike.%${trimmedQuery}%,house.ilike.%${trimmedQuery}%,address.ilike.%${trimmedQuery}%`)
+        .or(`city.ilike.%${normalizedQuery}%,street.ilike.%${normalizedQuery}%,house.ilike.%${normalizedQuery}%,address.ilike.%${normalizedQuery}%`)
         .order('street', { ascending: true })
         .order('house', { ascending: true })
         .limit(20)
@@ -242,7 +287,7 @@ export async function GET(request: Request) {
       nodes = data || []
       searchError = error
 
-      console.log(`Search with simple query: "${trimmedQuery}" -> ${nodes.length} results`)
+      console.log(`Search with simple query: "${trimmedQuery}" (normalized: "${normalizedQuery}") -> ${nodes.length} results`)
     }
 
     let localResults: SearchResult[] = []
