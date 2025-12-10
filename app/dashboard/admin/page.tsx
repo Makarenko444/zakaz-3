@@ -10,8 +10,9 @@ import LegacyImportAdmin from '@/app/components/admin/LegacyImportAdmin'
 import FileMigrationAdmin from '@/app/components/admin/FileMigrationAdmin'
 import FileManagementAdmin from '@/app/components/admin/FileManagementAdmin'
 import AddressBackupImportAdmin from '@/app/components/admin/AddressBackupImportAdmin'
+import RequestAddressLinkingAdmin from '@/app/components/admin/RequestAddressLinkingAdmin'
 
-type AdminTab = 'users' | 'statuses' | 'legacy-import' | 'address-backup' | 'file-migration' | 'file-management'
+type AdminTab = 'users' | 'statuses' | 'request-linking' | 'legacy-import' | 'address-backup' | 'file-migration' | 'file-management'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -97,6 +98,22 @@ export default function AdminPage() {
             </button>
 
             <button
+              onClick={() => setActiveTab('request-linking')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+                activeTab === 'request-linking'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                Привязка заявок
+              </div>
+            </button>
+
+            <button
               onClick={() => setActiveTab('legacy-import')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
                 activeTab === 'legacy-import'
@@ -168,6 +185,7 @@ export default function AdminPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'users' && <UsersAdmin />}
         {activeTab === 'statuses' && <StatusesAdmin />}
+        {activeTab === 'request-linking' && <RequestAddressLinkingAdmin />}
         {activeTab === 'legacy-import' && <LegacyImportAdmin />}
         {activeTab === 'address-backup' && <AddressBackupImportAdmin />}
         {activeTab === 'file-migration' && <FileMigrationAdmin />}
