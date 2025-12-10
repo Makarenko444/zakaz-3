@@ -121,6 +121,9 @@ export default function RequestAddressLinkingAdmin() {
   const [groupLinkAddress, setGroupLinkAddress] = useState<Address | null>(null)
   const [isGroupLinking, setIsGroupLinking] = useState(false)
 
+  // Порог похожести для автовыбора (в процентах)
+  const [similarityThreshold, setSimilarityThreshold] = useState<number>(50)
+
   // Состояние привязки
   const [linkingAppId, setLinkingAppId] = useState<string | null>(null)
 
@@ -187,6 +190,15 @@ export default function RequestAddressLinkingAdmin() {
     }
   }, [viewMode, pagination.page, pagination.limit, cityFilter, searchQuery, addressSort])
 
+  // Применить порог похожести для выбора заявок
+  const applyThreshold = useCallback((apps: Application[], threshold: number) => {
+    const thresholdDecimal = threshold / 100
+    const selectedIds = apps
+      .filter((app) => app.similarity !== undefined && app.similarity >= thresholdDecimal)
+      .map((app) => app.id)
+    setSelectedApps(new Set(selectedIds))
+  }, [])
+
   // Загрузка заявок для выбранного адреса
   const loadAddressApplications = useCallback(async (addressId: string) => {
     try {
@@ -203,24 +215,15 @@ export default function RequestAddressLinkingAdmin() {
       setAddressApplications(apps)
       setStats(prev => ({ ...prev, ...data.stats }))
 
-      // Автоматически выбираем заявки с похожестью 50% и выше
-      const highSimilarityIds = apps
-        .filter((app) => app.similarity !== undefined && app.similarity >= 0.5)
-        .map((app) => app.id)
-      setSelectedApps(new Set(highSimilarityIds))
-
-      // Для отладки: выводим информацию о похожести
-      if (apps.length > 0) {
-        console.log('Applications similarity:', apps.map(a => ({ id: a.id, similarity: a.similarity })))
-        console.log('Selected (>=50%):', highSimilarityIds.length, 'of', apps.length)
-      }
+      // Автоматически выбираем заявки с текущим порогом похожести
+      applyThreshold(apps, similarityThreshold)
     } catch (err) {
       console.error('Error loading address applications:', err)
       setError(err instanceof Error ? err.message : 'Ошибка загрузки')
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [applyThreshold, similarityThreshold])
 
   useEffect(() => {
     if (!selectedAddress) {
@@ -1042,12 +1045,34 @@ export default function RequestAddressLinkingAdmin() {
             </button>
           </div>
 
-          {/* Информация об адресе */}
+          {/* Информация об адресе и настройки */}
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
-            <h3 className="text-lg font-bold text-indigo-900">{selectedAddress.address}</h3>
-            <p className="text-sm text-indigo-700 mt-1">
-              Найдено {addressApplications.length} заявок, которые можно привязать к этому адресу
-            </p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-indigo-900">{selectedAddress.address}</h3>
+                <p className="text-sm text-indigo-700 mt-1">
+                  Найдено {addressApplications.length} заявок, которые можно привязать к этому адресу
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-indigo-700">Порог:</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={similarityThreshold}
+                  onChange={(e) => setSimilarityThreshold(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                  className="w-16 px-2 py-1 text-sm border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                <span className="text-sm text-indigo-700">%</span>
+                <button
+                  onClick={() => applyThreshold(addressApplications, similarityThreshold)}
+                  className="px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition"
+                >
+                  Применить
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Групповые действия */}
