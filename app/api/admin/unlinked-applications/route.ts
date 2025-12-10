@@ -34,59 +34,111 @@ interface ApplicationWithSuggestions {
   suggested_addresses: Address[]
 }
 
-// Функция для нормализации строки для сравнения
-function normalizeForComparison(str: string): string {
-  return str
+// Извлекаем улицу и номер дома из строки адреса заявки
+function parseStreetAndHouse(address: string): { street: string, house: string } {
+  const normalized = address
     .toLowerCase()
     .replace(/[.,\-\/\\]/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д/gi, '')
-    .replace(/дом|д\.?|корпус|корп\.?|к\.?|строение|стр\.?/gi, '')
-    .trim()
-}
-
-// Извлекаем ключевые слова из адреса для поиска
-function extractSearchTerms(streetAndHouse: string): string[] {
-  const normalized = streetAndHouse
-    .replace(/[.,\-\/\\]/g, ' ')
-    .replace(/\s+/g, ' ')
     .trim()
 
-  // Убираем служебные слова
-  const cleaned = normalized
-    .replace(/улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д/gi, '')
-    .replace(/дом|д\.?|корпус|корп\.?|к\.?|строение|стр\.?/gi, '')
-    .replace(/\s+/g, ' ')
+  // Убираем префиксы улиц
+  const withoutPrefix = normalized
+    .replace(/^(улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д)\s*/i, '')
     .trim()
 
-  // Разбиваем на слова длиной >= 2 символа
-  return cleaned.split(' ').filter(word => word.length >= 2)
-}
+  // Ищем номер дома - число (возможно с буквой) в конце
+  const houseMatch = withoutPrefix.match(/^(.+?)\s+(\d+[а-яa-z]?\/?[\dа-яa-z]*)(?:\s|$)/i)
 
-// Вычисляем схожесть между двумя строками (простой алгоритм)
-function calculateSimilarity(str1: string, str2: string): number {
-  const norm1 = normalizeForComparison(str1)
-  const norm2 = normalizeForComparison(str2)
-
-  if (norm1 === norm2) return 1
-
-  const words1 = norm1.split(' ').filter(w => w.length >= 2)
-  const words2 = norm2.split(' ').filter(w => w.length >= 2)
-
-  if (words1.length === 0 || words2.length === 0) return 0
-
-  // Считаем совпадающие слова
-  let matchCount = 0
-  for (const word1 of words1) {
-    for (const word2 of words2) {
-      if (word1 === word2 || word1.includes(word2) || word2.includes(word1)) {
-        matchCount++
-        break
-      }
+  if (houseMatch) {
+    return {
+      street: houseMatch[1].trim(),
+      house: houseMatch[2].trim()
     }
   }
 
-  return matchCount / Math.max(words1.length, words2.length)
+  // Если не нашли дом, возвращаем всю строку как улицу
+  return {
+    street: withoutPrefix,
+    house: ''
+  }
+}
+
+// Нормализуем название улицы для сравнения
+function normalizeStreet(street: string): string {
+  return street
+    .toLowerCase()
+    .replace(/[.,\-\/\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^(улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д)\s*/i, '')
+    .trim()
+}
+
+// Сравниваем названия улиц
+function compareStreets(street1: string, street2: string): boolean {
+  const norm1 = normalizeStreet(street1)
+  const norm2 = normalizeStreet(street2)
+
+  if (!norm1 || !norm2) return false
+  if (norm1 === norm2) return true
+
+  // Проверяем, начинается ли одно название с другого (для сокращений)
+  if (norm1.length >= 3 && norm2.length >= 3) {
+    return norm1.startsWith(norm2) || norm2.startsWith(norm1)
+  }
+
+  return false
+}
+
+// Сравниваем номера домов
+function compareHouses(house1: string, house2: string): number {
+  if (!house1 || !house2) return 0
+
+  const norm1 = house1.toLowerCase().replace(/\s/g, '')
+  const norm2 = house2.toLowerCase().replace(/\s/g, '')
+
+  if (norm1 === norm2) return 1
+
+  // Извлекаем базовый номер (только цифры)
+  const num1 = norm1.match(/^(\d+)/)?.[1]
+  const num2 = norm2.match(/^(\d+)/)?.[1]
+
+  // Номера должны совпадать точно!
+  if (num1 && num2 && num1 === num2) {
+    // Базовые номера совпадают, но есть различия в буквах/корпусах
+    return 0.8
+  }
+
+  return 0
+}
+
+// Вычисляем схожесть адресов (строгий алгоритм)
+function calculateSimilarity(appAddress: string, dirAddress: string, dirStreet?: string | null, dirHouse?: string | null): number {
+  // Парсим адрес заявки
+  const parsed = parseStreetAndHouse(appAddress)
+
+  // Для адреса из справочника используем поля street и house если доступны
+  const targetStreet = dirStreet ? normalizeStreet(dirStreet) : parseStreetAndHouse(dirAddress).street
+  const targetHouse = dirHouse || parseStreetAndHouse(dirAddress).house
+
+  // Если улицы не совпадают - сразу 0
+  if (!compareStreets(parsed.street, targetStreet)) {
+    return 0
+  }
+
+  // Улицы совпадают, проверяем дом
+  const houseSimilarity = compareHouses(parsed.house, targetHouse)
+
+  if (houseSimilarity === 1) {
+    return 1 // Полное совпадение
+  } else if (houseSimilarity > 0) {
+    return 0.8 // Частичное совпадение дома (базовый номер тот же)
+  } else if (!parsed.house || !targetHouse) {
+    return 0.5 // Улица совпала, но дом не указан в одном из адресов
+  }
+
+  // Улица совпала, но дом не совпадает
+  return 0.3
 }
 
 export async function GET(request: NextRequest) {
@@ -181,14 +233,17 @@ export async function GET(request: NextRequest) {
           .not('street_and_house', 'is', null)
           .order('created_at', { ascending: false })
 
-        // Фильтруем по схожести с выбранным адресом
+        // Фильтруем по схожести с выбранным адресом (строгий алгоритм)
         const matchingApplications = (allUnlinked || [])
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((app: any) => {
-            const similarity = calculateSimilarity(app.street_and_house || '', addressData.address || '')
-            const searchTerms = extractSearchTerms(app.street_and_house || '')
-            const addrNormalized = normalizeForComparison(addressData.address || '')
-            const hasTermMatch = searchTerms.some(term => addrNormalized.includes(term.toLowerCase()))
+            // Используем строгий алгоритм с учётом полей street и house из справочника
+            const similarity = calculateSimilarity(
+              app.street_and_house || '',
+              addressData.address || '',
+              addressData.street,
+              addressData.house
+            )
 
             // Проверяем совпадение города
             const cityMatch = !app.city || !addressData.city ||
@@ -196,12 +251,13 @@ export async function GET(request: NextRequest) {
 
             return {
               ...app,
-              similarity: Math.max(similarity, hasTermMatch ? 0.3 : 0),
+              similarity,
               cityMatch
             }
           })
+          // Показываем только если улица совпала (similarity > 0)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((app: any) => app.cityMatch && (app.similarity >= 0.2))
+          .filter((app: any) => app.cityMatch && app.similarity > 0)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .sort((a: any, b: any) => b.similarity - a.similarity)
 
@@ -237,10 +293,11 @@ export async function GET(request: NextRequest) {
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const potentialCount = (allUnlinked || []).filter((app: any) => {
-          const similarity = calculateSimilarity(app.street_and_house || '', addr.address || '')
+          const similarity = calculateSimilarity(app.street_and_house || '', addr.address || '', addr.street, addr.house)
           const cityMatch = !app.city || !addr.city ||
             app.city.toLowerCase() === addr.city.toLowerCase()
-          return cityMatch && similarity >= 0.2
+          // Только если улица совпала (similarity > 0)
+          return cityMatch && similarity > 0
         }).length
 
         return {
@@ -332,31 +389,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: addrError.message }, { status: 500 })
     }
 
-    // Для каждой заявки находим похожие адреса
+    // Для каждой заявки находим похожие адреса (строгий алгоритм)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const applicationsWithSuggestions: ApplicationWithSuggestions[] = applications.map((app: any) => {
       const suggestions: (Address & { similarity: number })[] = []
 
       if (app.street_and_house && allAddresses) {
-        const searchTerms = extractSearchTerms(app.street_and_house)
-
         for (const addr of allAddresses) {
           // Фильтруем по городу если город указан в заявке
           if (app.city && addr.city && app.city.toLowerCase() !== addr.city.toLowerCase()) {
             continue
           }
 
-          // Вычисляем схожесть
-          const similarity = calculateSimilarity(app.street_and_house, addr.address || '')
+          // Вычисляем схожесть с учётом полей street и house из справочника
+          const similarity = calculateSimilarity(
+            app.street_and_house,
+            addr.address || '',
+            addr.street,
+            addr.house
+          )
 
-          // Также проверяем совпадение отдельных терминов
-          const addrNormalized = normalizeForComparison(addr.address || '')
-          const hasTermMatch = searchTerms.some(term => addrNormalized.includes(term.toLowerCase()))
-
-          if (similarity >= 0.3 || hasTermMatch) {
+          // Показываем только если улица совпала (similarity > 0)
+          if (similarity > 0) {
             suggestions.push({
               ...addr,
-              similarity: Math.max(similarity, hasTermMatch ? 0.3 : 0)
+              similarity
             })
           }
         }
