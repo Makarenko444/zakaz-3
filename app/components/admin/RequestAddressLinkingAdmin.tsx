@@ -203,11 +203,17 @@ export default function RequestAddressLinkingAdmin() {
       setAddressApplications(apps)
       setStats(prev => ({ ...prev, ...data.stats }))
 
-      // Автоматически выбираем заявки с похожестью более 50%
+      // Автоматически выбираем заявки с похожестью 50% и выше
       const highSimilarityIds = apps
-        .filter((app) => app.similarity !== undefined && app.similarity > 0.5)
+        .filter((app) => app.similarity !== undefined && app.similarity >= 0.5)
         .map((app) => app.id)
       setSelectedApps(new Set(highSimilarityIds))
+
+      // Для отладки: выводим информацию о похожести
+      if (apps.length > 0) {
+        console.log('Applications similarity:', apps.map(a => ({ id: a.id, similarity: a.similarity })))
+        console.log('Selected (>=50%):', highSimilarityIds.length, 'of', apps.length)
+      }
     } catch (err) {
       console.error('Error loading address applications:', err)
       setError(err instanceof Error ? err.message : 'Ошибка загрузки')
