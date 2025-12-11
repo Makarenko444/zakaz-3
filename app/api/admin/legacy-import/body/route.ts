@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
           const { data: applications, error: appError } = await supabase
             .from('zakaz_applications')
             .select('id, legacy_id, application_number')
-            .not('legacy_id', 'is', null)
+            .not('legacy_id', 'is', null) as { data: { id: string; legacy_id: number | null; application_number: number }[] | null; error: { message: string } | null }
 
           if (appError) {
             throw new Error(`Ошибка получения заявок: ${appError.message}`)
