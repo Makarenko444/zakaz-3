@@ -72,6 +72,7 @@ const statusColors: Record<ApplicationStatus, string> = {
   new: 'bg-gray-100 text-gray-800',
   thinking: 'bg-blue-100 text-blue-800',
   estimation: 'bg-indigo-100 text-indigo-800',
+  estimation_done: 'bg-sky-100 text-sky-800',
   contract: 'bg-cyan-100 text-cyan-800',
   design: 'bg-teal-100 text-teal-800',
   approval: 'bg-emerald-100 text-emerald-800',

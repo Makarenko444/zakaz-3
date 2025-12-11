@@ -50,6 +50,14 @@ const statusColors: Record<ApplicationStatus, {
     text: 'text-indigo-700',
     textActive: 'text-indigo-900'
   },
+  estimation_done: {
+    bg: 'bg-sky-100',
+    bgActive: 'bg-sky-200',
+    border: 'border-sky-300',
+    borderActive: 'border-sky-500',
+    text: 'text-sky-700',
+    textActive: 'text-sky-900'
+  },
   contract: {
     bg: 'bg-cyan-100',
     bgActive: 'bg-cyan-200',

@@ -4,6 +4,7 @@ export type ApplicationStatus =
   | 'new'
   | 'thinking'
   | 'estimation'
+  | 'estimation_done'
   | 'contract'
   | 'design'
   | 'approval'

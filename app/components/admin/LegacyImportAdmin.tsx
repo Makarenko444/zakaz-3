@@ -55,7 +55,7 @@ const STAGE_STATUS_MAPPING: Record<string, { status: string; urgency?: string }>
   '1.4. Потенциальный клиент': { status: 'thinking' },
   '1.5. Переоформление договора': { status: 'contract' },
   '2. Расчет стоимости': { status: 'estimation' },
-  '2.1. Расчет выполнен': { status: 'estimation' },
+  '2.1. Расчет выполнен': { status: 'estimation_done' },
   '3. Заключение договора': { status: 'contract' },
   '4. Ждем оплату': { status: 'contract' },
   '5. Проектирование': { status: 'design' },
