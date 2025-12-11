@@ -200,16 +200,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Для юр.лиц обязательны контактные данные
-    if (body.customer_type === 'business') {
-      if (!body.contact_person || !body.contact_phone) {
-        return NextResponse.json(
-          { error: 'Contact person and phone are required for business customers' },
-          { status: 400 }
-        )
-      }
-    }
-
     // Подготовка данных для вставки
     const applicationData = {
       address_id: body.address_id || null,
