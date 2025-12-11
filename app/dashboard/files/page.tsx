@@ -393,26 +393,26 @@ export default function FilesPage() {
                           isActive
                             ? 'border-indigo-500 bg-indigo-50 shadow-md'
                             : isDimmed
-                            ? 'border-gray-100 bg-gray-50 opacity-40'
+                            ? 'border-gray-200 bg-gray-100 text-gray-500'
                             : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-3 h-3 rounded-full ${typeColors[type] || 'bg-gray-500'}`}></div>
                           <div className="text-left">
-                            <div className={`text-sm font-medium ${isDimmed ? 'text-gray-400' : 'text-gray-900'}`}>
+                            <div className={`text-sm font-medium ${isDimmed ? 'text-gray-600' : 'text-gray-900'}`}>
                               {typeNames[type] || type}
                             </div>
-                            <div className={`text-xs ${isDimmed ? 'text-gray-300' : 'text-gray-500'}`}>
+                            <div className={`text-xs ${isDimmed ? 'text-gray-500' : 'text-gray-600'}`}>
                               {formatFileSize(data.size)}
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`text-sm font-semibold ${isDimmed ? 'text-gray-400' : 'text-gray-900'}`}>
+                          <div className={`text-sm font-semibold ${isDimmed ? 'text-gray-600' : 'text-gray-900'}`}>
                             {data.count}
                           </div>
-                          <div className={`text-xs ${isDimmed ? 'text-gray-300' : 'text-gray-500'}`}>
+                          <div className={`text-xs ${isDimmed ? 'text-gray-500' : 'text-gray-600'}`}>
                             {percentage}%
                           </div>
                         </div>
@@ -660,7 +660,7 @@ export default function FilesPage() {
                 </a>
                 <button
                   onClick={() => setPreviewFile(null)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600"
+                  className="p-1.5 text-gray-600 hover:text-gray-800"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -353,7 +353,7 @@ export default function Comments({
                       <>
                         <button
                           onClick={() => handleEdit(comment)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded transition"
+                          className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-100 rounded transition"
                           title="Редактировать"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -362,7 +362,7 @@ export default function Comments({
                         </button>
                         <button
                           onClick={() => handleDeleteComment(comment.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition"
+                          className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-100 rounded transition"
                           title="Удалить"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -375,7 +375,7 @@ export default function Comments({
                     {canEditComment(comment) && (
                       <button
                         onClick={() => toggleFileUpload(comment.id)}
-                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 rounded transition"
+                        className="p-1.5 text-gray-600 hover:text-indigo-600 hover:bg-indigo-100 rounded transition"
                         title="Прикрепить файлы"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -391,7 +391,7 @@ export default function Comments({
                     {/* Кнопка "Ответить" */}
                     <button
                       onClick={() => handleReply(comment)}
-                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-100 rounded transition"
+                      className="p-1.5 text-gray-600 hover:text-green-600 hover:bg-green-100 rounded transition"
                       title="Ответить"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -467,7 +467,7 @@ export default function Comments({
 
               {/* Форма загрузки файлов (показывается по клику на скрепку) */}
               {showFileUpload[comment.id] && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="mt-3 pt-3 border-t border-gray-200">
                   <FileUpload
                     applicationId={applicationId}
                     commentId={comment.id}
@@ -498,7 +498,7 @@ export default function Comments({
               <button
                 type="button"
                 onClick={handleCancelReply}
-                className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
                 title="Отменить ответ"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -558,7 +558,7 @@ export default function Comments({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* Иконка скрепки для выбора файлов */}
-            <label className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition cursor-pointer" title="Прикрепить файлы">
+            <label className="p-1.5 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition cursor-pointer" title="Прикрепить файлы">
               <input
                 type="file"
                 multiple

@@ -859,7 +859,7 @@ export default function NodesPage() {
                 </h3>
                 <button
                   onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-500"
+                  className="text-gray-600 hover:text-gray-800"
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1084,7 +1084,7 @@ export default function NodesPage() {
                 <h3 className="text-lg font-medium text-gray-900">Создание нового узла</h3>
                 <button
                   onClick={handleCloseCreateModal}
-                  className="text-gray-400 hover:text-gray-500"
+                  className="text-gray-600 hover:text-gray-800"
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

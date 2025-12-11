@@ -805,7 +805,7 @@ export default function ApplicationDetailPage() {
                         </button>
                         <button
                           onClick={() => setShowAssignModal(true)}
-                          className="text-gray-400 hover:text-indigo-600 transition"
+                          className="text-gray-600 hover:text-indigo-600 transition"
                           title="Изменить менеджера"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1176,7 +1176,7 @@ export default function ApplicationDetailPage() {
               </div>
               <button
                 onClick={() => setShowWorkOrderModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-600 hover:text-gray-800 transition"
                 aria-label="Закрыть"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1241,7 +1241,7 @@ export default function ApplicationDetailPage() {
                     <label className="text-sm text-gray-700 font-medium">Исполнители</label>
                     <span className="text-xs text-gray-500">Выбрано: {workOrderInstallers.length}</span>
                   </div>
-                  <div className="border border-gray-200 rounded-md max-h-64 overflow-y-auto divide-y divide-gray-100">
+                  <div className="border border-gray-200 rounded-md max-h-64 overflow-y-auto divide-y divide-gray-200">
                     {installers.map(installer => (
                       <label key={installer.id} className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50">
                         <input

@@ -465,13 +465,13 @@ export default function FileManagementAdmin() {
                       selectedType === item.type
                         ? 'bg-indigo-100 ring-2 ring-indigo-500'
                         : selectedType
-                          ? 'bg-gray-100 opacity-50 hover:opacity-75'
+                          ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                           : 'bg-gray-50 hover:bg-gray-100'
                     }`}
                   >
                     <div
                       className={`w-4 h-4 rounded-full flex-shrink-0 transition-all ${
-                        selectedType && selectedType !== item.type ? 'opacity-30' : ''
+                        selectedType && selectedType !== item.type ? 'saturate-50' : ''
                       }`}
                       style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
                     />

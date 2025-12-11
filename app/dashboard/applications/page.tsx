@@ -813,7 +813,7 @@ function ApplicationsContent() {
 
                 {/* Комментарий */}
                 {app.client_comment && (
-                  <div className="mt-2 pt-2 border-t border-gray-100">
+                  <div className="mt-2 pt-2 border-t border-gray-200">
                     <p className="text-xs text-gray-500">Комментарий:</p>
                     <p className="text-xs text-gray-700 line-clamp-2">{app.client_comment}</p>
                   </div>
