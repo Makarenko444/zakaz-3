@@ -14,9 +14,9 @@ const applicationSchema = z.object({
   street_and_house: z.string().min(3, 'Укажите улицу и номер дома'),
   address_details: z.string().optional(),
   customer_type: z.enum(['individual', 'business']),
-  service_type: z.enum(['apartment', 'office', 'scs']),
+  service_type: z.enum(['apartment', 'office', 'scs', 'emergency']),
   customer_fullname: z.string().min(2, 'Введите ФИО/название компании'),
-  customer_phone: z.string().min(10, 'Введите корректный телефон'),
+  customer_phone: z.string().min(5, 'Введите контактные данные'),
   contact_person: z.string().optional(),
   contact_phone: z.string().optional(),
   urgency: z.enum(['low', 'normal', 'high', 'critical']),
@@ -226,7 +226,7 @@ export default function EditApplicationPage() {
             <input
               type="text"
               {...register('street_and_house')}
-              placeholder="Например: ул. Ленина, д. 10"
+              placeholder="Например: пр. Кирова, д.22"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             {errors.street_and_house && (
@@ -298,13 +298,13 @@ export default function EditApplicationPage() {
             )}
           </div>
 
-          {/* Телефон заказчика */}
+          {/* Контакты заказчика */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Телефон заказчика <span className="text-red-500">*</span>
+              Контакты заказчика (телефон, email) <span className="text-red-500">*</span>
             </label>
             <input
-              type="tel"
+              type="text"
               {...register('customer_phone')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
@@ -358,6 +358,7 @@ export default function EditApplicationPage() {
               <option value="apartment">Подключение квартиры</option>
               <option value="office">Подключение офиса</option>
               <option value="scs">Строительство СКС</option>
+              <option value="emergency">Аварийная заявка</option>
             </select>
             {errors.service_type && (
               <p className="mt-1 text-sm text-red-600">{errors.service_type.message}</p>

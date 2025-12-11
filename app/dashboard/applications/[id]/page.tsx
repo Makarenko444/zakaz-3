@@ -105,6 +105,7 @@ const serviceTypeLabels: Record<ServiceType, string> = {
   apartment: 'Подключение квартиры',
   office: 'Подключение офиса',
   scs: 'Строительство СКС',
+  emergency: 'Аварийная заявка',
 }
 
 const skillOptions = ['Оптика', 'Сварка', 'СКУД', 'Эл. часть', 'ЛВС/ВОЛС', 'ПНР']
