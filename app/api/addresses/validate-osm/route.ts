@@ -36,13 +36,23 @@ export async function GET(request: Request) {
     url.searchParams.set('countrycodes', 'ru')
     url.searchParams.set('dedupe', '1')
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'User-Agent': 'zakaz-app/1.0 (support@zakaz.local)',
-        'Accept-Language': 'ru',
-      },
-      next: { revalidate: 3600 }
-    })
+    // Таймаут 5 секунд для внешнего API
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+    let response: Response
+    try {
+      response = await fetch(url.toString(), {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'zakaz-app/1.0 (support@zakaz.local)',
+          'Accept-Language': 'ru',
+        },
+        next: { revalidate: 3600 }
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     if (!response.ok) {
       console.error('OpenStreetMap API error:', response.status, await response.text())
