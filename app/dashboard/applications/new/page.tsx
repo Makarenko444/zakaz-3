@@ -20,19 +20,7 @@ const applicationSchema = z.object({
   contact_phone: z.string().optional(),
   urgency: z.enum(['low', 'normal', 'high', 'critical']),
   client_comment: z.string().optional(),
-}).refine(
-  (data) => {
-    // Для юр.лиц обязательны контактные данные
-    if (data.customer_type === 'business') {
-      return !!data.contact_person && !!data.contact_phone
-    }
-    return true
-  },
-  {
-    message: 'Для юридического лица обязательны контактное лицо и телефон',
-    path: ['contact_person'],
-  }
-)
+})
 
 type ApplicationFormData = z.infer<typeof applicationSchema>
 
@@ -230,7 +218,6 @@ export default function NewApplicationPage() {
             <input
               type="text"
               {...register('customer_fullname')}
-              placeholder={customerType === 'business' ? 'ООО "Компания"' : 'Иванов Иван Иванович'}
               className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             {errors.customer_fullname && (
@@ -246,7 +233,6 @@ export default function NewApplicationPage() {
             <input
               type="tel"
               {...register('customer_phone')}
-              placeholder="+79991234567"
               className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             {errors.customer_phone && (
@@ -259,12 +245,11 @@ export default function NewApplicationPage() {
             <>
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Контактное лицо <span className="text-red-500">*</span>
+                  Контактное лицо
                 </label>
                 <input
                   type="text"
                   {...register('contact_person')}
-                  placeholder="Петров Петр Петрович"
                   className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 {errors.contact_person && (
@@ -274,12 +259,11 @@ export default function NewApplicationPage() {
 
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Телефон контактного лица <span className="text-red-500">*</span>
+                  Телефон контактного лица
                 </label>
                 <input
                   type="tel"
                   {...register('contact_phone')}
-                  placeholder="+79997654321"
                   className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 {errors.contact_phone && (
