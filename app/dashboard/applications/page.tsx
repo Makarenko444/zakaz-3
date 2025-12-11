@@ -258,6 +258,7 @@ function ApplicationsContent() {
     const address = searchParams.get('address')
     const assignedTo = searchParams.get('assigned_to')
     const status = searchParams.get('status')
+    const search = searchParams.get('search')
 
     if (nodeId) {
       setSelectedNodeId(nodeId)
@@ -279,6 +280,10 @@ function ApplicationsContent() {
 
     if (status) {
       setSelectedStatuses(status.split(',') as ApplicationStatus[])
+    }
+
+    if (search) {
+      setSearchQuery(search)
     }
   }, [searchParams])
 
