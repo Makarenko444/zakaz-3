@@ -297,13 +297,20 @@ export default function ApplicationsByAddressPage() {
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-1">
                         {addr.by_status.map((stat) => (
-                          <span
+                          <button
                             key={stat.status}
-                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700"
-                            title={stat.status_name}
+                            onClick={() =>
+                              router.push(
+                                `/dashboard/applications?address_id=${addr.address_id}&address=${encodeURIComponent(
+                                  addr.address
+                                )}&status=${stat.status}`
+                              )
+                            }
+                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 transition cursor-pointer"
+                            title={`${stat.status_name}: показать ${stat.count} заявок`}
                           >
                             {stat.status_name}: {stat.count}
-                          </span>
+                          </button>
                         ))}
                       </div>
                     </td>

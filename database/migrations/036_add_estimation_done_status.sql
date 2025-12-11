@@ -2,6 +2,11 @@
 -- Новый статус идёт после "Расчёт" (estimation)
 
 -- ====================================================================
+-- Шаг 0: Добавляем значение в enum тип PostgreSQL
+-- ====================================================================
+ALTER TYPE zakaz_application_status ADD VALUE IF NOT EXISTS 'estimation_done' AFTER 'estimation';
+
+-- ====================================================================
 -- Шаг 1: Сдвигаем sort_order для всех статусов начиная с contract
 -- ====================================================================
 UPDATE zakaz_application_statuses SET sort_order = sort_order + 1 WHERE sort_order >= 4;
