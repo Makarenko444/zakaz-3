@@ -180,8 +180,8 @@ export async function POST(request: NextRequest) {
               }
 
               // Обновляем заявку
-              const { error: updateError } = await supabase
-                .from('zakaz_applications')
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const { error: updateError } = await (supabase.from('zakaz_applications') as any)
                 .update({ legacy_body: body })
                 .eq('id', appInfo.id)
 
