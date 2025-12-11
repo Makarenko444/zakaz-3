@@ -86,7 +86,7 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
           <h3 className="text-lg font-semibold text-gray-900">Смена пароля</h3>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition"
+            className="text-gray-600 hover:text-gray-800 transition"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

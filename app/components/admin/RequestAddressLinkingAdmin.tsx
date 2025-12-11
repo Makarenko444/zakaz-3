@@ -656,7 +656,7 @@ export default function RequestAddressLinkingAdmin() {
                         </a>
                         <button
                           onClick={() => window.open(`/dashboard/applications/${app.id}`, '_blank')}
-                          className="text-gray-400 hover:text-indigo-600 text-sm"
+                          className="text-gray-600 hover:text-indigo-600 text-sm"
                           title="Открыть в новой вкладке"
                         >
                           ↗
@@ -1147,7 +1147,7 @@ export default function RequestAddressLinkingAdmin() {
                       </a>
                       <button
                         onClick={() => window.open(`/dashboard/applications/${app.id}`, '_blank')}
-                        className="text-gray-400 hover:text-indigo-600 text-sm"
+                        className="text-gray-600 hover:text-indigo-600 text-sm"
                         title="Открыть в новой вкладке"
                       >
                         ↗
