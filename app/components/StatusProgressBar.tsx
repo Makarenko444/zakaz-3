@@ -18,112 +18,6 @@ interface StatusProgressBarProps {
   disabled?: boolean
 }
 
-const statusColors: Record<ApplicationStatus, {
-  bg: string;
-  bgActive: string;
-  border: string;
-  borderActive: string;
-  text: string;
-  textActive: string;
-}> = {
-  new: {
-    bg: 'bg-gray-100',
-    bgActive: 'bg-gray-200',
-    border: 'border-gray-300',
-    borderActive: 'border-gray-500',
-    text: 'text-gray-700',
-    textActive: 'text-gray-900'
-  },
-  thinking: {
-    bg: 'bg-blue-100',
-    bgActive: 'bg-blue-200',
-    border: 'border-blue-300',
-    borderActive: 'border-blue-500',
-    text: 'text-blue-700',
-    textActive: 'text-blue-900'
-  },
-  estimation: {
-    bg: 'bg-indigo-100',
-    bgActive: 'bg-indigo-200',
-    border: 'border-indigo-300',
-    borderActive: 'border-indigo-500',
-    text: 'text-indigo-700',
-    textActive: 'text-indigo-900'
-  },
-  estimation_done: {
-    bg: 'bg-sky-100',
-    bgActive: 'bg-sky-200',
-    border: 'border-sky-300',
-    borderActive: 'border-sky-500',
-    text: 'text-sky-700',
-    textActive: 'text-sky-900'
-  },
-  contract: {
-    bg: 'bg-cyan-100',
-    bgActive: 'bg-cyan-200',
-    border: 'border-cyan-300',
-    borderActive: 'border-cyan-500',
-    text: 'text-cyan-700',
-    textActive: 'text-cyan-900'
-  },
-  design: {
-    bg: 'bg-teal-100',
-    bgActive: 'bg-teal-200',
-    border: 'border-teal-300',
-    borderActive: 'border-teal-500',
-    text: 'text-teal-700',
-    textActive: 'text-teal-900'
-  },
-  approval: {
-    bg: 'bg-emerald-100',
-    bgActive: 'bg-emerald-200',
-    border: 'border-emerald-300',
-    borderActive: 'border-emerald-500',
-    text: 'text-emerald-700',
-    textActive: 'text-emerald-900'
-  },
-  queue_install: {
-    bg: 'bg-purple-100',
-    bgActive: 'bg-purple-200',
-    border: 'border-purple-300',
-    borderActive: 'border-purple-500',
-    text: 'text-purple-700',
-    textActive: 'text-purple-900'
-  },
-  install: {
-    bg: 'bg-violet-100',
-    bgActive: 'bg-violet-200',
-    border: 'border-violet-300',
-    borderActive: 'border-violet-500',
-    text: 'text-violet-700',
-    textActive: 'text-violet-900'
-  },
-  installed: {
-    bg: 'bg-green-100',
-    bgActive: 'bg-green-200',
-    border: 'border-green-300',
-    borderActive: 'border-green-500',
-    text: 'text-green-700',
-    textActive: 'text-green-900'
-  },
-  rejected: {
-    bg: 'bg-red-100',
-    bgActive: 'bg-red-200',
-    border: 'border-red-300',
-    borderActive: 'border-red-500',
-    text: 'text-red-700',
-    textActive: 'text-red-900'
-  },
-  no_tech: {
-    bg: 'bg-orange-100',
-    bgActive: 'bg-orange-200',
-    border: 'border-orange-300',
-    borderActive: 'border-orange-500',
-    text: 'text-orange-700',
-    textActive: 'text-orange-900'
-  },
-}
-
 export default function StatusProgressBar({ currentStatus, onStatusChange, disabled = false }: StatusProgressBarProps) {
   const [statuses, setStatuses] = useState<StatusFromDB[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -184,36 +78,51 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
   return (
     <>
       <div className="bg-white rounded-lg border border-gray-200 p-3">
-        {/* Битрикс24 стиль - горизонтальные pill-кнопки */}
+        {/* Упрощённый стиль - горизонтальные pill-кнопки */}
         <div className="flex flex-wrap gap-1.5">
           {statuses.map((status, index) => {
             const isCurrent = status.code === currentStatus
             const isPassed = index < currentIndex
-            const colors = statusColors[status.code]
+            const isFuture = index > currentIndex
+
+            // Универсальные стили для темной и светлой темы
+            let buttonClasses = 'px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border-2 '
+
+            if (isCurrent) {
+              // Текущий статус: галочка + яркая рамка
+              buttonClasses += 'bg-blue-50 text-blue-700 border-blue-500 ring-2 ring-blue-200 '
+            } else if (isPassed) {
+              // Пройденные статусы: галочка, приглушённый зелёный
+              buttonClasses += 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100 '
+            } else {
+              // Будущие статусы: серые
+              buttonClasses += 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200 hover:text-gray-600 '
+            }
+
+            if (disabled || isCurrent) {
+              buttonClasses += 'cursor-default '
+            } else {
+              buttonClasses += 'cursor-pointer '
+            }
 
             return (
               <button
                 key={status.code}
                 onClick={() => handleStatusClick(status.code)}
                 disabled={disabled || isCurrent}
-                className={`
-                  px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200
-                  ${isCurrent
-                    ? `${colors.bgActive} ${colors.textActive}`
-                    : isPassed
-                      ? `${colors.bg} ${colors.text} hover:${colors.bgActive}`
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }
-                  ${disabled || isCurrent ? 'cursor-default' : 'cursor-pointer'}
-                `}
+                className={buttonClasses}
                 title={status.description_ru || status.name_ru}
               >
-                {/* Текст статуса */}
                 <span className="flex items-center gap-1">
-                  {isPassed && (
+                  {/* Галочка для пройденных и текущего статуса */}
+                  {(isPassed || isCurrent) && (
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
+                  )}
+                  {/* Кружок для будущих статусов */}
+                  {isFuture && (
+                    <span className="w-2 h-2 rounded-full bg-gray-300 mr-0.5"></span>
                   )}
                   {status.name_ru}
                 </span>
@@ -239,7 +148,7 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                 <div className="flex-1">
                   <p className="text-sm text-gray-500 mb-1">Текущий статус:</p>
-                  <p className={`font-semibold ${statusColors[currentStatus].text}`}>
+                  <p className="font-semibold text-gray-900">
                     {statuses.find(s => s.code === currentStatus)?.name_ru}
                   </p>
                 </div>
@@ -250,7 +159,7 @@ export default function StatusProgressBar({ currentStatus, onStatusChange, disab
 
                 <div className="flex-1">
                   <p className="text-sm text-gray-500 mb-1">Новый статус:</p>
-                  <p className={`font-semibold ${statusColors[confirmingStatus].text}`}>
+                  <p className="font-semibold text-gray-900">
                     {statuses.find(s => s.code === confirmingStatus)?.name_ru}
                   </p>
                 </div>
