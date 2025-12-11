@@ -17,7 +17,7 @@ export type Urgency = 'low' | 'normal' | 'high' | 'critical'
 
 export type CustomerType = 'individual' | 'business'
 
-export type ServiceType = 'apartment' | 'office' | 'scs'
+export type ServiceType = 'apartment' | 'office' | 'scs' | 'emergency'
 
 export type NodeStatus = 'existing' | 'planned' | 'not_present'
 

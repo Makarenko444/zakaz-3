@@ -67,6 +67,7 @@ const serviceTypeLabels: Record<ServiceType, string> = {
   apartment: 'Квартира',
   office: 'Офис',
   scs: 'СКС',
+  emergency: 'Авария',
 }
 
 const DEFAULT_ITEMS_PER_PAGE = 20
