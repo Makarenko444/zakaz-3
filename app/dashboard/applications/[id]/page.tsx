@@ -937,9 +937,19 @@ export default function ApplicationDetailPage() {
 
               {/* Комментарий клиента */}
               {application.client_comment && (
-                <div>
+                <div className="mb-4 pb-4 border-b border-gray-200">
                   <p className="text-base font-bold text-gray-900 mb-2">Комментарий клиента</p>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{application.client_comment}</p>
+                </div>
+              )}
+
+              {/* Содержимое из старой системы (legacy_body) */}
+              {application.legacy_body && (
+                <div>
+                  <p className="text-base font-bold text-gray-900 mb-2">Содержимое (из старой системы)</p>
+                  <div className="text-sm text-gray-700 whitespace-pre-wrap bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    {application.legacy_body}
+                  </div>
                 </div>
               )}
             </div>

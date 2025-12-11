@@ -69,6 +69,318 @@ const STAGE_STATUS_MAPPING: Record<string, { status: string; urgency?: string }>
   '12. Дубль заявки': { status: 'rejected' },
 }
 
+// Компонент для импорта содержимого заявок (body)
+function LegacyBodyImport() {
+  const [bodyFile, setBodyFile] = useState<File | null>(null)
+  const [recordLimit, setRecordLimit] = useState<number | ''>(30)
+  const [batchSize, setBatchSize] = useState(50)
+  const [isImporting, setIsImporting] = useState(false)
+  const [logs, setLogs] = useState<ImportLogEntry[]>([])
+  const [stats, setStats] = useState<{ total: number; updated: number; skipped: number; errors: number } | null>(null)
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null)
+  const [isDone, setIsDone] = useState(false)
+  const [bodyStats, setBodyStats] = useState<{ withBody: number; totalLegacy: number } | null>(null)
+  const [previewCount, setPreviewCount] = useState<number | null>(null)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const logContainerRef = useRef<HTMLDivElement>(null)
+
+  // Загрузка статистики
+  useEffect(() => {
+    loadBodyStats()
+  }, [])
+
+  async function loadBodyStats() {
+    try {
+      const response = await fetch('/api/admin/legacy-import/body')
+      if (response.ok) {
+        const data = await response.json()
+        setBodyStats(data)
+      }
+    } catch (error) {
+      console.error('Error loading body stats:', error)
+    }
+  }
+
+  // Парсинг TSV для предпросмотра
+  async function handlePreview() {
+    if (!bodyFile) return
+
+    const text = await bodyFile.text()
+    const lines = text.trim().split('\n')
+    setPreviewCount(Math.max(0, lines.length - 1)) // минус заголовок
+  }
+
+  // Импорт
+  async function handleImport() {
+    if (!bodyFile) {
+      alert('Загрузите файл order_bodies.tsv')
+      return
+    }
+
+    setIsImporting(true)
+    setLogs([])
+    setStats(null)
+    setProgress(null)
+    setIsDone(false)
+
+    try {
+      const formData = new FormData()
+      formData.append('body', bodyFile)
+      formData.append('batchSize', batchSize.toString())
+      if (recordLimit !== '' && recordLimit > 0) {
+        formData.append('recordLimit', recordLimit.toString())
+      }
+
+      const response = await fetch('/api/admin/legacy-import/body', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка импорта')
+      }
+
+      // Читаем streaming response
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Streaming не поддерживается')
+      }
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.log) {
+                setLogs(prev => [...prev, data.log])
+                setTimeout(() => {
+                  if (logContainerRef.current) {
+                    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+                  }
+                }, 10)
+              }
+
+              if (data.stats) {
+                setStats(data.stats)
+              }
+
+              setProgress({
+                current: data.current,
+                total: data.total,
+              })
+
+              if (data.done) {
+                setIsDone(true)
+                setIsImporting(false)
+                loadBodyStats()
+              }
+            } catch (e) {
+              console.error('Error parsing SSE:', e)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Import error:', error)
+      setLogs(prev => [...prev, {
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      }])
+      setIsDone(true)
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const progressPercent = progress && progress.total > 0
+    ? Math.round((progress.current / progress.total) * 100)
+    : 0
+
+  return (
+    <div className="bg-white shadow rounded-lg p-6">
+      <h3 className="text-lg font-medium text-gray-900 mb-2">
+        Импорт содержимого заявок (body)
+      </h3>
+      <p className="text-sm text-gray-600 mb-4">
+        Импорт поля &quot;Содержимое&quot; из старой системы. Файл order_bodies.tsv с колонками: zakaz_nid, zakaz_number, body.
+      </p>
+
+      {/* Статистика */}
+      {bodyStats && (
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="flex gap-6 text-sm">
+            <div>
+              <span className="text-gray-500">Заявок с содержимым:</span>{' '}
+              <span className="font-medium text-green-600">{bodyStats.withBody}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Всего legacy заявок:</span>{' '}
+              <span className="font-medium">{bodyStats.totalLegacy}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Без содержимого:</span>{' '}
+              <span className="font-medium text-yellow-600">{bodyStats.totalLegacy - bodyStats.withBody}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Загрузка файла */}
+      <div className="flex flex-wrap items-center gap-4 mb-4">
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-indigo-400 transition flex-1 min-w-[200px]">
+          <div className="flex items-center gap-3">
+            <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">order_bodies.tsv</h4>
+              <p className="text-xs text-gray-500">Содержимое заявок</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".tsv,.txt"
+              className="hidden"
+              onChange={(e) => {
+                setBodyFile(e.target.files?.[0] || null)
+                setPreviewCount(null)
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="ml-auto px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 disabled:opacity-50"
+            >
+              {bodyFile ? 'Заменить' : 'Выбрать'}
+            </button>
+          </div>
+          {bodyFile && (
+            <p className="mt-2 text-xs text-green-600 truncate pl-11">
+              {bodyFile.name}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">Лимит:</label>
+          <input
+            type="number"
+            value={recordLimit}
+            onChange={(e) => setRecordLimit(e.target.value === '' ? '' : parseInt(e.target.value))}
+            disabled={isImporting}
+            placeholder="все"
+            min={0}
+            className="w-20 px-3 py-1 border rounded text-sm"
+          />
+        </div>
+
+        <button
+          onClick={handlePreview}
+          disabled={!bodyFile || isImporting}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
+        >
+          Предпросмотр
+        </button>
+
+        <button
+          onClick={handleImport}
+          disabled={!bodyFile || isImporting}
+          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+        >
+          {isImporting ? (
+            <>
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Импорт...
+            </>
+          ) : (
+            'Импортировать'
+          )}
+        </button>
+      </div>
+
+      {/* Предпросмотр */}
+      {previewCount !== null && (
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm">
+          <span className="text-blue-700">Записей в файле:</span>{' '}
+          <span className="font-medium">{previewCount}</span>
+          {recordLimit && recordLimit > 0 && (
+            <span className="text-blue-600 ml-2">(будет обработано: {Math.min(previewCount, recordLimit)})</span>
+          )}
+        </div>
+      )}
+
+      {/* Прогресс */}
+      {(isImporting || isDone) && progress && (
+        <div className="mt-4">
+          <div className="flex justify-between text-sm text-gray-600 mb-1">
+            <span>Прогресс</span>
+            <span>{progress.current} / {progress.total} ({progressPercent}%)</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all ${isDone ? 'bg-green-500' : 'bg-indigo-600'}`}
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          {/* Статистика */}
+          {stats && (
+            <div className="mt-3 flex gap-4 text-sm">
+              <span className="text-green-600">Обновлено: {stats.updated}</span>
+              <span className="text-yellow-600">Пропущено: {stats.skipped}</span>
+              <span className="text-red-600">Ошибок: {stats.errors}</span>
+            </div>
+          )}
+
+          {/* Лог */}
+          <div
+            ref={logContainerRef}
+            className="mt-3 bg-gray-900 rounded-lg p-3 max-h-40 overflow-y-auto font-mono text-xs"
+          >
+            {logs.map((entry, index) => (
+              <div key={index} className="mb-1">
+                <span className="text-gray-500">[{new Date(entry.timestamp).toLocaleTimeString()}]</span>{' '}
+                <span className={
+                  entry.level === 'error' ? 'text-red-400' :
+                  entry.level === 'warning' ? 'text-yellow-400' :
+                  entry.level === 'success' ? 'text-green-400' :
+                  'text-gray-300'
+                }>
+                  {entry.message}
+                </span>
+                {entry.details && (
+                  <span className="text-gray-500 ml-2">{entry.details}</span>
+                )}
+              </div>
+            ))}
+            {isImporting && logs.length === 0 && (
+              <div className="text-gray-500 animate-pulse">Ожидание данных...</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function LegacyImportAdmin() {
   const [ordersFile, setOrdersFile] = useState<File | null>(null)
   const [commentsFile, setCommentsFile] = useState<File | null>(null)
@@ -892,6 +1204,9 @@ export default function LegacyImportAdmin() {
           </div>
         </div>
       )}
+
+      {/* Импорт содержимого заявок (body) */}
+      <LegacyBodyImport />
 
       {/* Справка по маппингу */}
       <div className="bg-white shadow rounded-lg p-6">
