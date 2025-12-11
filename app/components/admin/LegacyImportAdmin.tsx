@@ -73,7 +73,7 @@ const STAGE_STATUS_MAPPING: Record<string, { status: string; urgency?: string }>
 function LegacyBodyImport() {
   const [bodyFile, setBodyFile] = useState<File | null>(null)
   const [recordLimit, setRecordLimit] = useState<number | ''>(30)
-  const [batchSize, setBatchSize] = useState(50)
+  const batchSize = 50
   const [isImporting, setIsImporting] = useState(false)
   const [logs, setLogs] = useState<ImportLogEntry[]>([])
   const [stats, setStats] = useState<{ total: number; updated: number; skipped: number; errors: number } | null>(null)
