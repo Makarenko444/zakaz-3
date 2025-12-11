@@ -110,6 +110,7 @@ export default function UserInfoModal({ userId, userName, onClose }: UserInfoMod
         new: 'Новая',
         thinking: 'Думает',
         estimation: 'Расчёт',
+        estimation_done: 'Расчёт выполнен',
         contract: 'Договор и оплата',
         design: 'Проектирование',
         approval: 'Согласование',
