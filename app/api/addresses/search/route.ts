@@ -82,9 +82,19 @@ async function searchYandexAPI(query: string): Promise<SearchResult[]> {
     url.searchParams.set('ll', tomskCoords)
     url.searchParams.set('results', '10')
 
-    const response = await fetch(url.toString(), {
-      next: { revalidate: 3600 } // Кешируем на 1 час
-    })
+    // Таймаут 5 секунд для внешнего API
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+    let response: Response
+    try {
+      response = await fetch(url.toString(), {
+        signal: controller.signal,
+        next: { revalidate: 3600 } // Кешируем на 1 час
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     if (!response.ok) {
       console.error('Yandex Geosuggest API error:', response.status, await response.text())
@@ -143,13 +153,23 @@ async function searchOpenStreetMap(query: string): Promise<SearchResult[]> {
     url.searchParams.set('countrycodes', 'ru')
     url.searchParams.set('dedupe', '1')
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'User-Agent': 'zakaz-app/1.0 (support@zakaz.local)',
-        'Accept-Language': 'ru',
-      },
-      next: { revalidate: 3600 }
-    })
+    // Таймаут 5 секунд для внешнего API
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+    let response: Response
+    try {
+      response = await fetch(url.toString(), {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'zakaz-app/1.0 (support@zakaz.local)',
+          'Accept-Language': 'ru',
+        },
+        next: { revalidate: 3600 }
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     if (!response.ok) {
       console.error('OpenStreetMap API error:', response.status, await response.text())

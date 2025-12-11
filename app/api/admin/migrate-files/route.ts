@@ -81,30 +81,45 @@ export async function GET(request: NextRequest) {
     const files = (allLegacyFiles || []) as LegacyFile[]
 
     // Проверяем, какие файлы уже мигрированы (существуют локально)
-    const migrationStatus = await Promise.all(
-      files.map(async (file) => {
-        const filePath = getFilePath(file.application_id, file.stored_filename)
-        let exists = false
-        try {
-          await fs.access(filePath)
-          exists = true
-        } catch {
-          exists = false
-        }
+    // Ограничиваем параллельность до 50 файлов за раз чтобы не перегружать FS
+    const BATCH_SIZE = 50
+    const migrationStatus: {
+      id: string
+      application_id: string
+      original_filename: string
+      legacy_path: string
+      legacy_url: string
+      migrated: boolean
+    }[] = []
 
-        // Формируем URL для legacy-файла
-        const legacyUrl = file.legacy_path ? encodeLegacyUrl(file.legacy_path) : ''
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE)
+      const batchResults = await Promise.all(
+        batch.map(async (file) => {
+          const filePath = getFilePath(file.application_id, file.stored_filename)
+          let exists = false
+          try {
+            await fs.access(filePath)
+            exists = true
+          } catch {
+            exists = false
+          }
 
-        return {
-          id: file.id,
-          application_id: file.application_id,
-          original_filename: file.original_filename,
-          legacy_path: file.legacy_path,
-          legacy_url: legacyUrl,
-          migrated: exists,
-        }
-      })
-    )
+          // Формируем URL для legacy-файла
+          const legacyUrl = file.legacy_path ? encodeLegacyUrl(file.legacy_path) : ''
+
+          return {
+            id: file.id,
+            application_id: file.application_id,
+            original_filename: file.original_filename,
+            legacy_path: file.legacy_path,
+            legacy_url: legacyUrl,
+            migrated: exists,
+          }
+        })
+      )
+      migrationStatus.push(...batchResults)
+    }
 
     const totalFiles = migrationStatus.length
     const migratedFiles = migrationStatus.filter((f) => f.migrated).length
