@@ -937,3 +937,73 @@ body {
 [data-theme="dark"] .bg-gray-900\/50 {
   background-color: rgba(0, 0, 0, 0.7);
 }
+
+/* --- AMBER (legacy/warning blocks) --- */
+[data-theme="dark"] .text-amber-500 {
+  color: #f59e0b;
+}
+
+[data-theme="dark"] .text-amber-600 {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .text-amber-700 {
+  color: #fcd34d;
+}
+
+[data-theme="dark"] .text-amber-800 {
+  color: #fde68a;
+}
+
+[data-theme="dark"] .text-amber-900 {
+  color: #fef3c7;
+}
+
+[data-theme="dark"] .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.12);
+}
+
+[data-theme="dark"] .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.18);
+}
+
+[data-theme="dark"] .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="dark"] .border-amber-300 {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+/* --- SKY --- */
+[data-theme="dark"] .text-sky-500 {
+  color: #0ea5e9;
+}
+
+[data-theme="dark"] .text-sky-600 {
+  color: #38bdf8;
+}
+
+[data-theme="dark"] .text-sky-700 {
+  color: #7dd3fc;
+}
+
+[data-theme="dark"] .text-sky-800 {
+  color: #bae6fd;
+}
+
+[data-theme="dark"] .bg-sky-50 {
+  background-color: rgba(14, 165, 233, 0.12);
+}
+
+[data-theme="dark"] .bg-sky-100 {
+  background-color: rgba(14, 165, 233, 0.18);
+}
+
+[data-theme="dark"] .border-sky-200 {
+  border-color: rgba(14, 165, 233, 0.3);
+}
+
+[data-theme="dark"] .border-sky-300 {
+  border-color: rgba(14, 165, 233, 0.4);
+}
