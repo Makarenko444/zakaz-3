@@ -245,37 +245,39 @@ export default function WorkOrderPrintPage() {
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
+        compress: true,
       })
 
       const pdfWidth = pdf.internal.pageSize.getWidth()
       const pdfHeight = pdf.internal.pageSize.getHeight()
 
-      // Первая страница
+      // Первая страница (scale: 1.5 для баланса качества и размера)
       const canvas1 = await html2canvas(printRef1.current, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         logging: false,
         allowTaint: true,
         backgroundColor: '#ffffff',
         removeContainer: true,
       })
-      const imgData1 = canvas1.toDataURL('image/png')
+      // Используем JPEG с качеством 0.8 вместо PNG для меньшего размера
+      const imgData1 = canvas1.toDataURL('image/jpeg', 0.8)
       const ratio1 = Math.min(pdfWidth / canvas1.width, pdfHeight / canvas1.height)
-      pdf.addImage(imgData1, 'PNG', 0, 0, canvas1.width * ratio1, canvas1.height * ratio1)
+      pdf.addImage(imgData1, 'JPEG', 0, 0, canvas1.width * ratio1, canvas1.height * ratio1)
 
       // Вторая страница
       pdf.addPage()
       const canvas2 = await html2canvas(printRef2.current, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         logging: false,
         allowTaint: true,
         backgroundColor: '#ffffff',
         removeContainer: true,
       })
-      const imgData2 = canvas2.toDataURL('image/png')
+      const imgData2 = canvas2.toDataURL('image/jpeg', 0.8)
       const ratio2 = Math.min(pdfWidth / canvas2.width, pdfHeight / canvas2.height)
-      pdf.addImage(imgData2, 'PNG', 0, 0, canvas2.width * ratio2, canvas2.height * ratio2)
+      pdf.addImage(imgData2, 'JPEG', 0, 0, canvas2.width * ratio2, canvas2.height * ratio2)
 
       return pdf
     } catch (err) {
