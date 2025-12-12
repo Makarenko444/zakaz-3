@@ -30,6 +30,11 @@ export type AddressPresenceStatus = 'has_node' | 'has_ao' | 'has_transit_cable' 
 
 export type AddressMatchStatus = 'unmatched' | 'auto_matched' | 'manual_matched'
 
+// Типы для нарядов (work orders)
+export type WorkOrderType = 'survey' | 'installation'
+
+export type WorkOrderStatus = 'draft' | 'assigned' | 'in_progress' | 'completed' | 'cancelled'
+
 export interface User {
   id: string
   email: string
@@ -106,6 +111,7 @@ export interface FileAttachment {
   id: string
   application_id: string
   comment_id: string | null
+  work_order_id: string | null  // ссылка на наряд
   original_filename: string
   stored_filename: string
   file_size: number
@@ -157,6 +163,82 @@ export interface Node {
   updated_at: string
 }
 
+// Справочник материалов
+export interface Material {
+  id: string
+  name: string
+  unit: string
+  category: string | null
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// Наряд на работы
+export interface WorkOrder {
+  id: string
+  work_order_number: number
+  application_id: string
+  type: WorkOrderType
+  status: WorkOrderStatus
+  scheduled_date: string | null
+  scheduled_time: string | null
+  estimated_duration: string | null // interval как строка, например "4 hours"
+  actual_start_at: string | null
+  actual_end_at: string | null
+  notes: string | null
+  result_notes: string | null
+  customer_signature: boolean
+  created_by: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+// Расширенный наряд с связанными данными
+export interface WorkOrderWithDetails extends WorkOrder {
+  application?: Application
+  executors?: WorkOrderExecutor[]
+  materials?: WorkOrderMaterial[]
+}
+
+// Исполнитель наряда
+export interface WorkOrderExecutor {
+  id: string
+  work_order_id: string
+  user_id: string
+  is_lead: boolean
+  created_at: string
+  // Связанные данные
+  user?: User
+}
+
+// Материал наряда (расход)
+export interface WorkOrderMaterial {
+  id: string
+  work_order_id: string
+  material_id: string | null
+  material_name: string
+  unit: string
+  quantity: number
+  notes: string | null
+  created_at: string
+}
+
+// История статусов наряда
+export interface WorkOrderStatusHistory {
+  id: string
+  work_order_id: string
+  old_status: WorkOrderStatus | null
+  new_status: WorkOrderStatus
+  changed_by: string | null
+  comment: string | null
+  changed_at: string
+  // Связанные данные
+  user?: User
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -194,6 +276,31 @@ export interface Database {
         Row: Node
         Insert: Omit<Node, 'id' | 'created_at' | 'updated_at' | 'node_type'>
         Update: Partial<Omit<Node, 'id' | 'created_at' | 'updated_at' | 'node_type'>>
+      }
+      zakaz_materials: {
+        Row: Material
+        Insert: Omit<Material, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Material, 'id' | 'created_at' | 'updated_at'>>
+      }
+      zakaz_work_orders: {
+        Row: WorkOrder
+        Insert: Omit<WorkOrder, 'id' | 'created_at' | 'updated_at' | 'work_order_number'>
+        Update: Partial<Omit<WorkOrder, 'id' | 'created_at' | 'updated_at' | 'work_order_number'>>
+      }
+      zakaz_work_order_executors: {
+        Row: WorkOrderExecutor
+        Insert: Omit<WorkOrderExecutor, 'id' | 'created_at'>
+        Update: Partial<Omit<WorkOrderExecutor, 'id' | 'created_at'>>
+      }
+      zakaz_work_order_materials: {
+        Row: WorkOrderMaterial
+        Insert: Omit<WorkOrderMaterial, 'id' | 'created_at'>
+        Update: Partial<Omit<WorkOrderMaterial, 'id' | 'created_at'>>
+      }
+      zakaz_work_order_status_history: {
+        Row: WorkOrderStatusHistory
+        Insert: Omit<WorkOrderStatusHistory, 'id' | 'changed_at'>
+        Update: Partial<Omit<WorkOrderStatusHistory, 'id' | 'changed_at'>>
       }
     }
   }
