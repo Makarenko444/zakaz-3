@@ -438,7 +438,7 @@ export default function WorkOrderDetailPage() {
             </div>
             <div>
               <span className="text-gray-500 text-sm">Длительность:</span>
-              <span className="ml-2">{workOrder.estimated_duration || '—'}</span>
+              <span className="ml-2">{workOrder.estimated_duration?.slice(0, 5) || '—'}</span>
             </div>
             {workOrder.actual_start_at && (
               <div>
