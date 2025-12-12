@@ -175,6 +175,31 @@ export interface Material {
   updated_at: string
 }
 
+// Шаблон материалов
+export interface MaterialTemplate {
+  id: string
+  name: string
+  description: string | null
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+  items?: MaterialTemplateItem[]
+}
+
+// Позиция в шаблоне материалов
+export interface MaterialTemplateItem {
+  id: string
+  template_id: string
+  material_id: string | null
+  material_name: string
+  unit: string
+  quantity: number
+  notes: string | null
+  sort_order: number
+  created_at: string
+}
+
 // Наряд на работы
 export interface WorkOrder {
   id: string
