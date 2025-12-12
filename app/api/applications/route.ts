@@ -96,17 +96,22 @@ export async function GET(request: NextRequest) {
     if (search) {
       // Экранируем специальные символы для LIKE
       const escapedSearch = search.replace(/[%_]/g, '\\$&')
+      // Для адресного поиска: заменяем пробелы на % для fuzzy matching
+      // Это позволяет искать "герцена 68" и найти "Герцена, 68" или "ул. Герцена, д. 68"
+      const addressSearchPattern = `%${escapedSearch.split(/\s+/).filter(Boolean).join('%')}%`
       const searchPattern = `%${escapedSearch}%`
 
       console.log('[Applications API] Search query:', search)
-      console.log('[Applications API] Escaped pattern:', searchPattern)
+      console.log('[Applications API] Search pattern:', searchPattern)
+      console.log('[Applications API] Address search pattern:', addressSearchPattern)
 
       // Поиск по основным полям (без customer_company, так как оно может быть NULL)
+      // Для адресных полей используем специальный паттерн с заменёнными пробелами
       query = query.or(
         `customer_fullname.ilike.${searchPattern},` +
         `customer_phone.ilike.${searchPattern},` +
-        `street_and_house.ilike.${searchPattern},` +
-        `address_details.ilike.${searchPattern}`
+        `street_and_house.ilike.${addressSearchPattern},` +
+        `address_details.ilike.${addressSearchPattern}`
       )
 
       console.log('[Applications API] Search conditions applied')
