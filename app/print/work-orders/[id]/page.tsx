@@ -51,6 +51,149 @@ const serviceTypeLabels: Record<string, string> = {
   emergency: 'Аварийный вызов',
 }
 
+// Стили для печатной формы (без Tailwind, только inline)
+const styles = {
+  page: {
+    width: '210mm',
+    minHeight: '297mm',
+    margin: '0 auto',
+    backgroundColor: '#ffffff',
+    padding: '32px',
+    fontSize: '14px',
+    color: '#000000',
+    fontFamily: 'Arial, sans-serif',
+    boxSizing: 'border-box' as const,
+  },
+  header: {
+    borderBottom: '2px solid #000000',
+    paddingBottom: '16px',
+    marginBottom: '24px',
+  },
+  headerFlex: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  title: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    margin: 0,
+  },
+  subtitle: {
+    fontSize: '18px',
+    marginTop: '4px',
+  },
+  dateText: {
+    fontSize: '14px',
+    textAlign: 'right' as const,
+  },
+  section: {
+    marginBottom: '24px',
+  },
+  sectionTitle: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    marginBottom: '12px',
+    backgroundColor: '#e5e7eb',
+    padding: '4px 8px',
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+  },
+  td: {
+    padding: '6px 0',
+    verticalAlign: 'top' as const,
+  },
+  tdLabel: {
+    padding: '6px 16px 6px 0',
+    color: '#6b7280',
+    width: '120px',
+    verticalAlign: 'top' as const,
+  },
+  tdValue: {
+    padding: '6px 0',
+    fontWeight: 500,
+  },
+  grid3: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr',
+    gap: '16px',
+  },
+  grid2: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '32px',
+  },
+  labelSmall: {
+    fontSize: '14px',
+    color: '#6b7280',
+  },
+  valueMedium: {
+    fontWeight: 500,
+  },
+  signatureBlock: {
+    marginTop: '32px',
+    paddingTop: '16px',
+    borderTop: '1px solid #9ca3af',
+  },
+  signatureLine: {
+    borderBottom: '1px solid #000000',
+    width: '192px',
+    marginBottom: '4px',
+    marginTop: '40px',
+  },
+  signatureLabel: {
+    fontSize: '12px',
+    color: '#6b7280',
+  },
+  resultBox: {
+    border: '1px solid #9ca3af',
+    padding: '12px',
+    minHeight: '80px',
+    marginBottom: '16px',
+  },
+  footer: {
+    marginTop: '32px',
+    paddingTop: '16px',
+    borderTop: '1px solid #d1d5db',
+    fontSize: '12px',
+    color: '#6b7280',
+  },
+  materialsTable: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+    border: '1px solid #9ca3af',
+  },
+  th: {
+    border: '1px solid #9ca3af',
+    padding: '8px',
+    textAlign: 'left' as const,
+    backgroundColor: '#f3f4f6',
+    fontWeight: 'bold',
+  },
+  thCenter: {
+    border: '1px solid #9ca3af',
+    padding: '8px',
+    textAlign: 'center' as const,
+    backgroundColor: '#f3f4f6',
+    fontWeight: 'bold',
+  },
+  tdMaterial: {
+    border: '1px solid #9ca3af',
+    padding: '8px',
+  },
+  tdMaterialCenter: {
+    border: '1px solid #9ca3af',
+    padding: '8px',
+    textAlign: 'center' as const,
+  },
+  italic: {
+    fontStyle: 'italic',
+    color: '#6b7280',
+  },
+}
+
 export default function WorkOrderPrintPage() {
   const params = useParams()
   const id = params.id as string
@@ -105,37 +248,6 @@ export default function WorkOrderPrintPage() {
       const pdfWidth = pdf.internal.pageSize.getWidth()
       const pdfHeight = pdf.internal.pageSize.getHeight()
 
-      // Функция для инъекции CSS переопределений в клонированный документ
-      const onClone = (clonedDoc: Document) => {
-        const style = clonedDoc.createElement('style')
-        style.textContent = `
-          * {
-            color: #000000 !important;
-            background-color: transparent !important;
-            border-color: #cccccc !important;
-          }
-          .bg-gray-200, .bg-gray-100 {
-            background-color: #e5e7eb !important;
-          }
-          .bg-white {
-            background-color: #ffffff !important;
-          }
-          .text-gray-600, .text-gray-500 {
-            color: #6b7280 !important;
-          }
-          .text-gray-400 {
-            color: #9ca3af !important;
-          }
-          .border-black {
-            border-color: #000000 !important;
-          }
-          .border-gray-400, .border-gray-300 {
-            border-color: #9ca3af !important;
-          }
-        `
-        clonedDoc.head.appendChild(style)
-      }
-
       // Первая страница
       const canvas1 = await html2canvas(printRef1.current, {
         scale: 2,
@@ -143,7 +255,7 @@ export default function WorkOrderPrintPage() {
         logging: false,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        onclone: onClone,
+        removeContainer: true,
       })
       const imgData1 = canvas1.toDataURL('image/png')
       const ratio1 = Math.min(pdfWidth / canvas1.width, pdfHeight / canvas1.height)
@@ -157,7 +269,7 @@ export default function WorkOrderPrintPage() {
         logging: false,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        onclone: onClone,
+        removeContainer: true,
       })
       const imgData2 = canvas2.toDataURL('image/png')
       const ratio2 = Math.min(pdfWidth / canvas2.width, pdfHeight / canvas2.height)
@@ -225,16 +337,16 @@ export default function WorkOrderPrintPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#ffffff' }}>
+        <div style={{ width: '32px', height: '32px', border: '2px solid #6b7280', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
       </div>
     )
   }
 
   if (!workOrder) {
     return (
-      <div className="p-6 bg-white min-h-screen">
-        <p className="text-red-600">Наряд не найден</p>
+      <div style={{ padding: '24px', backgroundColor: '#ffffff', minHeight: '100vh' }}>
+        <p style={{ color: '#dc2626' }}>Наряд не найден</p>
       </div>
     )
   }
@@ -243,48 +355,39 @@ export default function WorkOrderPrintPage() {
   const otherExecutors = workOrder.executors?.filter(e => !e.is_lead) || []
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
       {/* Панель управления (скрывается при печати) */}
-      <div className="no-print bg-white border-b shadow-sm p-4 sticky top-0 z-10">
-        <div className="max-w-[210mm] mx-auto flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Наряд №{workOrder.work_order_number}</h1>
-          <div className="flex gap-2 items-center">
+      <div className="no-print" style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: '210mm', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1 style={{ fontSize: '18px', fontWeight: 600 }}>Наряд №{workOrder.work_order_number}</h1>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {saveMessage && (
-              <span className={`text-sm ${saveMessage.includes('Ошибка') ? 'text-red-600' : 'text-green-600'}`}>
+              <span style={{ fontSize: '14px', color: saveMessage.includes('Ошибка') ? '#dc2626' : '#16a34a' }}>
                 {saveMessage}
               </span>
             )}
             <button
               onClick={handlePrint}
-              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-2"
+              style={{ padding: '8px 16px', backgroundColor: '#4b5563', color: '#ffffff', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
               Печать
             </button>
             <button
               onClick={handleDownloadPDF}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+              style={{ padding: '8px 16px', backgroundColor: '#2563eb', color: '#ffffff', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
               Скачать PDF
             </button>
             <button
               onClick={handleSavePDF}
               disabled={isSaving || !workOrder.application?.id}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              style={{ padding: '8px 16px', backgroundColor: isSaving ? '#9ca3af' : '#16a34a', color: '#ffffff', borderRadius: '4px', border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: !workOrder.application?.id ? 0.5 : 1 }}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
               {isSaving ? 'Сохранение...' : 'Сохранить в заявку'}
             </button>
             <button
               onClick={() => window.close()}
-              className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+              style={{ padding: '8px 16px', backgroundColor: '#ffffff', color: '#374151', borderRadius: '4px', border: '1px solid #d1d5db', cursor: 'pointer' }}
             >
               Закрыть
             </button>
@@ -292,142 +395,136 @@ export default function WorkOrderPrintPage() {
         </div>
       </div>
 
-      {/* Печатная форма */}
-      <div className="py-8">
-        <div
-          ref={printRef1}
-          className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none p-8 text-black text-sm"
-          style={{ minHeight: '297mm' }}
-        >
+      {/* Печатная форма - Страница 1 */}
+      <div style={{ padding: '32px 0' }}>
+        <div ref={printRef1} style={styles.page}>
           {/* Шапка */}
-          <div className="border-b-2 border-black pb-4 mb-6">
-            <div className="flex justify-between items-start">
+          <div style={styles.header}>
+            <div style={styles.headerFlex}>
               <div>
-                <h1 className="text-2xl font-bold">НАРЯД №{workOrder.work_order_number}</h1>
-                <p className="text-lg mt-1">{typeLabels[workOrder.type]}</p>
+                <h1 style={styles.title}>НАРЯД №{workOrder.work_order_number}</h1>
+                <p style={styles.subtitle}>{typeLabels[workOrder.type]}</p>
               </div>
-              <div className="text-right">
-                <p className="text-sm">Дата выдачи: {formatDate(workOrder.created_at)}</p>
+              <div style={styles.dateText}>
+                <p>Дата выдачи: {formatDate(workOrder.created_at)}</p>
               </div>
             </div>
           </div>
 
           {/* Информация о заявке */}
-          <div className="mb-6">
-            <h2 className="text-base font-bold mb-3 bg-gray-200 px-2 py-1">
-              ЗАЯВКА №{workOrder.application?.application_number || '—'}
-            </h2>
-            <table className="w-full">
+          <div style={styles.section}>
+            <h2 style={styles.sectionTitle}>ЗАЯВКА №{workOrder.application?.application_number || '—'}</h2>
+            <table style={styles.table}>
               <tbody>
                 <tr>
-                  <td className="py-1.5 pr-4 text-gray-600 w-32 align-top">Клиент:</td>
-                  <td className="py-1.5 font-medium">{workOrder.application?.customer_fullname || '—'}</td>
+                  <td style={styles.tdLabel}>Клиент:</td>
+                  <td style={styles.tdValue}>{workOrder.application?.customer_fullname || '—'}</td>
                 </tr>
                 <tr>
-                  <td className="py-1.5 pr-4 text-gray-600 align-top">Телефон:</td>
-                  <td className="py-1.5 font-medium">{workOrder.application?.customer_phone || '—'}</td>
+                  <td style={styles.tdLabel}>Телефон:</td>
+                  <td style={styles.tdValue}>{workOrder.application?.customer_phone || '—'}</td>
                 </tr>
                 <tr>
-                  <td className="py-1.5 pr-4 text-gray-600 align-top">Адрес:</td>
-                  <td className="py-1.5 font-medium">
+                  <td style={styles.tdLabel}>Адрес:</td>
+                  <td style={styles.tdValue}>
                     {workOrder.application?.city}, {workOrder.application?.street_and_house}
                     {workOrder.application?.address_details && `, ${workOrder.application.address_details}`}
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-1.5 pr-4 text-gray-600 align-top">Тип услуги:</td>
-                  <td className="py-1.5">{workOrder.application?.service_type ? serviceTypeLabels[workOrder.application.service_type] || workOrder.application.service_type : '—'}</td>
+                  <td style={styles.tdLabel}>Тип услуги:</td>
+                  <td style={styles.td}>{workOrder.application?.service_type ? serviceTypeLabels[workOrder.application.service_type] || workOrder.application.service_type : '—'}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           {/* Планирование */}
-          <div className="mb-6">
-            <h2 className="text-base font-bold mb-3 bg-gray-200 px-2 py-1">ПЛАНИРОВАНИЕ</h2>
-            <div className="grid grid-cols-3 gap-4">
+          <div style={styles.section}>
+            <h2 style={styles.sectionTitle}>ПЛАНИРОВАНИЕ</h2>
+            <div style={styles.grid3}>
               <div>
-                <span className="text-gray-600 text-sm">Дата:</span>
-                <p className="font-medium">{formatDate(workOrder.scheduled_date)}</p>
+                <span style={styles.labelSmall}>Дата:</span>
+                <p style={styles.valueMedium}>{formatDate(workOrder.scheduled_date)}</p>
               </div>
               <div>
-                <span className="text-gray-600 text-sm">Время:</span>
-                <p className="font-medium">{workOrder.scheduled_time?.slice(0, 5) || '—'}</p>
+                <span style={styles.labelSmall}>Время:</span>
+                <p style={styles.valueMedium}>{workOrder.scheduled_time?.slice(0, 5) || '—'}</p>
               </div>
               <div>
-                <span className="text-gray-600 text-sm">Длительность:</span>
-                <p className="font-medium">{workOrder.estimated_duration || '—'}</p>
+                <span style={styles.labelSmall}>Длительность:</span>
+                <p style={styles.valueMedium}>{workOrder.estimated_duration || '—'}</p>
               </div>
             </div>
           </div>
 
           {/* Исполнители */}
-          <div className="mb-6">
-            <h2 className="text-base font-bold mb-3 bg-gray-200 px-2 py-1">ИСПОЛНИТЕЛИ</h2>
+          <div style={styles.section}>
+            <h2 style={styles.sectionTitle}>ИСПОЛНИТЕЛИ</h2>
             {workOrder.executors && workOrder.executors.length > 0 ? (
-              <div className="space-y-1">
+              <div>
                 {leadExecutor && (
-                  <p>
+                  <p style={{ marginBottom: '4px' }}>
                     <strong>1. {leadExecutor.user?.full_name || '—'}</strong>{' '}
-                    <span className="text-gray-600">(бригадир)</span>
+                    <span style={{ color: '#6b7280' }}>(бригадир)</span>
                   </p>
                 )}
                 {otherExecutors.map((ex, idx) => (
-                  <p key={ex.id}>
+                  <p key={ex.id} style={{ marginBottom: '4px' }}>
                     {leadExecutor ? idx + 2 : idx + 1}. {ex.user?.full_name || '—'}
                   </p>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 italic">Не назначены</p>
+              <p style={styles.italic}>Не назначены</p>
             )}
           </div>
 
           {/* Примечания */}
           {workOrder.notes && (
-            <div className="mb-6">
-              <h2 className="text-base font-bold mb-3 bg-gray-200 px-2 py-1">ПРИМЕЧАНИЯ</h2>
-              <p className="whitespace-pre-wrap">{workOrder.notes}</p>
+            <div style={styles.section}>
+              <h2 style={styles.sectionTitle}>ПРИМЕЧАНИЯ</h2>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{workOrder.notes}</p>
             </div>
           )}
 
           {/* Блок для подписей */}
-          <div className="mt-8 pt-4 border-t border-gray-400">
-            <div className="grid grid-cols-2 gap-8">
+          <div style={styles.signatureBlock}>
+            <div style={styles.grid2}>
               <div>
-                <p className="text-sm text-gray-600 mb-10">Выдал:</p>
-                <div className="border-b border-black w-48 mb-1"></div>
-                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+                <p style={{ fontSize: '14px', color: '#6b7280' }}>Выдал:</p>
+                <div style={styles.signatureLine}></div>
+                <p style={styles.signatureLabel}>(подпись, ФИО)</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-10">Принял:</p>
-                <div className="border-b border-black w-48 mb-1"></div>
-                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+                <p style={{ fontSize: '14px', color: '#6b7280' }}>Принял:</p>
+                <div style={styles.signatureLine}></div>
+                <p style={styles.signatureLabel}>(подпись, ФИО)</p>
               </div>
             </div>
           </div>
 
           {/* Блок результата выполнения */}
-          <div className="mt-8 pt-4 border-t border-gray-400">
-            <h2 className="text-base font-bold mb-4">РЕЗУЛЬТАТ ВЫПОЛНЕНИЯ</h2>
-            <div className="border border-gray-400 p-3 min-h-[80px] mb-4">
+          <div style={styles.signatureBlock}>
+            <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '16px' }}>РЕЗУЛЬТАТ ВЫПОЛНЕНИЯ</h2>
+            <div style={styles.resultBox}>
               {workOrder.result_notes || (
-                <span className="text-gray-400 italic">(заполняется по факту выполнения)</span>
+                <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>(заполняется по факту выполнения)</span>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-8">
+            <div style={styles.grid2}>
               <div>
-                <p className="text-sm">Дата выполнения: _______________</p>
+                <p style={{ fontSize: '14px' }}>Дата выполнения: _______________</p>
               </div>
               <div>
-                <p className="text-sm mb-8">Подпись исполнителя:</p>
-                <div className="border-b border-black w-48"></div>
+                <p style={{ fontSize: '14px' }}>Подпись исполнителя:</p>
+                <div style={{ ...styles.signatureLine, marginTop: '32px' }}></div>
               </div>
             </div>
           </div>
 
           {/* Футер первой страницы */}
-          <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
+          <div style={styles.footer}>
             <p>Документ сформирован: {new Date().toLocaleString('ru-RU')}</p>
             {workOrder.created_by_user && (
               <p>Создал: {workOrder.created_by_user.full_name}</p>
@@ -436,81 +533,77 @@ export default function WorkOrderPrintPage() {
         </div>
 
         {/* ВТОРАЯ СТРАНИЦА - Материалы */}
-        <div
-          ref={printRef2}
-          className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none p-8 text-black text-sm mt-8 print:mt-0"
-          style={{ minHeight: '297mm', pageBreakBefore: 'always' }}
-        >
+        <div ref={printRef2} style={{ ...styles.page, marginTop: '32px' }}>
           {/* Шапка второй страницы */}
-          <div className="border-b-2 border-black pb-4 mb-6">
-            <h1 className="text-xl font-bold">НАРЯД №{workOrder.work_order_number} — МАТЕРИАЛЫ</h1>
-            <p className="text-sm text-gray-600 mt-1">
+          <div style={styles.header}>
+            <h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>НАРЯД №{workOrder.work_order_number} — МАТЕРИАЛЫ</h1>
+            <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
               {workOrder.application?.customer_fullname} | {workOrder.application?.city}, {workOrder.application?.street_and_house}
             </p>
           </div>
 
           {/* Таблица материалов */}
-          <div className="mb-6">
-            <h2 className="text-base font-bold mb-3 bg-gray-200 px-2 py-1">СПИСОК МАТЕРИАЛОВ</h2>
+          <div style={styles.section}>
+            <h2 style={styles.sectionTitle}>СПИСОК МАТЕРИАЛОВ</h2>
             {workOrder.materials && workOrder.materials.length > 0 ? (
-              <table className="w-full border-collapse border border-gray-400">
+              <table style={styles.materialsTable}>
                 <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-400 px-2 py-1 text-left w-10">№</th>
-                    <th className="border border-gray-400 px-2 py-1 text-left">Наименование</th>
-                    <th className="border border-gray-400 px-2 py-1 text-center w-20">Кол-во</th>
-                    <th className="border border-gray-400 px-2 py-1 text-center w-16">Ед.</th>
-                    <th className="border border-gray-400 px-2 py-1 text-center w-24">Выдано</th>
-                    <th className="border border-gray-400 px-2 py-1 text-center w-24">Возврат</th>
+                  <tr>
+                    <th style={{ ...styles.th, width: '40px' }}>№</th>
+                    <th style={styles.th}>Наименование</th>
+                    <th style={{ ...styles.thCenter, width: '80px' }}>Кол-во</th>
+                    <th style={{ ...styles.thCenter, width: '64px' }}>Ед.</th>
+                    <th style={{ ...styles.thCenter, width: '96px' }}>Выдано</th>
+                    <th style={{ ...styles.thCenter, width: '96px' }}>Возврат</th>
                   </tr>
                 </thead>
                 <tbody>
                   {workOrder.materials.map((m, idx) => (
                     <tr key={m.id}>
-                      <td className="border border-gray-400 px-2 py-1">{idx + 1}</td>
-                      <td className="border border-gray-400 px-2 py-1">{m.material_name}</td>
-                      <td className="border border-gray-400 px-2 py-1 text-center">{m.quantity}</td>
-                      <td className="border border-gray-400 px-2 py-1 text-center">{m.unit}</td>
-                      <td className="border border-gray-400 px-2 py-1 text-center"></td>
-                      <td className="border border-gray-400 px-2 py-1 text-center"></td>
+                      <td style={styles.tdMaterial}>{idx + 1}</td>
+                      <td style={styles.tdMaterial}>{m.material_name}</td>
+                      <td style={styles.tdMaterialCenter}>{m.quantity}</td>
+                      <td style={styles.tdMaterialCenter}>{m.unit}</td>
+                      <td style={styles.tdMaterialCenter}></td>
+                      <td style={styles.tdMaterialCenter}></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : (
-              <p className="text-gray-500 italic">Материалы не указаны</p>
+              <p style={styles.italic}>Материалы не указаны</p>
             )}
           </div>
 
           {/* Подписи на странице материалов */}
-          <div className="mt-12 pt-4 border-t border-gray-400">
-            <div className="grid grid-cols-2 gap-8">
+          <div style={{ ...styles.signatureBlock, marginTop: '48px' }}>
+            <div style={styles.grid2}>
               <div>
-                <p className="text-sm text-gray-600 mb-10">Материалы выдал:</p>
-                <div className="border-b border-black w-48 mb-1"></div>
-                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+                <p style={{ fontSize: '14px', color: '#6b7280' }}>Материалы выдал:</p>
+                <div style={styles.signatureLine}></div>
+                <p style={styles.signatureLabel}>(подпись, ФИО)</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-10">Материалы получил:</p>
-                <div className="border-b border-black w-48 mb-1"></div>
-                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+                <p style={{ fontSize: '14px', color: '#6b7280' }}>Материалы получил:</p>
+                <div style={styles.signatureLine}></div>
+                <p style={styles.signatureLabel}>(подпись, ФИО)</p>
               </div>
             </div>
           </div>
 
           {/* Блок возврата материалов */}
-          <div className="mt-12 pt-4 border-t border-gray-400">
-            <h2 className="text-base font-bold mb-4">ВОЗВРАТ МАТЕРИАЛОВ</h2>
-            <div className="grid grid-cols-2 gap-8">
+          <div style={{ ...styles.signatureBlock, marginTop: '48px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '16px' }}>ВОЗВРАТ МАТЕРИАЛОВ</h2>
+            <div style={styles.grid2}>
               <div>
-                <p className="text-sm text-gray-600 mb-10">Материалы сдал:</p>
-                <div className="border-b border-black w-48 mb-1"></div>
-                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+                <p style={{ fontSize: '14px', color: '#6b7280' }}>Материалы сдал:</p>
+                <div style={styles.signatureLine}></div>
+                <p style={styles.signatureLabel}>(подпись, ФИО)</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-10">Материалы принял:</p>
-                <div className="border-b border-black w-48 mb-1"></div>
-                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+                <p style={{ fontSize: '14px', color: '#6b7280' }}>Материалы принял:</p>
+                <div style={styles.signatureLine}></div>
+                <p style={styles.signatureLabel}>(подпись, ФИО)</p>
               </div>
             </div>
           </div>
@@ -525,11 +618,13 @@ export default function WorkOrderPrintPage() {
             print-color-adjust: exact;
           }
           .no-print { display: none !important; }
-          .shadow-lg { box-shadow: none !important; }
         }
         @page {
           size: A4;
           margin: 10mm;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>
