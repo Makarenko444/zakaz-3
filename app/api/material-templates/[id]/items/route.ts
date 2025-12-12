@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // POST /api/material-templates/[id]/items - добавить позицию в шаблон
 export async function POST(
   request: NextRequest,
