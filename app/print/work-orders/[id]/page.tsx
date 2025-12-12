@@ -466,7 +466,7 @@ export default function WorkOrderPrintPage() {
               </div>
               <div>
                 <span style={styles.labelSmall}>Длительность:</span>
-                <p style={styles.valueMedium}>{workOrder.estimated_duration || '—'}</p>
+                <p style={styles.valueMedium}>{workOrder.estimated_duration?.slice(0, 5) || '—'}</p>
               </div>
             </div>
           </div>
