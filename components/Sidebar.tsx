@@ -70,7 +70,7 @@ export default function Sidebar({ user, applicationsCount, isCollapsed, setIsCol
       ),
     },
     {
-      path: '/dashboard/calendar',
+      path: '/dashboard/schedule',
       label: 'Календарь',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
