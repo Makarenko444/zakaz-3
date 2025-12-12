@@ -112,7 +112,7 @@ export default function WorkOrderDetailPage() {
   }
 
   const fetchCurrentUser = async () => {
-    const res = await fetch('/api/auth/me')
+    const res = await fetch('/api/auth/session')
     const data = await res.json()
     if (res.ok && data.user) setCurrentUser(data.user)
   }
