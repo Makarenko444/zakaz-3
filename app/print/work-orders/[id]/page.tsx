@@ -90,50 +90,68 @@ export default function WorkOrderPrintPage() {
   }
 
   const generatePDF = async (): Promise<jsPDF | null> => {
-    if (!printRef1.current || !printRef2.current || !workOrder) return null
+    if (!printRef1.current || !printRef2.current || !workOrder) {
+      console.error('Missing refs or workOrder')
+      return null
+    }
 
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-    })
+    try {
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      })
 
-    const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = pdf.internal.pageSize.getHeight()
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
 
-    // Первая страница
-    const canvas1 = await html2canvas(printRef1.current, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    })
-    const imgData1 = canvas1.toDataURL('image/png')
-    const ratio1 = Math.min(pdfWidth / canvas1.width, pdfHeight / canvas1.height)
-    pdf.addImage(imgData1, 'PNG', 0, 0, canvas1.width * ratio1, canvas1.height * ratio1)
+      // Первая страница
+      const canvas1 = await html2canvas(printRef1.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+      })
+      const imgData1 = canvas1.toDataURL('image/png')
+      const ratio1 = Math.min(pdfWidth / canvas1.width, pdfHeight / canvas1.height)
+      pdf.addImage(imgData1, 'PNG', 0, 0, canvas1.width * ratio1, canvas1.height * ratio1)
 
-    // Вторая страница
-    pdf.addPage()
-    const canvas2 = await html2canvas(printRef2.current, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    })
-    const imgData2 = canvas2.toDataURL('image/png')
-    const ratio2 = Math.min(pdfWidth / canvas2.width, pdfHeight / canvas2.height)
-    pdf.addImage(imgData2, 'PNG', 0, 0, canvas2.width * ratio2, canvas2.height * ratio2)
+      // Вторая страница
+      pdf.addPage()
+      const canvas2 = await html2canvas(printRef2.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+      })
+      const imgData2 = canvas2.toDataURL('image/png')
+      const ratio2 = Math.min(pdfWidth / canvas2.width, pdfHeight / canvas2.height)
+      pdf.addImage(imgData2, 'PNG', 0, 0, canvas2.width * ratio2, canvas2.height * ratio2)
 
-    return pdf
+      return pdf
+    } catch (err) {
+      console.error('Error in generatePDF:', err)
+      throw err
+    }
   }
 
   const handleSavePDF = async () => {
-    if (!workOrder?.application?.id) return
+    if (!workOrder?.application?.id) {
+      setSaveMessage('Ошибка: заявка не найдена')
+      return
+    }
 
     setIsSaving(true)
     setSaveMessage(null)
 
     try {
       const pdf = await generatePDF()
-      if (!pdf) return
+      if (!pdf) {
+        setSaveMessage('Ошибка: не удалось создать PDF')
+        return
+      }
 
       const pdfBlob = pdf.output('blob')
       const formData = new FormData()
@@ -153,7 +171,8 @@ export default function WorkOrderPrintPage() {
       }
     } catch (err) {
       console.error('Error saving PDF:', err)
-      setSaveMessage('Ошибка при создании PDF')
+      const errorMessage = err instanceof Error ? err.message : 'Неизвестная ошибка'
+      setSaveMessage(`Ошибка: ${errorMessage}`)
     } finally {
       setIsSaving(false)
     }
