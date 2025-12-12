@@ -2,7 +2,8 @@
 # =============================================================================
 # Скрипт проверки безопасности сервера
 # Проект: zakaz-3 / zakaz-2
-# Дата создания: 2025-12-12
+# Версия: 2.0
+# Дата обновления: 2025-12-12
 # =============================================================================
 
 set -e
@@ -45,13 +46,16 @@ echo -e "\n${BLUE}═══ 1. НАГРУЗКА СИСТЕМЫ ═══${NC}"
 LOAD_1=$(uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $1}' | tr -d ' ')
 LOAD_5=$(uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $2}' | tr -d ' ')
 LOAD_15=$(uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $3}' | tr -d ' ')
+CPU_CORES=$(nproc 2>/dev/null || echo "1")
 
+echo "CPU ядер: $CPU_CORES"
 echo "Load Average: $LOAD_1 (1 мин), $LOAD_5 (5 мин), $LOAD_15 (15 мин)"
 
-# Проверка высокой нагрузки (порог 10)
-LOAD_INT=$(echo "$LOAD_1" | cut -d'.' -f1)
-if [ "$LOAD_INT" -gt 10 ]; then
-    echo -e "${RED}⚠ ВЫСОКАЯ НАГРУЗКА! Load > 10${NC}"
+# Проверка высокой нагрузки (порог = кол-во ядер * 2)
+LOAD_INT=$(echo "$LOAD_1" | cut -d'.' -f1 | cut -d',' -f1)
+LOAD_THRESHOLD=$((CPU_CORES * 2))
+if [ "$LOAD_INT" -gt "$LOAD_THRESHOLD" ]; then
+    echo -e "${RED}⚠ ВЫСОКАЯ НАГРУЗКА! Load $LOAD_INT > $LOAD_THRESHOLD (2x ядер)${NC}"
     THREATS_FOUND=$((THREATS_FOUND + 1))
 else
     echo -e "${GREEN}✓ Нагрузка в норме${NC}"
@@ -62,9 +66,9 @@ echo "Топ-5 процессов по CPU:"
 ps aux --sort=-%cpu | head -6 | tail -5
 
 # =============================================================================
-# 2. ПРОВЕРКА КРИПТОМАЙНЕРОВ
+# 2. ПРОВЕРКА КРИПТОМАЙНЕРОВ И ВРЕДОНОСНЫХ ПРОЦЕССОВ
 # =============================================================================
-echo -e "\n${BLUE}═══ 2. ПОИСК КРИПТОМАЙНЕРОВ ═══${NC}"
+echo -e "\n${BLUE}═══ 2. ПОИСК КРИПТОМАЙНЕРОВ И ВРЕДОНОСНЫХ ПРОЦЕССОВ ═══${NC}"
 
 # Известные процессы майнеров
 MINERS="xmrig|minerd|cpuminer|ccminer|bfgminer|cgminer|ethminer|claymore|phoenix|t-rex|lolminer|nbminer|gminer"
@@ -76,6 +80,28 @@ if [ -n "$MINER_PROCS" ]; then
     echo "$MINER_PROCS"
 else
     check_result 0 "Процессы майнеров не обнаружены"
+fi
+
+# Поиск замаскированных процессов (fghgf, .local/share/next и т.д.)
+echo ""
+echo "Поиск замаскированных вредоносных процессов..."
+MASKED_PROCS=$(ps aux | grep -E "/tmp/fghgf|\.local/share/next|/tmp/[a-z]{5,}$|ijnegrrinje" | grep -v grep || true)
+if [ -n "$MASKED_PROCS" ]; then
+    check_result 1 "НАЙДЕНЫ ЗАМАСКИРОВАННЫЕ ВРЕДОНОСНЫЕ ПРОЦЕССЫ!"
+    echo "$MASKED_PROCS"
+else
+    check_result 0 "Замаскированные процессы не обнаружены"
+fi
+
+# Проверка процессов с высоким потреблением памяти из /tmp или .local
+echo ""
+echo "Поиск подозрительных процессов из /tmp или .local..."
+SUSPICIOUS_PROCS=$(ps aux | awk '$6 > 1000000 && ($11 ~ /\/tmp\// || $11 ~ /\.local\//)' || true)
+if [ -n "$SUSPICIOUS_PROCS" ]; then
+    check_result 1 "НАЙДЕНЫ ПОДОЗРИТЕЛЬНЫЕ ПРОЦЕССЫ С ВЫСОКИМ ПОТРЕБЛЕНИЕМ ПАМЯТИ!"
+    echo "$SUSPICIOUS_PROCS"
+else
+    check_result 0 "Подозрительных процессов не обнаружено"
 fi
 
 # Поиск подключений к пулам майнинга
@@ -94,21 +120,49 @@ fi
 # =============================================================================
 echo -e "\n${BLUE}═══ 3. ПОИСК ВРЕДОНОСНЫХ ФАЙЛОВ ═══${NC}"
 
-# Проверка в директории проекта
+# Проверка в /tmp
+echo "Проверка /tmp на вредоносные файлы..."
+TMP_MALWARE=$(find /tmp -maxdepth 1 -type f \( \
+    -name "fghgf" -o \
+    -name "ijnegrrinje*" -o \
+    -name "stink.sh" -o \
+    -name "sex.sh" -o \
+    -name "xmrig*" -o \
+    -name "*.json" -executable \
+\) 2>/dev/null || true)
+
+if [ -n "$TMP_MALWARE" ]; then
+    check_result 1 "НАЙДЕНЫ ВРЕДОНОСНЫЕ ФАЙЛЫ в /tmp!"
+    echo "$TMP_MALWARE"
+else
+    check_result 0 "/tmp чист"
+fi
+
+# Проверка ~/.local/share на подозрительные бинарники
+echo ""
+echo "Проверка ~/.local/share..."
+LOCAL_MALWARE=$(find ~/.local/share -maxdepth 1 -type f -executable 2>/dev/null | grep -vE "^$" || true)
+if [ -n "$LOCAL_MALWARE" ]; then
+    check_result 1 "НАЙДЕНЫ ИСПОЛНЯЕМЫЕ ФАЙЛЫ в ~/.local/share!"
+    echo "$LOCAL_MALWARE"
+else
+    check_result 0 "~/.local/share чист"
+fi
+
+# Проверка в директориях проектов
 PROJECT_DIRS="$HOME/projects/zakaz-2 $HOME/projects/zakaz-3"
 
 for DIR in $PROJECT_DIRS; do
     if [ -d "$DIR" ]; then
+        echo ""
         echo "Проверка директории: $DIR"
 
         # Поиск известных вредоносных файлов
         MALWARE_FILES=$(find "$DIR" -maxdepth 2 -type f \( \
             -name "xmrig*" -o \
-            -name "*.tar.gz" -o \
             -name "sex.sh" -o \
             -name "solra" -o \
             -name "linux_amd64" -o \
-            -name ".*.js" -o \
             -name "kal.tar.gz" \
         \) 2>/dev/null | grep -v node_modules || true)
 
@@ -121,10 +175,11 @@ for DIR in $PROJECT_DIRS; do
     fi
 done
 
-# Поиск скрытых JS файлов в системе
+# Поиск скрытых JS файлов (исключая легитимные конфиги)
 echo ""
-echo "Поиск скрытых .js файлов..."
-HIDDEN_JS=$(find /tmp /home -name ".*.js" -type f 2>/dev/null || true)
+echo "Поиск скрытых .js файлов (исключая конфиги)..."
+HIDDEN_JS=$(find /tmp /home -name ".*.js" -type f 2>/dev/null | \
+    grep -vE "\.mocharc\.js|\.eslintrc\.js|\.tonic_example\.js|\.runkit_example\.js|node_modules" || true)
 if [ -n "$HIDDEN_JS" ]; then
     check_result 1 "НАЙДЕНЫ СКРЫТЫЕ JS ФАЙЛЫ!"
     echo "$HIDDEN_JS"
@@ -137,11 +192,15 @@ fi
 # =============================================================================
 echo -e "\n${BLUE}═══ 4. ПРОВЕРКА BASHRC/PROFILE ═══${NC}"
 
-SUSPICIOUS_PATTERNS="nohup.*&|curl.*sh|wget.*sh|\.js|05bf0e9b|base64.*decode|eval.*\$"
+# Паттерны вредоносного кода (исключая стандартные команды Ubuntu)
+SUSPICIOUS_PATTERNS="nohup.*&|curl.*\|.*sh|wget.*\|.*sh|05bf0e9b|base64.*decode|kxnzl4mtez"
 
 for FILE in ~/.bashrc ~/.profile ~/.bash_profile; do
     if [ -f "$FILE" ]; then
-        SUSPICIOUS=$(grep -iE "$SUSPICIOUS_PATTERNS" "$FILE" 2>/dev/null | grep -v "^#" || true)
+        # Исключаем стандартные команды Ubuntu (lesspipe, dircolors)
+        SUSPICIOUS=$(grep -iE "$SUSPICIOUS_PATTERNS" "$FILE" 2>/dev/null | \
+            grep -v "^#" | \
+            grep -vE "lesspipe|dircolors" || true)
         if [ -n "$SUSPICIOUS" ]; then
             check_result 1 "ПОДОЗРИТЕЛЬНЫЙ КОД в $FILE!"
             echo "$SUSPICIOUS"
@@ -157,7 +216,7 @@ done
 echo -e "\n${BLUE}═══ 5. ПРОВЕРКА CRONTAB ═══${NC}"
 
 echo "Проверка пользовательского crontab..."
-CRON_SUSPICIOUS=$(crontab -l 2>/dev/null | grep -iE "xmrig|miner|curl.*sh|wget.*sh|nohup|sex|solra" || true)
+CRON_SUSPICIOUS=$(crontab -l 2>/dev/null | grep -iE "xmrig|miner|curl.*sh|wget.*sh|nohup|sex|solra|fghgf" || true)
 if [ -n "$CRON_SUSPICIOUS" ]; then
     check_result 1 "ПОДОЗРИТЕЛЬНЫЕ ЗАПИСИ В CRONTAB!"
     echo "$CRON_SUSPICIOUS"
@@ -167,7 +226,7 @@ fi
 
 # Проверка системных cron директорий
 echo "Проверка системных cron..."
-SYSTEM_CRON_SUSPICIOUS=$(sudo find /etc/cron.* /var/spool/cron -type f -exec grep -l -iE "xmrig|miner" {} \; 2>/dev/null || true)
+SYSTEM_CRON_SUSPICIOUS=$(sudo find /etc/cron.* /var/spool/cron -type f -exec grep -l -iE "xmrig|miner|fghgf" {} \; 2>/dev/null || true)
 if [ -n "$SYSTEM_CRON_SUSPICIOUS" ]; then
     check_result 1 "ПОДОЗРИТЕЛЬНЫЕ СИСТЕМНЫЕ CRON ЗАДАЧИ!"
     echo "$SYSTEM_CRON_SUSPICIOUS"
@@ -243,6 +302,15 @@ if command -v docker &> /dev/null; then
     echo ""
     echo "Использование ресурсов контейнерами:"
     docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null | head -10 || true
+
+    # Проверка на контейнеры с высоким CPU
+    echo ""
+    HIGH_CPU_CONTAINERS=$(docker stats --no-stream --format "{{.Name}}: {{.CPUPerc}}" 2>/dev/null | \
+        awk -F': ' '{gsub(/%/,"",$2); if($2+0 > 80) print $0}' || true)
+    if [ -n "$HIGH_CPU_CONTAINERS" ]; then
+        warning_result "Контейнеры с высоким CPU (>80%):"
+        echo "$HIGH_CPU_CONTAINERS"
+    fi
 else
     echo "Docker не установлен"
 fi
@@ -292,6 +360,30 @@ for DIR in $PROJECT_DIRS; do
 done
 
 # =============================================================================
+# 12. ПРОВЕРКА NPM УЯЗВИМОСТЕЙ
+# =============================================================================
+echo -e "\n${BLUE}═══ 12. ПРОВЕРКА NPM УЯЗВИМОСТЕЙ ═══${NC}"
+
+for DIR in $PROJECT_DIRS; do
+    if [ -d "$DIR" ] && [ -f "$DIR/package.json" ]; then
+        echo "Проверка уязвимостей в $DIR..."
+        cd "$DIR"
+        CRITICAL=$(npm audit 2>/dev/null | grep -c "critical" || echo "0")
+        HIGH=$(npm audit 2>/dev/null | grep -c "high" || echo "0")
+
+        if [ "$CRITICAL" -gt 0 ]; then
+            warning_result "Найдено критических уязвимостей: $CRITICAL в $DIR"
+        fi
+        if [ "$HIGH" -gt 0 ]; then
+            warning_result "Найдено высоких уязвимостей: $HIGH в $DIR"
+        fi
+        if [ "$CRITICAL" -eq 0 ] && [ "$HIGH" -eq 0 ]; then
+            check_result 0 "Критических уязвимостей не найдено в $DIR"
+        fi
+    fi
+done
+
+# =============================================================================
 # ИТОГОВЫЙ ОТЧЕТ
 # =============================================================================
 echo -e "\n${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
@@ -319,7 +411,8 @@ if [ $THREATS_FOUND -gt 0 ]; then
     echo "2. Удалите вредоносные файлы: rm -rf <путь>"
     echo "3. Проверьте и очистите crontab: crontab -e"
     echo "4. Смените SSH ключи и пароли"
-    echo "5. Проверьте логи: journalctl -xe"
+    echo "5. Обновите уязвимые пакеты: npm audit fix"
+    echo "6. Проверьте логи: journalctl -xe"
 fi
 
 exit $THREATS_FOUND
