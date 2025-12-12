@@ -243,8 +243,20 @@ export default function WorkOrderDetailPage() {
 
       if (!res.ok || !data.template?.items) return
 
-      // Добавляем каждую позицию из шаблона
+      // Получаем список уже добавленных материалов
+      const existingMaterials = workOrder?.materials || []
+      const existingMaterialIds = new Set(existingMaterials.map(m => m.material_id).filter(Boolean))
+      const existingMaterialNames = new Set(existingMaterials.map(m => m.material_name.toLowerCase()))
+
+      // Добавляем только те позиции, которых ещё нет
       for (const item of data.template.items) {
+        // Проверяем по material_id (если есть) или по названию
+        const isDuplicate = item.material_id
+          ? existingMaterialIds.has(item.material_id)
+          : existingMaterialNames.has(item.material_name.toLowerCase())
+
+        if (isDuplicate) continue
+
         await fetch(`/api/work-orders/${id}/materials`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
