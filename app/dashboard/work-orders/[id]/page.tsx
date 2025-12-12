@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { WorkOrder, WorkOrderType, WorkOrderStatus, User, Material } from '@/lib/types'
+import { WorkOrder, WorkOrderType, WorkOrderStatus, User, Material, MaterialTemplate } from '@/lib/types'
 
 interface WorkOrderWithDetails extends WorkOrder {
   application?: {
@@ -73,10 +73,14 @@ export default function WorkOrderDetailPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Шаблоны материалов
+  const [templates, setTemplates] = useState<MaterialTemplate[]>([])
+
   // Модальные окна
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showExecutorModal, setShowExecutorModal] = useState(false)
   const [showMaterialModal, setShowMaterialModal] = useState(false)
+  const [showPrefillModal, setShowPrefillModal] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState<WorkOrderStatus>('draft')
   const [statusComment, setStatusComment] = useState('')
 
@@ -117,11 +121,18 @@ export default function WorkOrderDetailPage() {
     if (res.ok && data.user) setCurrentUser(data.user)
   }
 
+  const fetchTemplates = async () => {
+    const res = await fetch('/api/material-templates')
+    const data = await res.json()
+    if (res.ok) setTemplates(data.templates || [])
+  }
+
   useEffect(() => {
     fetchWorkOrder()
     fetchUsers()
     fetchMaterials()
     fetchCurrentUser()
+    fetchTemplates()
   }, [fetchWorkOrder])
 
   const handleStatusChange = async () => {
@@ -221,6 +232,35 @@ export default function WorkOrderDetailPage() {
       if (res.ok) fetchWorkOrder()
     } catch {
       console.error('Error removing material')
+    }
+  }
+
+  const handleApplyTemplate = async (templateId: string) => {
+    try {
+      // Получаем шаблон с позициями
+      const res = await fetch(`/api/material-templates/${templateId}`)
+      const data = await res.json()
+
+      if (!res.ok || !data.template?.items) return
+
+      // Добавляем каждую позицию из шаблона
+      for (const item of data.template.items) {
+        await fetch(`/api/work-orders/${id}/materials`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            material_id: item.material_id,
+            material_name: item.material_name,
+            unit: item.unit,
+            quantity: item.quantity,
+          }),
+        })
+      }
+
+      setShowPrefillModal(false)
+      fetchWorkOrder()
+    } catch {
+      console.error('Error applying template')
     }
   }
 
@@ -416,7 +456,7 @@ export default function WorkOrderDetailPage() {
           </div>
           {workOrder.executors && workOrder.executors.length > 0 ? (
             <div className="space-y-2">
-              {workOrder.executors.map((ex) => (
+              {[...workOrder.executors].sort((a, b) => (b.is_lead ? 1 : 0) - (a.is_lead ? 1 : 0)).map((ex) => (
                 <div key={ex.id} className="flex justify-between items-center py-2 border-b last:border-0">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${ex.is_lead ? 'bg-yellow-400' : 'bg-gray-300'}`}></span>
@@ -427,7 +467,7 @@ export default function WorkOrderDetailPage() {
                     {!ex.is_lead && (
                       <button
                         onClick={() => handleSetLead(ex.id)}
-                        className="text-xs text-gray-500 hover:text-indigo-600"
+                        className="text-lg text-gray-400 hover:text-yellow-500 transition-colors"
                         title="Назначить бригадиром"
                       >
                         ★
@@ -435,7 +475,7 @@ export default function WorkOrderDetailPage() {
                     )}
                     <button
                       onClick={() => handleRemoveExecutor(ex.id)}
-                      className="text-xs text-red-500 hover:text-red-700"
+                      className="text-sm text-red-500 hover:text-red-700"
                     >
                       ✕
                     </button>
@@ -452,12 +492,22 @@ export default function WorkOrderDetailPage() {
         <div className="bg-white rounded-lg shadow p-5">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Материалы</h2>
-            <button
-              onClick={() => setShowMaterialModal(true)}
-              className="text-sm text-indigo-600 hover:text-indigo-800"
-            >
-              + Добавить
-            </button>
+            <div className="flex gap-3">
+              {templates.length > 0 && (
+                <button
+                  onClick={() => setShowPrefillModal(true)}
+                  className="text-sm text-green-600 hover:text-green-800"
+                >
+                  Предзаполнить
+                </button>
+              )}
+              <button
+                onClick={() => setShowMaterialModal(true)}
+                className="text-sm text-indigo-600 hover:text-indigo-800"
+              >
+                + Добавить
+              </button>
+            </div>
           </div>
           {workOrder.materials && workOrder.materials.length > 0 ? (
             <div className="space-y-2">
@@ -594,6 +644,39 @@ export default function WorkOrderDetailPage() {
           onAdd={handleAddMaterial}
           onClose={() => setShowMaterialModal(false)}
         />
+      )}
+
+      {/* Модалка выбора шаблона для предзаполнения */}
+      {showPrefillModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Выберите шаблон материалов</h3>
+            {templates.length === 0 ? (
+              <p className="text-gray-500 mb-4">Нет доступных шаблонов</p>
+            ) : (
+              <div className="max-h-64 overflow-y-auto space-y-2 mb-4">
+                {templates.map((template) => (
+                  <button
+                    key={template.id}
+                    onClick={() => handleApplyTemplate(template.id)}
+                    className="w-full text-left px-4 py-3 border rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
+                  >
+                    <div className="font-medium">{template.name}</div>
+                    {template.description && (
+                      <div className="text-sm text-gray-500 mt-1">{template.description}</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setShowPrefillModal(false)}
+              className="w-full px-4 py-2 border rounded-lg hover:bg-gray-50"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
