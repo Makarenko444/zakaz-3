@@ -44,18 +44,18 @@ const typeLabels: Record<WorkOrderType, string> = {
   installation: 'Монтаж',
 }
 
-const statusLabels: Record<WorkOrderStatus, string> = {
-  draft: 'Черновик',
-  assigned: 'Выдан',
-  in_progress: 'В работе',
-  completed: 'Выполнен',
-  cancelled: 'Отменён',
+const serviceTypeLabels: Record<string, string> = {
+  apartment: 'Квартира',
+  office: 'Офис',
+  scs: 'СКС',
+  emergency: 'Аварийный вызов',
 }
 
 export default function WorkOrderPrintPage() {
   const params = useParams()
   const id = params.id as string
-  const printRef = useRef<HTMLDivElement>(null)
+  const printRef1 = useRef<HTMLDivElement>(null)
+  const printRef2 = useRef<HTMLDivElement>(null)
 
   const [workOrder, setWorkOrder] = useState<WorkOrderWithDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -89,45 +89,57 @@ export default function WorkOrderPrintPage() {
     window.print()
   }
 
+  const generatePDF = async (): Promise<jsPDF | null> => {
+    if (!printRef1.current || !printRef2.current || !workOrder) return null
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    })
+
+    const pdfWidth = pdf.internal.pageSize.getWidth()
+    const pdfHeight = pdf.internal.pageSize.getHeight()
+
+    // Первая страница
+    const canvas1 = await html2canvas(printRef1.current, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    })
+    const imgData1 = canvas1.toDataURL('image/png')
+    const ratio1 = Math.min(pdfWidth / canvas1.width, pdfHeight / canvas1.height)
+    pdf.addImage(imgData1, 'PNG', 0, 0, canvas1.width * ratio1, canvas1.height * ratio1)
+
+    // Вторая страница
+    pdf.addPage()
+    const canvas2 = await html2canvas(printRef2.current, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    })
+    const imgData2 = canvas2.toDataURL('image/png')
+    const ratio2 = Math.min(pdfWidth / canvas2.width, pdfHeight / canvas2.height)
+    pdf.addImage(imgData2, 'PNG', 0, 0, canvas2.width * ratio2, canvas2.height * ratio2)
+
+    return pdf
+  }
+
   const handleSavePDF = async () => {
-    if (!printRef.current || !workOrder?.application?.id) return
+    if (!workOrder?.application?.id) return
 
     setIsSaving(true)
     setSaveMessage(null)
 
     try {
-      const canvas = await html2canvas(printRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      })
+      const pdf = await generatePDF()
+      if (!pdf) return
 
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      })
-
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = pdf.internal.pageSize.getHeight()
-      const imgWidth = canvas.width
-      const imgHeight = canvas.height
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
-      const imgX = (pdfWidth - imgWidth * ratio) / 2
-      const imgY = 0
-
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio)
-
-      // Получаем blob из PDF
       const pdfBlob = pdf.output('blob')
-
-      // Создаём FormData для отправки
       const formData = new FormData()
       const fileName = `Наряд_${workOrder.work_order_number}_${new Date().toISOString().slice(0, 10)}.pdf`
       formData.append('file', pdfBlob, fileName)
 
-      // Загружаем в файлы заявки
       const uploadRes = await fetch(`/api/applications/${workOrder.application.id}/files`, {
         method: 'POST',
         body: formData,
@@ -148,31 +160,11 @@ export default function WorkOrderPrintPage() {
   }
 
   const handleDownloadPDF = async () => {
-    if (!printRef.current || !workOrder) return
+    if (!workOrder) return
 
     try {
-      const canvas = await html2canvas(printRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      })
-
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      })
-
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = pdf.internal.pageSize.getHeight()
-      const imgWidth = canvas.width
-      const imgHeight = canvas.height
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
-      const imgX = (pdfWidth - imgWidth * ratio) / 2
-      const imgY = 0
-
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio)
+      const pdf = await generatePDF()
+      if (!pdf) return
       pdf.save(`Наряд_${workOrder.work_order_number}.pdf`)
     } catch (err) {
       console.error('Error downloading PDF:', err)
@@ -251,7 +243,7 @@ export default function WorkOrderPrintPage() {
       {/* Печатная форма */}
       <div className="py-8">
         <div
-          ref={printRef}
+          ref={printRef1}
           className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none p-8 text-black text-sm"
           style={{ minHeight: '297mm' }}
         >
@@ -263,7 +255,6 @@ export default function WorkOrderPrintPage() {
                 <p className="text-lg mt-1">{typeLabels[workOrder.type]}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm">Статус: <strong>{statusLabels[workOrder.status]}</strong></p>
                 <p className="text-sm">Дата выдачи: {formatDate(workOrder.created_at)}</p>
               </div>
             </div>
@@ -293,7 +284,7 @@ export default function WorkOrderPrintPage() {
                 </tr>
                 <tr>
                   <td className="py-1.5 pr-4 text-gray-600 align-top">Тип услуги:</td>
-                  <td className="py-1.5">{workOrder.application?.service_type || '—'}</td>
+                  <td className="py-1.5">{workOrder.application?.service_type ? serviceTypeLabels[workOrder.application.service_type] || workOrder.application.service_type : '—'}</td>
                 </tr>
               </tbody>
             </table>
@@ -325,48 +316,18 @@ export default function WorkOrderPrintPage() {
               <div className="space-y-1">
                 {leadExecutor && (
                   <p>
-                    <span className="text-gray-600">Бригадир:</span>{' '}
-                    <strong>{leadExecutor.user?.full_name || '—'}</strong>
+                    <strong>1. {leadExecutor.user?.full_name || '—'}</strong>{' '}
+                    <span className="text-gray-600">(бригадир)</span>
                   </p>
                 )}
-                {otherExecutors.length > 0 && (
-                  <p>
-                    <span className="text-gray-600">Монтажники:</span>{' '}
-                    {otherExecutors.map(e => e.user?.full_name).join(', ')}
+                {otherExecutors.map((ex, idx) => (
+                  <p key={ex.id}>
+                    {leadExecutor ? idx + 2 : idx + 1}. {ex.user?.full_name || '—'}
                   </p>
-                )}
+                ))}
               </div>
             ) : (
               <p className="text-gray-500 italic">Не назначены</p>
-            )}
-          </div>
-
-          {/* Материалы */}
-          <div className="mb-6">
-            <h2 className="text-base font-bold mb-3 bg-gray-200 px-2 py-1">МАТЕРИАЛЫ</h2>
-            {workOrder.materials && workOrder.materials.length > 0 ? (
-              <table className="w-full border-collapse border border-gray-400">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-400 px-2 py-1 text-left w-10">№</th>
-                    <th className="border border-gray-400 px-2 py-1 text-left">Наименование</th>
-                    <th className="border border-gray-400 px-2 py-1 text-center w-20">Кол-во</th>
-                    <th className="border border-gray-400 px-2 py-1 text-center w-16">Ед.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workOrder.materials.map((m, idx) => (
-                    <tr key={m.id}>
-                      <td className="border border-gray-400 px-2 py-1">{idx + 1}</td>
-                      <td className="border border-gray-400 px-2 py-1">{m.material_name}</td>
-                      <td className="border border-gray-400 px-2 py-1 text-center">{m.quantity}</td>
-                      <td className="border border-gray-400 px-2 py-1 text-center">{m.unit}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-gray-500 italic">Материалы не указаны</p>
             )}
           </div>
 
@@ -413,12 +374,93 @@ export default function WorkOrderPrintPage() {
             </div>
           </div>
 
-          {/* Футер */}
+          {/* Футер первой страницы */}
           <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
             <p>Документ сформирован: {new Date().toLocaleString('ru-RU')}</p>
             {workOrder.created_by_user && (
               <p>Создал: {workOrder.created_by_user.full_name}</p>
             )}
+          </div>
+        </div>
+
+        {/* ВТОРАЯ СТРАНИЦА - Материалы */}
+        <div
+          ref={printRef2}
+          className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none p-8 text-black text-sm mt-8 print:mt-0"
+          style={{ minHeight: '297mm', pageBreakBefore: 'always' }}
+        >
+          {/* Шапка второй страницы */}
+          <div className="border-b-2 border-black pb-4 mb-6">
+            <h1 className="text-xl font-bold">НАРЯД №{workOrder.work_order_number} — МАТЕРИАЛЫ</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              {workOrder.application?.customer_fullname} | {workOrder.application?.city}, {workOrder.application?.street_and_house}
+            </p>
+          </div>
+
+          {/* Таблица материалов */}
+          <div className="mb-6">
+            <h2 className="text-base font-bold mb-3 bg-gray-200 px-2 py-1">СПИСОК МАТЕРИАЛОВ</h2>
+            {workOrder.materials && workOrder.materials.length > 0 ? (
+              <table className="w-full border-collapse border border-gray-400">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-400 px-2 py-1 text-left w-10">№</th>
+                    <th className="border border-gray-400 px-2 py-1 text-left">Наименование</th>
+                    <th className="border border-gray-400 px-2 py-1 text-center w-20">Кол-во</th>
+                    <th className="border border-gray-400 px-2 py-1 text-center w-16">Ед.</th>
+                    <th className="border border-gray-400 px-2 py-1 text-center w-24">Выдано</th>
+                    <th className="border border-gray-400 px-2 py-1 text-center w-24">Возврат</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workOrder.materials.map((m, idx) => (
+                    <tr key={m.id}>
+                      <td className="border border-gray-400 px-2 py-1">{idx + 1}</td>
+                      <td className="border border-gray-400 px-2 py-1">{m.material_name}</td>
+                      <td className="border border-gray-400 px-2 py-1 text-center">{m.quantity}</td>
+                      <td className="border border-gray-400 px-2 py-1 text-center">{m.unit}</td>
+                      <td className="border border-gray-400 px-2 py-1 text-center"></td>
+                      <td className="border border-gray-400 px-2 py-1 text-center"></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-gray-500 italic">Материалы не указаны</p>
+            )}
+          </div>
+
+          {/* Подписи на странице материалов */}
+          <div className="mt-12 pt-4 border-t border-gray-400">
+            <div className="grid grid-cols-2 gap-8">
+              <div>
+                <p className="text-sm text-gray-600 mb-10">Материалы выдал:</p>
+                <div className="border-b border-black w-48 mb-1"></div>
+                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-10">Материалы получил:</p>
+                <div className="border-b border-black w-48 mb-1"></div>
+                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Блок возврата материалов */}
+          <div className="mt-12 pt-4 border-t border-gray-400">
+            <h2 className="text-base font-bold mb-4">ВОЗВРАТ МАТЕРИАЛОВ</h2>
+            <div className="grid grid-cols-2 gap-8">
+              <div>
+                <p className="text-sm text-gray-600 mb-10">Материалы сдал:</p>
+                <div className="border-b border-black w-48 mb-1"></div>
+                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-10">Материалы принял:</p>
+                <div className="border-b border-black w-48 mb-1"></div>
+                <p className="text-xs text-gray-500">(подпись, ФИО)</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
