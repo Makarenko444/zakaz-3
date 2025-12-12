@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
-import { WorkOrder, WorkOrderType, WorkOrderStatus, User } from '@/lib/types'
+import { WorkOrder, WorkOrderType, User } from '@/lib/types'
 
 interface WorkOrderWithDetails extends WorkOrder {
   application?: {
