@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { Material } from '@/lib/types'
 
+// Таблица zakaz_materials еще не в сгенерированных типах Supabase,
+// поэтому используем приведение типов
+
 // GET /api/materials - список материалов из справочника
 export async function GET(request: NextRequest) {
   try {
@@ -12,8 +15,8 @@ export async function GET(request: NextRequest) {
     const activeOnly = searchParams.get('active_only') !== 'false' // по умолчанию только активные
     const search = searchParams.get('search')
 
-    let query = supabase
-      .from('zakaz_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase.from as any)('zakaz_materials')
       .select('*')
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true })
@@ -87,18 +90,19 @@ export async function POST(request: NextRequest) {
     // Определяем sort_order если не передан
     let finalSortOrder = sort_order
     if (finalSortOrder === undefined) {
-      const { data: maxOrder } = await supabase
-        .from('zakaz_materials')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (supabase.from as any)('zakaz_materials')
         .select('sort_order')
         .order('sort_order', { ascending: false })
         .limit(1)
         .single()
+      const maxOrder = result.data as { sort_order: number } | null
 
       finalSortOrder = (maxOrder?.sort_order || 0) + 1
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_materials')
       .insert({
         name,
         unit,
@@ -146,8 +150,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Проверяем существование
-    const { data: existing, error: fetchError } = await supabase
-      .from('zakaz_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing, error: fetchError } = await (supabase.from as any)('zakaz_materials')
       .select('id')
       .eq('id', id)
       .single()
@@ -174,8 +178,8 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_materials')
       .update(updateData)
       .eq('id', id)
       .select('*')
@@ -217,8 +221,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Проверяем существование
-    const { data: existing, error: fetchError } = await supabase
-      .from('zakaz_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing, error: fetchError } = await (supabase.from as any)('zakaz_materials')
       .select('id')
       .eq('id', id)
       .single()
@@ -231,8 +235,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Удаляем
-    const { error } = await supabase
-      .from('zakaz_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from as any)('zakaz_materials')
       .delete()
       .eq('id', id)
 

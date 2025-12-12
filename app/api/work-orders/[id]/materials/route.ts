@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 
+// Таблицы zakaz_work_orders и zakaz_work_order_materials еще не в сгенерированных типах Supabase
+
 interface RouteParams {
   params: Promise<{ id: string }>
 }
@@ -12,8 +14,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = createDirectClient()
 
     // Проверяем существование наряда
-    const { data: workOrder, error: woError } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: workOrder, error: woError } = await (supabase.from as any)('zakaz_work_orders')
       .select('id')
       .eq('id', id)
       .single()
@@ -25,8 +27,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_work_order_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_order_materials')
       .select('*')
       .eq('work_order_id', id)
       .order('created_at', { ascending: true })
@@ -74,8 +76,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Проверяем существование наряда
-    const { data: workOrder, error: woError } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: workOrder, error: woError } = await (supabase.from as any)('zakaz_work_orders')
       .select('id')
       .eq('id', id)
       .single()
@@ -88,8 +90,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Добавляем материал
-    const { data, error } = await supabase
-      .from('zakaz_work_order_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_order_materials')
       .insert({
         work_order_id: id,
         material_id: material_id || null,
@@ -139,8 +141,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Проверяем существование наряда
-    const { data: workOrder, error: woError } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: workOrder, error: woError } = await (supabase.from as any)('zakaz_work_orders')
       .select('id')
       .eq('id', id)
       .single()
@@ -153,8 +155,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Удаляем старые материалы
-    await supabase
-      .from('zakaz_work_order_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from as any)('zakaz_work_order_materials')
       .delete()
       .eq('work_order_id', id)
 
@@ -175,8 +177,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         notes: m.notes || null,
       }))
 
-      const { error } = await supabase
-        .from('zakaz_work_order_materials')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from as any)('zakaz_work_order_materials')
         .insert(materialsData)
 
       if (error) {
@@ -189,8 +191,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Получаем обновлённый список
-    const { data } = await supabase
-      .from('zakaz_work_order_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase.from as any)('zakaz_work_order_materials')
       .select('*')
       .eq('work_order_id', id)
       .order('created_at', { ascending: true })
@@ -225,8 +227,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Проверяем существование записи
-    const { data: existing, error: fetchError } = await supabase
-      .from('zakaz_work_order_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing, error: fetchError } = await (supabase.from as any)('zakaz_work_order_materials')
       .select('id')
       .eq('id', material_record_id)
       .eq('work_order_id', id)
@@ -244,8 +246,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (quantity !== undefined) updateData.quantity = quantity
     if (notes !== undefined) updateData.notes = notes
 
-    const { data, error } = await supabase
-      .from('zakaz_work_order_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_order_materials')
       .update(updateData)
       .eq('id', material_record_id)
       .select('*')
@@ -288,8 +290,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Проверяем существование
-    const { data: existing, error: fetchError } = await supabase
-      .from('zakaz_work_order_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing, error: fetchError } = await (supabase.from as any)('zakaz_work_order_materials')
       .select('id')
       .eq('id', materialRecordId)
       .eq('work_order_id', id)
@@ -303,8 +305,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Удаляем
-    const { error } = await supabase
-      .from('zakaz_work_order_materials')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from as any)('zakaz_work_order_materials')
       .delete()
       .eq('id', materialRecordId)
 

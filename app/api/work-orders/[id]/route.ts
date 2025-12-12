@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
 
+// Таблицы zakaz_work_orders и связанные еще не в сгенерированных типах Supabase
+
 interface RouteParams {
   params: Promise<{ id: string }>
 }
@@ -12,8 +14,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const supabase = createDirectClient()
 
-    const { data, error } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_orders')
       .select(`
         *,
         application:zakaz_applications(
@@ -83,8 +85,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json()
 
     // Получаем текущие данные для аудита
-    const { data: currentData, error: fetchError } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: currentData, error: fetchError } = await (supabase.from as any)('zakaz_work_orders')
       .select('*, application:zakaz_applications(application_number)')
       .eq('id', id)
       .single()
@@ -133,8 +135,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updateData.updated_by = body.user_id
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_orders')
       .update(updateData)
       .eq('id', id)
       .select('*')
@@ -185,8 +187,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const userId = searchParams.get('user_id')
 
     // Получаем данные наряда перед удалением
-    const { data: workOrder, error: fetchError } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: workOrder, error: fetchError } = await (supabase.from as any)('zakaz_work_orders')
       .select('*, application:zakaz_applications(application_number)')
       .eq('id', id)
       .single()
@@ -199,8 +201,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Удаляем наряд (каскадно удалятся исполнители, материалы, история)
-    const { error } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from as any)('zakaz_work_orders')
       .delete()
       .eq('id', id)
 

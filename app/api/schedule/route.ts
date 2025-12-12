@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { WorkOrderType } from '@/lib/types'
 
+// Таблицы zakaz_work_orders и zakaz_work_order_executors еще не в сгенерированных типах Supabase
+
 // GET /api/schedule - календарь нарядов
 export async function GET(request: NextRequest) {
   try {
@@ -36,8 +38,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Базовый запрос
-    let query = supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase.from as any)('zakaz_work_orders')
       .select(`
         id,
         work_order_number,
@@ -76,13 +78,15 @@ export async function GET(request: NextRequest) {
     // Фильтр по исполнителю
     if (executorId) {
       // Получаем ID нарядов этого исполнителя
-      const { data: executorWorkOrders } = await supabase
-        .from('zakaz_work_order_executors')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: executorWorkOrders } = await (supabase.from as any)('zakaz_work_order_executors')
         .select('work_order_id')
         .eq('user_id', executorId)
 
-      if (executorWorkOrders && executorWorkOrders.length > 0) {
-        const workOrderIds = executorWorkOrders.map(e => e.work_order_id)
+      const typedExecutorWorkOrders = executorWorkOrders as { work_order_id: string }[] | null
+
+      if (typedExecutorWorkOrders && typedExecutorWorkOrders.length > 0) {
+        const workOrderIds = typedExecutorWorkOrders.map(e => e.work_order_id)
         query = query.in('id', workOrderIds)
       } else {
         return NextResponse.json({
@@ -104,7 +108,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Группируем по датам для удобства отображения
-    const groupedByDate: Record<string, typeof data> = {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const groupedByDate: Record<string, any[]> = {}
 
     for (const workOrder of data || []) {
       const dateKey = workOrder.scheduled_date || 'unscheduled'
@@ -141,8 +146,8 @@ async function getExecutorStats(
 ) {
   try {
     // Получаем всех исполнителей с их нарядами в указанном периоде
-    const { data: executors } = await supabase
-      .from('zakaz_work_order_executors')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: executors } = await (supabase.from as any)('zakaz_work_order_executors')
       .select(`
         user_id,
         user:zakaz_users(id, full_name, role),
