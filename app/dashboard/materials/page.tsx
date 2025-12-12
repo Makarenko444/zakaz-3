@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Material, MaterialTemplate, MaterialTemplateItem } from '@/lib/types'
+import { Material, MaterialTemplate } from '@/lib/types'
 
 type TabType = 'materials' | 'templates'
 
