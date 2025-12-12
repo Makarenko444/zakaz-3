@@ -19,6 +19,8 @@ interface WorkOrderWithDetails extends WorkOrder {
     service_type: string
     urgency: string
     status: string
+    contact_person: string | null
+    contact_phone: string | null
   }
   executors?: Array<{
     id: string
@@ -424,6 +426,15 @@ export default function WorkOrderPrintPage() {
                   <td style={styles.tdLabel}>Телефон:</td>
                   <td style={styles.tdValue}>{workOrder.application?.customer_phone || '—'}</td>
                 </tr>
+                {workOrder.application?.contact_person && (
+                  <tr>
+                    <td style={styles.tdLabel}>Контакт:</td>
+                    <td style={styles.tdValue}>
+                      {workOrder.application.contact_person}
+                      {workOrder.application.contact_phone && `, тел: ${workOrder.application.contact_phone}`}
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td style={styles.tdLabel}>Адрес:</td>
                   <td style={styles.tdValue}>
