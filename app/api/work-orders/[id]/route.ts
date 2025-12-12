@@ -29,7 +29,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           address_details,
           service_type,
           urgency,
-          status
+          status,
+          contact_person,
+          contact_phone
         ),
         executors:zakaz_work_order_executors(
           id,
