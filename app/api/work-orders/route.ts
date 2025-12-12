@@ -3,6 +3,8 @@ import { createDirectClient } from '@/lib/supabase-direct'
 import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
 import { WorkOrderType, WorkOrderStatus } from '@/lib/types'
 
+// Таблицы zakaz_work_orders и связанные еще не в сгенерированных типах Supabase
+
 // GET /api/work-orders - список нарядов с фильтрами
 export async function GET(request: NextRequest) {
   try {
@@ -28,8 +30,8 @@ export async function GET(request: NextRequest) {
     const validSortDir = sortDir === 'asc' || sortDir === 'desc' ? sortDir : 'desc'
 
     // Базовый запрос с join на заявку и исполнителей
-    let query = supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase.from as any)('zakaz_work_orders')
       .select(`
         *,
         application:zakaz_applications(
@@ -70,13 +72,15 @@ export async function GET(request: NextRequest) {
     // Фильтр по исполнителю - через подзапрос
     if (executorId) {
       // Получаем ID нарядов где есть этот исполнитель
-      const { data: executorWorkOrders } = await supabase
-        .from('zakaz_work_order_executors')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: executorWorkOrders } = await (supabase.from as any)('zakaz_work_order_executors')
         .select('work_order_id')
         .eq('user_id', executorId)
 
-      if (executorWorkOrders && executorWorkOrders.length > 0) {
-        const workOrderIds = executorWorkOrders.map(e => e.work_order_id)
+      const typedExecutorWorkOrders = executorWorkOrders as { work_order_id: string }[] | null
+
+      if (typedExecutorWorkOrders && typedExecutorWorkOrders.length > 0) {
+        const workOrderIds = typedExecutorWorkOrders.map(e => e.work_order_id)
         query = query.in('id', workOrderIds)
       } else {
         // Нет нарядов с этим исполнителем
@@ -156,11 +160,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Проверяем существование заявки
-    const { data: application, error: appError } = await supabase
+    const appResult = await supabase
       .from('zakaz_applications')
       .select('id, application_number, customer_fullname')
       .eq('id', body.application_id)
       .single()
+    const application = appResult.data as { id: string; application_number: number; customer_fullname: string } | null
+    const appError = appResult.error
 
     if (appError || !application) {
       return NextResponse.json(
@@ -182,8 +188,8 @@ export async function POST(request: NextRequest) {
       updated_by: body.created_by || null,
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_orders')
       .insert(workOrderData)
       .select('*')
       .single()
@@ -204,8 +210,8 @@ export async function POST(request: NextRequest) {
         is_lead: exec.is_lead || false,
       }))
 
-      const { error: execError } = await supabase
-        .from('zakaz_work_order_executors')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: execError } = await (supabase.from as any)('zakaz_work_order_executors')
         .insert(executorsData)
 
       if (execError) {
@@ -214,8 +220,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Записываем в историю статусов
-    await supabase
-      .from('zakaz_work_order_status_history')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from as any)('zakaz_work_order_status_history')
       .insert({
         work_order_id: data.id,
         old_status: null,

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
 
+// Таблицы zakaz_work_orders и zakaz_work_order_executors еще не в сгенерированных типах Supabase
+
 interface RouteParams {
   params: Promise<{ id: string }>
 }
@@ -13,8 +15,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = createDirectClient()
 
     // Проверяем существование наряда
-    const { data: workOrder, error: woError } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: workOrder, error: woError } = await (supabase.from as any)('zakaz_work_orders')
       .select('id')
       .eq('id', id)
       .single()
@@ -26,8 +28,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const { data, error } = await supabase
-      .from('zakaz_work_order_executors')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_order_executors')
       .select(`
         id,
         user_id,
@@ -74,8 +76,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Проверяем существование наряда
-    const { data: workOrder, error: woError } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: workOrder, error: woError } = await (supabase.from as any)('zakaz_work_orders')
       .select('id, work_order_number')
       .eq('id', id)
       .single()
@@ -88,11 +90,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Проверяем существование пользователя
-    const { data: user, error: userError } = await supabase
+    const userResult = await supabase
       .from('zakaz_users')
       .select('id, full_name')
       .eq('id', user_id)
       .single()
+    const user = userResult.data as { id: string; full_name: string } | null
+    const userError = userResult.error
 
     if (userError || !user) {
       return NextResponse.json(
@@ -102,8 +106,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Проверяем что исполнитель ещё не добавлен
-    const { data: existing } = await supabase
-      .from('zakaz_work_order_executors')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing } = await (supabase.from as any)('zakaz_work_order_executors')
       .select('id')
       .eq('work_order_id', id)
       .eq('user_id', user_id)
@@ -118,16 +122,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Если is_lead = true, снимаем флаг с текущего бригадира
     if (is_lead) {
-      await supabase
-        .from('zakaz_work_order_executors')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from as any)('zakaz_work_order_executors')
         .update({ is_lead: false })
         .eq('work_order_id', id)
         .eq('is_lead', true)
     }
 
     // Добавляем исполнителя
-    const { data, error } = await supabase
-      .from('zakaz_work_order_executors')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_order_executors')
       .insert({
         work_order_id: id,
         user_id,
@@ -195,8 +199,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Получаем данные исполнителя перед удалением
-    const { data: executor, error: fetchError } = await supabase
-      .from('zakaz_work_order_executors')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: executor, error: fetchError } = await (supabase.from as any)('zakaz_work_order_executors')
       .select(`
         id,
         user_id,
@@ -216,8 +220,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Удаляем исполнителя
-    const { error } = await supabase
-      .from('zakaz_work_order_executors')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from as any)('zakaz_work_order_executors')
       .delete()
       .eq('id', executorId)
 
@@ -274,8 +278,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Проверяем существование исполнителя
-    const { data: executor, error: fetchError } = await supabase
-      .from('zakaz_work_order_executors')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: executor, error: fetchError } = await (supabase.from as any)('zakaz_work_order_executors')
       .select(`
         id,
         user_id,
@@ -295,16 +299,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Если делаем бригадиром, снимаем флаг с текущего
     if (is_lead) {
-      await supabase
-        .from('zakaz_work_order_executors')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from as any)('zakaz_work_order_executors')
         .update({ is_lead: false })
         .eq('work_order_id', id)
         .eq('is_lead', true)
     }
 
     // Обновляем
-    const { data, error } = await supabase
-      .from('zakaz_work_order_executors')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_order_executors')
       .update({ is_lead: is_lead || false })
       .eq('id', executor_id)
       .select(`

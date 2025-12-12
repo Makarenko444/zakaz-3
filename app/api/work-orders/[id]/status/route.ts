@@ -3,6 +3,8 @@ import { createDirectClient } from '@/lib/supabase-direct'
 import { logAudit, getClientIP, getUserAgent, getUserData } from '@/lib/audit-log'
 import { WorkOrderStatus } from '@/lib/types'
 
+// Таблицы zakaz_work_orders и связанные еще не в сгенерированных типах Supabase
+
 interface RouteParams {
   params: Promise<{ id: string }>
 }
@@ -34,8 +36,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Получаем текущий наряд
-    const { data: currentData, error: fetchError } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: currentData, error: fetchError } = await (supabase.from as any)('zakaz_work_orders')
       .select('*, application:zakaz_applications(application_number)')
       .eq('id', id)
       .single()
@@ -74,8 +76,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Обновляем статус
-    const { data, error } = await supabase
-      .from('zakaz_work_orders')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('zakaz_work_orders')
       .update(updateData)
       .eq('id', id)
       .select('*')
@@ -90,8 +92,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Записываем в историю статусов
-    await supabase
-      .from('zakaz_work_order_status_history')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from as any)('zakaz_work_order_status_history')
       .insert({
         work_order_id: id,
         old_status: oldStatus,
@@ -109,7 +111,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       actionType: 'status_change',
       entityType: 'work_order',
       entityId: id,
-      description: `Наряд №${data.work_order_number} (${typeLabel}): ${STATUS_LABELS[oldStatus]} → ${STATUS_LABELS[status]}`,
+      description: `Наряд №${data.work_order_number} (${typeLabel}): ${STATUS_LABELS[oldStatus]} → ${STATUS_LABELS[status as WorkOrderStatus]}`,
       oldValues: { status: oldStatus },
       newValues: { status },
       ipAddress: getClientIP(request),

@@ -5,7 +5,7 @@ export interface AuditLogEntry {
   userEmail?: string
   userName?: string
   actionType: 'create' | 'update' | 'delete' | 'status_change' | 'assign' | 'unassign' | 'other'
-  entityType: 'application' | 'address' | 'user' | 'other'
+  entityType: 'application' | 'address' | 'user' | 'work_order' | 'material' | 'other'
   entityId?: string
   description: string
   oldValues?: Record<string, unknown>
