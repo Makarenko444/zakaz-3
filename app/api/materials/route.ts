@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
+import { Material } from '@/lib/types'
 
 // GET /api/materials - список материалов из справочника
 export async function GET(request: NextRequest) {
@@ -32,7 +33,9 @@ export async function GET(request: NextRequest) {
       query = query.ilike('name', `%${search}%`)
     }
 
-    const { data, error } = await query
+    const result = await query
+    const data = result.data as Material[] | null
+    const error = result.error
 
     if (error) {
       console.error('[Materials API] Database error:', error)

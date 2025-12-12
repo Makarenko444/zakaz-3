@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { WorkOrder, WorkOrderType, WorkOrderStatus, User } from '@/lib/types'
 
 interface WorkOrderWithDetails extends WorkOrder {
@@ -16,7 +15,6 @@ interface WorkOrderWithDetails extends WorkOrder {
 
 interface Props {
   applicationId: string
-  applicationNumber: number
 }
 
 const typeLabels: Record<WorkOrderType, string> = {
@@ -45,7 +43,7 @@ const statusColors: Record<WorkOrderStatus, string> = {
   cancelled: 'bg-red-100 text-red-700',
 }
 
-export default function WorkOrdersSection({ applicationId, applicationNumber }: Props) {
+export default function WorkOrdersSection({ applicationId }: Props) {
   const router = useRouter()
   const [workOrders, setWorkOrders] = useState<WorkOrderWithDetails[]>([])
   const [isLoading, setIsLoading] = useState(true)

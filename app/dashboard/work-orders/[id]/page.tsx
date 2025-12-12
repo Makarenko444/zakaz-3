@@ -90,7 +90,7 @@ export default function WorkOrderDetailPage() {
       } else {
         setError(data.error || 'Ошибка загрузки')
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Ошибка сети')
     } finally {
       setIsLoading(false)
@@ -131,8 +131,8 @@ export default function WorkOrderDetailPage() {
         setStatusComment('')
         fetchWorkOrder()
       }
-    } catch (err) {
-      console.error('Error changing status:', err)
+    } catch {
+      console.error('Error changing status')
     }
   }
 
@@ -148,8 +148,8 @@ export default function WorkOrderDetailPage() {
         setShowExecutorModal(false)
         fetchWorkOrder()
       }
-    } catch (err) {
-      console.error('Error adding executor:', err)
+    } catch {
+      console.error('Error adding executor')
     }
   }
 
@@ -162,8 +162,8 @@ export default function WorkOrderDetailPage() {
       })
 
       if (res.ok) fetchWorkOrder()
-    } catch (err) {
-      console.error('Error removing executor:', err)
+    } catch {
+      console.error('Error removing executor')
     }
   }
 
@@ -176,8 +176,8 @@ export default function WorkOrderDetailPage() {
       })
 
       if (res.ok) fetchWorkOrder()
-    } catch (err) {
-      console.error('Error setting lead:', err)
+    } catch {
+      console.error('Error setting lead')
     }
   }
 
@@ -198,8 +198,8 @@ export default function WorkOrderDetailPage() {
         setShowMaterialModal(false)
         fetchWorkOrder()
       }
-    } catch (err) {
-      console.error('Error adding material:', err)
+    } catch {
+      console.error('Error adding material')
     }
   }
 
@@ -210,8 +210,8 @@ export default function WorkOrderDetailPage() {
       })
 
       if (res.ok) fetchWorkOrder()
-    } catch (err) {
-      console.error('Error removing material:', err)
+    } catch {
+      console.error('Error removing material')
     }
   }
 

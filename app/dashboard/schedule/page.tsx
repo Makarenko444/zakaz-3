@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { WorkOrderType, WorkOrderStatus, User } from '@/lib/types'
+import { WorkOrderType, WorkOrderStatus } from '@/lib/types'
 
 interface ScheduleWorkOrder {
   id: string
