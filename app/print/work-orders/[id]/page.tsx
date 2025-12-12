@@ -89,6 +89,42 @@ export default function WorkOrderPrintPage() {
     window.print()
   }
 
+  // Функция для клонирования элемента и замены неподдерживаемых CSS цветов
+  const cloneElementForCanvas = (element: HTMLElement): HTMLElement => {
+    const clone = element.cloneNode(true) as HTMLElement
+
+    // Заменяем lab(), lch(), oklch() и другие неподдерживаемые цвета
+    const replaceUnsupportedColors = (el: HTMLElement) => {
+      const computedStyle = window.getComputedStyle(el)
+      const colorProps = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor']
+
+      colorProps.forEach(prop => {
+        const value = computedStyle.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase())
+        if (value && (value.includes('lab(') || value.includes('lch(') || value.includes('oklch(') || value.includes('oklab('))) {
+          // Заменяем на fallback цвет
+          const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase()
+          if (prop === 'backgroundColor') {
+            el.style.backgroundColor = '#ffffff'
+          } else if (prop === 'color') {
+            el.style.color = '#000000'
+          } else {
+            el.style.setProperty(cssProp, '#cccccc')
+          }
+        }
+      })
+
+      // Рекурсивно обрабатываем дочерние элементы
+      Array.from(el.children).forEach(child => {
+        if (child instanceof HTMLElement) {
+          replaceUnsupportedColors(child)
+        }
+      })
+    }
+
+    replaceUnsupportedColors(clone)
+    return clone
+  }
+
   const generatePDF = async (): Promise<jsPDF | null> => {
     if (!printRef1.current || !printRef2.current || !workOrder) {
       console.error('Missing refs or workOrder')
@@ -105,30 +141,50 @@ export default function WorkOrderPrintPage() {
       const pdfWidth = pdf.internal.pageSize.getWidth()
       const pdfHeight = pdf.internal.pageSize.getHeight()
 
-      // Первая страница
-      const canvas1 = await html2canvas(printRef1.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-      })
-      const imgData1 = canvas1.toDataURL('image/png')
-      const ratio1 = Math.min(pdfWidth / canvas1.width, pdfHeight / canvas1.height)
-      pdf.addImage(imgData1, 'PNG', 0, 0, canvas1.width * ratio1, canvas1.height * ratio1)
+      // Создаём временный контейнер для клонов
+      const tempContainer = document.createElement('div')
+      tempContainer.style.position = 'absolute'
+      tempContainer.style.left = '-9999px'
+      tempContainer.style.top = '0'
+      document.body.appendChild(tempContainer)
 
-      // Вторая страница
-      pdf.addPage()
-      const canvas2 = await html2canvas(printRef2.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-      })
-      const imgData2 = canvas2.toDataURL('image/png')
-      const ratio2 = Math.min(pdfWidth / canvas2.width, pdfHeight / canvas2.height)
-      pdf.addImage(imgData2, 'PNG', 0, 0, canvas2.width * ratio2, canvas2.height * ratio2)
+      try {
+        // Первая страница
+        const clone1 = cloneElementForCanvas(printRef1.current)
+        clone1.style.width = printRef1.current.offsetWidth + 'px'
+        tempContainer.appendChild(clone1)
+
+        const canvas1 = await html2canvas(clone1, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+        })
+        const imgData1 = canvas1.toDataURL('image/png')
+        const ratio1 = Math.min(pdfWidth / canvas1.width, pdfHeight / canvas1.height)
+        pdf.addImage(imgData1, 'PNG', 0, 0, canvas1.width * ratio1, canvas1.height * ratio1)
+
+        // Вторая страница
+        const clone2 = cloneElementForCanvas(printRef2.current)
+        clone2.style.width = printRef2.current.offsetWidth + 'px'
+        tempContainer.appendChild(clone2)
+
+        pdf.addPage()
+        const canvas2 = await html2canvas(clone2, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+        })
+        const imgData2 = canvas2.toDataURL('image/png')
+        const ratio2 = Math.min(pdfWidth / canvas2.width, pdfHeight / canvas2.height)
+        pdf.addImage(imgData2, 'PNG', 0, 0, canvas2.width * ratio2, canvas2.height * ratio2)
+      } finally {
+        // Удаляем временный контейнер
+        document.body.removeChild(tempContainer)
+      }
 
       return pdf
     } catch (err) {
