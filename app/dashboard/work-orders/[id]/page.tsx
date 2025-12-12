@@ -70,6 +70,8 @@ export default function WorkOrderDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [materials, setMaterials] = useState<Material[]>([])
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Модальные окна
   const [showStatusModal, setShowStatusModal] = useState(false)
@@ -109,10 +111,17 @@ export default function WorkOrderDetailPage() {
     if (res.ok) setMaterials(data.materials || [])
   }
 
+  const fetchCurrentUser = async () => {
+    const res = await fetch('/api/auth/me')
+    const data = await res.json()
+    if (res.ok && data.user) setCurrentUser(data.user)
+  }
+
   useEffect(() => {
     fetchWorkOrder()
     fetchUsers()
     fetchMaterials()
+    fetchCurrentUser()
   }, [fetchWorkOrder])
 
   const handleStatusChange = async () => {
@@ -215,6 +224,33 @@ export default function WorkOrderDetailPage() {
     }
   }
 
+  const handleDeleteWorkOrder = async () => {
+    if (!confirm(`Удалить наряд №${workOrder?.work_order_number}? Это действие необратимо.`)) return
+
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/work-orders/${id}?user_id=${currentUser?.id}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        // Вернуться к заявке или списку нарядов
+        if (workOrder?.application?.id) {
+          router.push(`/dashboard/applications/${workOrder.application.id}`)
+        } else {
+          router.push('/dashboard/applications')
+        }
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Ошибка удаления наряда')
+      }
+    } catch {
+      alert('Ошибка сети')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—'
     return new Date(dateStr).toLocaleDateString('ru-RU')
@@ -271,6 +307,15 @@ export default function WorkOrderDetailPage() {
           >
             Сменить статус
           </button>
+          {currentUser?.role === 'admin' && (
+            <button
+              onClick={handleDeleteWorkOrder}
+              disabled={isDeleting}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {isDeleting ? 'Удаление...' : 'Удалить'}
+            </button>
+          )}
           <button
             onClick={() => router.back()}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
