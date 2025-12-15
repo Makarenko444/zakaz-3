@@ -320,9 +320,23 @@ export default function CommentsPage() {
           {comments.map((comment) => (
             <div
               key={comment.id}
-              className="bg-white rounded-lg shadow hover:shadow-md transition cursor-pointer"
+              className="bg-white rounded-lg shadow hover:shadow-md transition cursor-pointer relative group"
               onClick={() => router.push(`/dashboard/applications/${comment.application_id}`)}
             >
+              {/* Кнопка открытия в новом окне */}
+              <a
+                href={`/dashboard/applications/${comment.application_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="absolute top-2 right-2 p-1.5 bg-white/80 hover:bg-white rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                title="Открыть в новом окне"
+              >
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+
               {/* Шапка карточки - информация о заявке */}
               <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
                 <div className="flex items-center justify-between gap-2">
@@ -337,7 +351,7 @@ export default function CommentsPage() {
                     )}
                   </div>
                   {comment.files_count > 0 && (
-                    <span className="flex items-center gap-1 text-gray-400" title={`Файлов: ${comment.files_count}`}>
+                    <span className="flex items-center gap-1 text-gray-400 mr-6" title={`Файлов: ${comment.files_count}`}>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                       </svg>
@@ -360,7 +374,7 @@ export default function CommentsPage() {
               <div className="p-4">
                 {/* Цитата если это ответ */}
                 {comment.replied_comment && (
-                  <div className="mb-3 p-2 bg-gray-100 border-l-3 border-blue-400 rounded text-xs">
+                  <div className="mb-3 p-2 bg-gray-100 border-l-4 border-blue-400 rounded text-xs">
                     <span className="font-medium text-blue-600">{comment.replied_comment.user_name}:</span>
                     <p className="text-gray-600 line-clamp-1">{comment.replied_comment.comment}</p>
                   </div>
