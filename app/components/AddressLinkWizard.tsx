@@ -75,6 +75,11 @@ export default function AddressLinkWizard({
   const [similarAddresses, setSimilarAddresses] = useState<Address[]>([])
   const [showSimilarWarning, setShowSimilarWarning] = useState(false)
 
+  // Состояние для автоподсказок улиц
+  const [streetSuggestions, setStreetSuggestions] = useState<string[]>([])
+  const [showStreetSuggestions, setShowStreetSuggestions] = useState(false)
+  const [isLoadingStreets, setIsLoadingStreets] = useState(false)
+
   const validateAddressWithOSM = useCallback(async (address: string) => {
     try {
       const response = await fetch(`/api/addresses/validate-osm?address=${encodeURIComponent(address)}`)
@@ -189,6 +194,64 @@ export default function AddressLinkWizard({
 
     loadCurrentAddress()
   }, [currentAddressId])
+
+  // Поиск улиц для автоподсказок
+  const searchStreets = useCallback(async (query: string) => {
+    if (!query.trim() || query.trim().length < 2) {
+      setStreetSuggestions([])
+      setShowStreetSuggestions(false)
+      return
+    }
+
+    setIsLoadingStreets(true)
+
+    try {
+      const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}`)
+      if (!response.ok) {
+        setStreetSuggestions([])
+        return
+      }
+
+      const data = await response.json()
+      const addresses = data.addresses || []
+
+      // Извлекаем уникальные названия улиц
+      const uniqueStreets = [...new Set(
+        addresses
+          .filter((addr: Address) => addr.street && (!addr.source || addr.source === 'local'))
+          .map((addr: Address) => addr.street)
+      )] as string[]
+
+      // Сортируем по релевантности (те что начинаются с запроса - первые)
+      const queryLower = query.toLowerCase()
+      uniqueStreets.sort((a, b) => {
+        const aStartsWith = a.toLowerCase().startsWith(queryLower)
+        const bStartsWith = b.toLowerCase().startsWith(queryLower)
+        if (aStartsWith && !bStartsWith) return -1
+        if (!aStartsWith && bStartsWith) return 1
+        return a.localeCompare(b, 'ru')
+      })
+
+      setStreetSuggestions(uniqueStreets.slice(0, 8))
+      setShowStreetSuggestions(uniqueStreets.length > 0)
+    } catch (error) {
+      console.error('Error searching streets:', error)
+      setStreetSuggestions([])
+    } finally {
+      setIsLoadingStreets(false)
+    }
+  }, [])
+
+  // Debounce для поиска улиц при вводе
+  useEffect(() => {
+    if (!showCreateForm) return
+
+    const timeoutId = setTimeout(() => {
+      searchStreets(newAddress.street)
+    }, 200)
+
+    return () => clearTimeout(timeoutId)
+  }, [newAddress.street, showCreateForm, searchStreets])
 
   async function handleLink(address: Address) {
     setIsLinking(true)
@@ -561,24 +624,59 @@ export default function AddressLinkWizard({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
+                    <div className="relative">
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Улица <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={newAddress.street}
-                        onChange={(e) => {
-                          setNewAddress({ ...newAddress, street: e.target.value })
-                          // Сбрасываем предупреждение о похожих при изменении
-                          if (showSimilarWarning) {
-                            setShowSimilarWarning(false)
-                            setSimilarAddresses([])
-                          }
-                        }}
-                        placeholder="Кирова, проспект Ленина, Иркутский тракт..."
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={newAddress.street}
+                          onChange={(e) => {
+                            setNewAddress({ ...newAddress, street: e.target.value })
+                            // Сбрасываем предупреждение о похожих при изменении
+                            if (showSimilarWarning) {
+                              setShowSimilarWarning(false)
+                              setSimilarAddresses([])
+                            }
+                          }}
+                          onFocus={() => {
+                            if (streetSuggestions.length > 0) {
+                              setShowStreetSuggestions(true)
+                            }
+                          }}
+                          onBlur={() => {
+                            // Задержка чтобы успел сработать клик по подсказке
+                            setTimeout(() => setShowStreetSuggestions(false), 150)
+                          }}
+                          placeholder="Начните вводить название..."
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                        {isLoadingStreets && (
+                          <div className="absolute right-2 top-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                          </div>
+                        )}
+                      </div>
+                      {/* Выпадающий список подсказок */}
+                      {showStreetSuggestions && streetSuggestions.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {streetSuggestions.map((street, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => {
+                                setNewAddress({ ...newAddress, street })
+                                setShowStreetSuggestions(false)
+                                setStreetSuggestions([])
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 transition border-b border-gray-100 last:border-b-0"
+                            >
+                              {street}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         Введите название улицы в любом формате
                       </p>
