@@ -51,19 +51,30 @@ function parseStreetAndHouse(address: string): { street: string, house: string }
     .replace(/\s+тракт$/i, '')
     .trim()
 
-  // Теперь заменяем спецсимволы на пробелы и нормализуем
+  // Пытаемся найти номер дома ДО замены спецсимволов (чтобы сохранить формат "15а", "15/1")
+  // Ищем паттерн: улица[,] номер или улица номер
+  const housePatternWithComma = withoutPrefix.match(/^(.+?)[,\s]+(\d+[а-яa-z]?(?:[\s\/\-]*[\dа-яa-z]+)?)$/i)
+  if (housePatternWithComma) {
+    return {
+      street: housePatternWithComma[1].trim(),
+      house: housePatternWithComma[2].replace(/\s+/g, '').trim()
+    }
+  }
+
+  // Заменяем спецсимволы на пробелы и нормализуем
   const normalized = withoutPrefix
     .replace(/[.,\-\/\\]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 
   // Ищем номер дома - число (возможно с буквой) в конце
-  const houseMatch = normalized.match(/^(.+?)\s+(\d+[а-яa-z]?\/?[\dа-яa-z]*)(?:\s|$)/i)
+  // Улучшенный паттерн: захватываем больше вариантов номеров домов
+  const houseMatch = normalized.match(/^(.+?)\s+(\d+\s*[а-яa-z]?(?:\s*\d+[а-яa-z]*)?)$/i)
 
   if (houseMatch) {
     return {
       street: houseMatch[1].trim(),
-      house: houseMatch[2].trim()
+      house: houseMatch[2].replace(/\s+/g, '').trim()
     }
   }
 
@@ -96,7 +107,7 @@ function normalizeStreet(street: string): string {
     .trim()
 }
 
-// Сравниваем названия улиц
+// Сравниваем названия улиц (более гибкий алгоритм)
 function compareStreets(street1: string, street2: string): boolean {
   const norm1 = normalizeStreet(street1)
   const norm2 = normalizeStreet(street2)
@@ -106,7 +117,17 @@ function compareStreets(street1: string, street2: string): boolean {
 
   // Проверяем, начинается ли одно название с другого (для сокращений)
   if (norm1.length >= 3 && norm2.length >= 3) {
-    return norm1.startsWith(norm2) || norm2.startsWith(norm1)
+    if (norm1.startsWith(norm2) || norm2.startsWith(norm1)) {
+      return true
+    }
+  }
+
+  // Проверяем, содержит ли одно название другое (для гибкого поиска)
+  // Например: "красноармейская" и "красноарм" или "арм" в "красноармейская"
+  if (norm1.length >= 3 && norm2.length >= 3) {
+    if (norm1.includes(norm2) || norm2.includes(norm1)) {
+      return true
+    }
   }
 
   return false
