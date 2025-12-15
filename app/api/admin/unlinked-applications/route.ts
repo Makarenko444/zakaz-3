@@ -36,19 +36,23 @@ interface ApplicationWithSuggestions {
 
 // Извлекаем улицу и номер дома из строки адреса заявки
 function parseStreetAndHouse(address: string): { street: string, house: string } {
-  const normalized = address
-    .toLowerCase()
+  // ВАЖНО: сначала удаляем префикс ДО замены спецсимволов,
+  // чтобы "пр-т" и "б-р" корректно распознавались
+  const lowerCase = address.toLowerCase().trim()
+
+  // Убираем префиксы улиц (до замены спецсимволов!)
+  const withoutPrefix = lowerCase
+    .replace(/^(улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д)\s*/i, '')
+    .trim()
+
+  // Теперь заменяем спецсимволы на пробелы и нормализуем
+  const normalized = withoutPrefix
     .replace(/[.,\-\/\\]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 
-  // Убираем префиксы улиц
-  const withoutPrefix = normalized
-    .replace(/^(улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д)\s*/i, '')
-    .trim()
-
   // Ищем номер дома - число (возможно с буквой) в конце
-  const houseMatch = withoutPrefix.match(/^(.+?)\s+(\d+[а-яa-z]?\/?[\dа-яa-z]*)(?:\s|$)/i)
+  const houseMatch = normalized.match(/^(.+?)\s+(\d+[а-яa-z]?\/?[\dа-яa-z]*)(?:\s|$)/i)
 
   if (houseMatch) {
     return {
@@ -59,18 +63,24 @@ function parseStreetAndHouse(address: string): { street: string, house: string }
 
   // Если не нашли дом, возвращаем всю строку как улицу
   return {
-    street: withoutPrefix,
+    street: normalized,
     house: ''
   }
 }
 
 // Нормализуем название улицы для сравнения
 function normalizeStreet(street: string): string {
-  return street
+  // ВАЖНО: сначала удаляем префикс ДО замены спецсимволов,
+  // чтобы "пр-т" и "б-р" корректно распознавались
+  const withoutPrefix = street
     .toLowerCase()
+    .replace(/^(улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д)\s*/i, '')
+    .trim()
+
+  // Теперь заменяем спецсимволы
+  return withoutPrefix
     .replace(/[.,\-\/\\]/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/^(улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д)\s*/i, '')
     .trim()
 }
 
