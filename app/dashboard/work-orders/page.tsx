@@ -63,6 +63,24 @@ export default function WorkOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [myOnly, setMyOnly] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  // Получить текущего пользователя
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await fetch('/api/auth/session')
+        const data = await res.json()
+        if (res.ok && data.user) {
+          setCurrentUserId(data.user.id)
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error)
+      }
+    }
+    fetchCurrentUser()
+  }, [])
 
   const fetchWorkOrders = useCallback(async () => {
     setIsLoading(true)
@@ -74,6 +92,7 @@ export default function WorkOrdersPage() {
       if (statusFilter) params.set('status', statusFilter)
       if (dateFrom) params.set('date_from', dateFrom)
       if (dateTo) params.set('date_to', dateTo)
+      if (myOnly && currentUserId) params.set('executor_id', currentUserId)
 
       const res = await fetch(`/api/work-orders?${params}`)
       const data = await res.json()
@@ -87,7 +106,7 @@ export default function WorkOrdersPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, limit, typeFilter, statusFilter, dateFrom, dateTo])
+  }, [page, limit, typeFilter, statusFilter, dateFrom, dateTo, myOnly, currentUserId])
 
   useEffect(() => {
     fetchWorkOrders()
@@ -120,6 +139,23 @@ export default function WorkOrdersPage() {
 
       {/* Фильтры */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
+        {/* Тумблер "Мои наряды" */}
+        <div className="mb-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={myOnly}
+                onChange={(e) => { setMyOnly(e.target.checked); setPage(1) }}
+                className="sr-only"
+              />
+              <div className={`w-10 h-6 rounded-full transition-colors ${myOnly ? 'bg-indigo-600' : 'bg-gray-300'}`}></div>
+              <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${myOnly ? 'translate-x-4' : ''}`}></div>
+            </div>
+            <span className="text-sm font-medium text-gray-700">Только мои наряды</span>
+          </label>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Тип</label>
@@ -171,9 +207,9 @@ export default function WorkOrdersPage() {
           </div>
         </div>
 
-        {(typeFilter || statusFilter || dateFrom || dateTo) && (
+        {(typeFilter || statusFilter || dateFrom || dateTo || myOnly) && (
           <button
-            onClick={() => { setTypeFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setPage(1) }}
+            onClick={() => { setTypeFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setMyOnly(false); setPage(1) }}
             className="mt-3 text-sm text-indigo-600 hover:text-indigo-800"
           >
             Сбросить фильтры

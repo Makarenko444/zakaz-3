@@ -153,6 +153,24 @@ export default function SchedulePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState<WorkOrderType | ''>('')
   const [showWorkloadChart, setShowWorkloadChart] = useState(true)
+  const [myOnly, setMyOnly] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  // Получить текущего пользователя
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await fetch('/api/auth/session')
+        const data = await res.json()
+        if (res.ok && data.user) {
+          setCurrentUserId(data.user.id)
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error)
+      }
+    }
+    fetchCurrentUser()
+  }, [])
 
   const fetchSchedule = useCallback(async () => {
     setIsLoading(true)
@@ -161,6 +179,7 @@ export default function SchedulePage() {
       params.set('view', view)
       params.set('date', currentDate.toISOString().split('T')[0])
       if (typeFilter) params.set('type', typeFilter)
+      if (myOnly && currentUserId) params.set('executor_id', currentUserId)
 
       const res = await fetch(`/api/schedule?${params}`)
       const data = await res.json()
@@ -174,7 +193,7 @@ export default function SchedulePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [view, currentDate, typeFilter])
+  }, [view, currentDate, typeFilter, myOnly, currentUserId])
 
   useEffect(() => {
     fetchSchedule()
@@ -391,6 +410,21 @@ export default function SchedulePage() {
 
           {/* Фильтры */}
           <div className="flex items-center gap-4">
+            {/* Тумблер "Мои наряды" */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={myOnly}
+                  onChange={(e) => setMyOnly(e.target.checked)}
+                  className="sr-only"
+                />
+                <div className={`w-10 h-6 rounded-full transition-colors ${myOnly ? 'bg-indigo-600' : 'bg-gray-300'}`}></div>
+                <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${myOnly ? 'translate-x-4' : ''}`}></div>
+              </div>
+              <span className="text-sm text-gray-700">Мои наряды</span>
+            </label>
+
             {/* Фильтр по типу */}
             <select
               value={typeFilter}
