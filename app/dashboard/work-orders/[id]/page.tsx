@@ -81,8 +81,24 @@ export default function WorkOrderDetailPage() {
   const [showExecutorModal, setShowExecutorModal] = useState(false)
   const [showMaterialModal, setShowMaterialModal] = useState(false)
   const [showPrefillModal, setShowPrefillModal] = useState(false)
+  const [showCompleteModal, setShowCompleteModal] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState<WorkOrderStatus>('draft')
   const [statusComment, setStatusComment] = useState('')
+
+  // Отчёт об исполнении
+  const [resultNotes, setResultNotes] = useState('')
+  const [completionFiles, setCompletionFiles] = useState<File[]>([])
+  const [isCompleting, setIsCompleting] = useState(false)
+  const [workOrderFiles, setWorkOrderFiles] = useState<Array<{
+    id: string
+    original_filename: string
+    file_size: number
+    mime_type: string
+    uploaded_at: string
+    description: string | null
+    uploaded_by_user?: { full_name: string }
+  }>>([])
+  const [isUploadingFile, setIsUploadingFile] = useState(false)
 
   const fetchWorkOrder = useCallback(async () => {
     setIsLoading(true)
@@ -127,13 +143,24 @@ export default function WorkOrderDetailPage() {
     if (res.ok) setTemplates(data.templates || [])
   }
 
+  const fetchWorkOrderFiles = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/work-orders/${id}/files`)
+      const data = await res.json()
+      if (res.ok) setWorkOrderFiles(data.files || [])
+    } catch {
+      console.error('Error fetching work order files')
+    }
+  }, [id])
+
   useEffect(() => {
     fetchWorkOrder()
     fetchUsers()
     fetchMaterials()
     fetchCurrentUser()
     fetchTemplates()
-  }, [fetchWorkOrder])
+    fetchWorkOrderFiles()
+  }, [fetchWorkOrder, fetchWorkOrderFiles])
 
   const handleStatusChange = async () => {
     try {
@@ -303,6 +330,80 @@ export default function WorkOrderDetailPage() {
     }
   }
 
+  // Отчёт об исполнении
+  const handleComplete = async () => {
+    setIsCompleting(true)
+    try {
+      // Сначала загружаем файлы
+      for (const file of completionFiles) {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('description', 'Отчёт об исполнении')
+
+        await fetch(`/api/work-orders/${id}/files`, {
+          method: 'POST',
+          body: formData,
+        })
+      }
+
+      // Затем отмечаем наряд как выполненный
+      const res = await fetch(`/api/work-orders/${id}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          result_notes: resultNotes,
+        }),
+      })
+
+      if (res.ok) {
+        setShowCompleteModal(false)
+        setResultNotes('')
+        setCompletionFiles([])
+        fetchWorkOrder()
+        fetchWorkOrderFiles()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Ошибка при завершении наряда')
+      }
+    } catch {
+      alert('Ошибка сети')
+    } finally {
+      setIsCompleting(false)
+    }
+  }
+
+  // Загрузка одного файла к наряду
+  const handleUploadFile = async (file: File, description?: string) => {
+    setIsUploadingFile(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (description) formData.append('description', description)
+
+      const res = await fetch(`/api/work-orders/${id}/files`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (res.ok) {
+        fetchWorkOrderFiles()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Ошибка загрузки файла')
+      }
+    } catch {
+      alert('Ошибка сети')
+    } finally {
+      setIsUploadingFile(false)
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} Б`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`
+    return `${(bytes / 1024 / 1024).toFixed(1)} МБ`
+  }
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—'
     return new Date(dateStr).toLocaleDateString('ru-RU')
@@ -337,6 +438,11 @@ export default function WorkOrderDetailPage() {
   const assignedUserIds = workOrder.executors?.map(e => e.user_id) || []
   const availableUsers = users.filter(u => !assignedUserIds.includes(u.id))
 
+  // Проверка прав: админ, автор или исполнитель
+  const isExecutor = currentUser && assignedUserIds.includes(currentUser.id)
+  const canEdit = currentUser?.role === 'admin' || currentUser?.id === workOrder.created_by || isExecutor
+  const canDelete = currentUser?.role === 'admin' || currentUser?.id === workOrder.created_by
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       {/* Шапка */}
@@ -362,19 +468,29 @@ export default function WorkOrderDetailPage() {
             </svg>
             Печать
           </button>
-          <Link
-            href={`/dashboard/work-orders/${id}/edit`}
-            className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
-          >
-            Редактировать
-          </Link>
+          {canEdit && (
+            <Link
+              href={`/dashboard/work-orders/${id}/edit`}
+              className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+            >
+              Редактировать
+            </Link>
+          )}
           <button
             onClick={() => setShowStatusModal(true)}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             Сменить статус
           </button>
-          {(currentUser?.role === 'admin' || currentUser?.id === workOrder.created_by) && (
+          {workOrder.status !== 'completed' && workOrder.status !== 'cancelled' && canEdit && (
+            <button
+              onClick={() => setShowCompleteModal(true)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Выполнено
+            </button>
+          )}
+          {canDelete && (
             <button
               onClick={handleDeleteWorkOrder}
               disabled={isDeleting}
@@ -569,6 +685,60 @@ export default function WorkOrderDetailPage() {
         </div>
       )}
 
+      {/* Файлы наряда */}
+      <div className="mt-6 bg-white rounded-lg shadow p-5">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">Файлы</h2>
+          <label className="text-sm text-indigo-600 hover:text-indigo-800 cursor-pointer">
+            <input
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleUploadFile(file)
+                e.target.value = ''
+              }}
+              disabled={isUploadingFile}
+            />
+            {isUploadingFile ? 'Загрузка...' : '+ Добавить файл'}
+          </label>
+        </div>
+        {workOrderFiles.length > 0 ? (
+          <div className="space-y-2">
+            {workOrderFiles.map((file) => (
+              <div key={file.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
+                    {file.mime_type.startsWith('image/') ? '🖼️' :
+                     file.mime_type === 'application/pdf' ? '📄' : '📎'}
+                  </div>
+                  <div>
+                    <a
+                      href={`/api/applications/${workOrder.application_id}/files/${file.id}/download`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-indigo-600 hover:text-indigo-800"
+                    >
+                      {file.original_filename}
+                    </a>
+                    <div className="text-xs text-gray-500">
+                      {formatFileSize(file.file_size)}
+                      {file.description && ` • ${file.description}`}
+                      {file.uploaded_by_user && ` • ${file.uploaded_by_user.full_name}`}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-xs text-gray-400">
+                  {new Date(file.uploaded_at).toLocaleDateString('ru-RU')}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm">Файлы не прикреплены</p>
+        )}
+      </div>
+
       {/* Мета-информация */}
       <div className="mt-6 text-sm text-gray-500">
         <p>Создан: {formatDateTime(workOrder.created_at)} {workOrder.created_by_user?.full_name && `(${workOrder.created_by_user.full_name})`}</p>
@@ -693,6 +863,79 @@ export default function WorkOrderDetailPage() {
             >
               Закрыть
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Модалка отчёта об исполнении */}
+      {showCompleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+            <h3 className="text-lg font-semibold mb-4">Отчёт об исполнении</h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Комментарий о выполнении
+              </label>
+              <textarea
+                value={resultNotes}
+                onChange={(e) => setResultNotes(e.target.value)}
+                placeholder="Опишите результат работы..."
+                className="w-full px-3 py-2 border rounded-lg h-32"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Прикрепить файлы (фото, расчёты)
+              </label>
+              <input
+                type="file"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || [])
+                  setCompletionFiles(prev => [...prev, ...files])
+                  e.target.value = ''
+                }}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              />
+              {completionFiles.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {completionFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-sm bg-gray-50 px-2 py-1 rounded">
+                      <span className="truncate">{file.name}</span>
+                      <button
+                        onClick={() => setCompletionFiles(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-red-500 hover:text-red-700 ml-2"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowCompleteModal(false)
+                  setResultNotes('')
+                  setCompletionFiles([])
+                }}
+                className="px-4 py-2 border rounded-lg"
+                disabled={isCompleting}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleComplete}
+                disabled={isCompleting}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              >
+                {isCompleting ? 'Сохранение...' : 'Завершить наряд'}
+              </button>
+            </div>
           </div>
         </div>
       )}
