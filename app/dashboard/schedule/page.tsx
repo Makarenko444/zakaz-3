@@ -144,6 +144,17 @@ function calculateOverlapRows(slots: TimeSlot[]): TimeSlot[] {
   return sorted
 }
 
+// Ключ для localStorage
+const SCHEDULE_STORAGE_KEY = 'schedule_settings'
+
+interface ScheduleSettings {
+  view: 'day' | 'week'
+  date: string
+  typeFilter: WorkOrderType | ''
+  myOnly: boolean
+  highlightedEmployee: string | null
+}
+
 export default function SchedulePage() {
   const router = useRouter()
   const [view, setView] = useState<'day' | 'week'>('week')
@@ -152,9 +163,47 @@ export default function SchedulePage() {
   const [groupedByDate, setGroupedByDate] = useState<Record<string, ScheduleWorkOrder[]>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState<WorkOrderType | ''>('')
-  const [showWorkloadChart, setShowWorkloadChart] = useState(true)
   const [myOnly, setMyOnly] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [highlightedEmployee, setHighlightedEmployee] = useState<string | null>(null)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+
+  // Загрузить сохранённые настройки из localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SCHEDULE_STORAGE_KEY)
+      if (saved) {
+        const settings: ScheduleSettings = JSON.parse(saved)
+        setView(settings.view || 'week')
+        if (settings.date) {
+          setCurrentDate(new Date(settings.date))
+        }
+        setTypeFilter(settings.typeFilter || '')
+        setMyOnly(settings.myOnly || false)
+        setHighlightedEmployee(settings.highlightedEmployee || null)
+      }
+    } catch (error) {
+      console.error('Error loading schedule settings:', error)
+    }
+    setSettingsLoaded(true)
+  }, [])
+
+  // Сохранять настройки при изменении
+  useEffect(() => {
+    if (!settingsLoaded) return
+    try {
+      const settings: ScheduleSettings = {
+        view,
+        date: currentDate.toISOString().split('T')[0],
+        typeFilter,
+        myOnly,
+        highlightedEmployee,
+      }
+      localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(settings))
+    } catch (error) {
+      console.error('Error saving schedule settings:', error)
+    }
+  }, [view, currentDate, typeFilter, myOnly, highlightedEmployee, settingsLoaded])
 
   // Получить текущего пользователя
   useEffect(() => {
@@ -237,39 +286,56 @@ export default function SchedulePage() {
   }, [workOrders])
 
   // Данные для дневного вида с временной шкалой
+  // Группируем по бригадам (группы сотрудников на одном наряде)
   const dayViewData = useMemo(() => {
     if (view !== 'day') return { employees: [], startHour: 8, endHour: 19 }
 
     const dateKey = formatDateKey(currentDate)
     const dayOrders = groupedByDate[dateKey] || []
 
-    // Группируем по сотрудникам
-    const employeeMap = new Map<string, DayViewEmployee>()
+    // Создаём уникальный ключ для группы исполнителей
+    const getExecutorsKey = (executors: ScheduleWorkOrder['executors']) => {
+      if (!executors || executors.length === 0) return 'unassigned'
+      return executors
+        .map(e => e.user_id)
+        .sort()
+        .join('_')
+    }
 
-    // Также собираем заказы без исполнителей
-    const unassigned: ScheduleWorkOrder[] = []
+    // Группируем по бригадам (уникальным комбинациям исполнителей)
+    const brigadeMap = new Map<string, DayViewEmployee>()
 
     dayOrders.forEach(wo => {
-      if (wo.executors && wo.executors.length > 0) {
-        wo.executors.forEach(exec => {
-          if (exec.user) {
-            const existing = employeeMap.get(exec.user.id)
-            if (existing) {
-              // Проверяем что этого заказа еще нет
-              if (!existing.workOrders.find(w => w.id === wo.id)) {
-                existing.workOrders.push(wo)
-              }
-            } else {
-              employeeMap.set(exec.user.id, {
-                id: exec.user.id,
-                name: exec.user.full_name,
-                workOrders: [wo]
-              })
-            }
-          }
-        })
+      const key = getExecutorsKey(wo.executors)
+
+      if (key === 'unassigned') {
+        const existing = brigadeMap.get('unassigned')
+        if (existing) {
+          existing.workOrders.push(wo)
+        } else {
+          brigadeMap.set('unassigned', {
+            id: 'unassigned',
+            name: 'Не назначено',
+            workOrders: [wo]
+          })
+        }
       } else {
-        unassigned.push(wo)
+        const existing = brigadeMap.get(key)
+        if (existing) {
+          existing.workOrders.push(wo)
+        } else {
+          // Формируем название группы из имён сотрудников
+          const names = wo.executors
+            ?.filter(e => e.user)
+            .map(e => e.user!.full_name.split(' ')[0]) // Только имя
+            .join(', ') || 'Бригада'
+
+          brigadeMap.set(key, {
+            id: key,
+            name: names,
+            workOrders: [wo]
+          })
+        }
       }
     })
 
@@ -290,16 +356,12 @@ export default function SchedulePage() {
     const startHour = Math.floor(minMinutes / 60)
     const endHour = Math.ceil(maxMinutes / 60)
 
-    // Преобразуем в массив и добавляем нераспределенных
-    const employees = Array.from(employeeMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-
-    if (unassigned.length > 0) {
-      employees.push({
-        id: 'unassigned',
-        name: 'Не назначено',
-        workOrders: unassigned
-      })
-    }
+    // Преобразуем в массив и сортируем (нераспределённые в конец)
+    const employees = Array.from(brigadeMap.values()).sort((a, b) => {
+      if (a.id === 'unassigned') return 1
+      if (b.id === 'unassigned') return -1
+      return a.name.localeCompare(b.name)
+    })
 
     return { employees, startHour, endHour }
   }, [view, currentDate, groupedByDate])
@@ -508,11 +570,20 @@ export default function SchedulePage() {
               const timelineEnd = dayViewData.endHour * 60
               const timelineWidth = timelineEnd - timelineStart
 
+              // Проверяем, содержит ли группа выделенного сотрудника
+              const employeeIds = employee.id === 'unassigned' ? [] : employee.id.split('_')
+              const hasHighlightedEmp = highlightedEmployee && employeeIds.includes(highlightedEmployee)
+              const isDimmedRow = highlightedEmployee && !hasHighlightedEmp
+
               return (
-                <div key={employee.id} className="flex border-b last:border-b-0">
+                <div key={employee.id} className={`flex border-b last:border-b-0 transition-opacity ${isDimmedRow ? 'opacity-30' : ''}`}>
                   {/* Имя сотрудника */}
                   <div className={`w-40 flex-shrink-0 p-3 border-r text-sm font-medium flex items-center ${
-                    employee.id === 'unassigned' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'
+                    employee.id === 'unassigned'
+                      ? 'bg-red-50 text-red-700'
+                      : hasHighlightedEmp
+                        ? 'bg-indigo-100 text-indigo-800'
+                        : 'bg-gray-50 text-gray-700'
                   }`}>
                     <span className="truncate">{employee.name}</span>
                   </div>
@@ -540,11 +611,17 @@ export default function SchedulePage() {
                       const wo = slot.workOrder
                       const bgColor = wo.type === 'survey' ? 'bg-blue-100 border-blue-400' : 'bg-green-100 border-green-400'
 
+                      // Проверяем выделение сотрудника
+                      const hasHighlightedEmployee = highlightedEmployee && wo.executors?.some(e => e.user_id === highlightedEmployee)
+                      const isDimmed = highlightedEmployee && !hasHighlightedEmployee
+
                       return (
                         <div
                           key={wo.id}
                           onClick={() => router.push(`/dashboard/work-orders/${wo.id}`)}
-                          className={`absolute border-l-4 rounded px-2 py-1 cursor-pointer hover:shadow-md transition-shadow overflow-hidden ${bgColor}`}
+                          className={`absolute border-l-4 rounded px-2 py-1 cursor-pointer hover:shadow-md transition-all overflow-hidden ${bgColor} ${
+                            isDimmed ? 'opacity-30' : hasHighlightedEmployee ? 'ring-2 ring-indigo-400 z-10' : ''
+                          }`}
                           style={{
                             left: `${leftPercent}%`,
                             width: `${Math.max(widthPercent, 3)}%`,
@@ -617,11 +694,17 @@ export default function SchedulePage() {
                     <div className="space-y-2">
                       {dayWorkOrders.map((wo) => {
                         const hours = parseDurationToHours(wo.estimated_duration)
+                        // Проверяем, связан ли наряд с выделенным сотрудником
+                        const hasHighlightedEmployee = highlightedEmployee && wo.executors?.some(e => e.user_id === highlightedEmployee)
+                        const isDimmed = highlightedEmployee && !hasHighlightedEmployee
+
                         return (
                           <div
                             key={wo.id}
                             onClick={() => router.push(`/dashboard/work-orders/${wo.id}`)}
-                            className={`border-l-4 rounded p-2 cursor-pointer hover:shadow transition-shadow ${typeColors[wo.type]}`}
+                            className={`border-l-4 rounded p-2 cursor-pointer hover:shadow transition-all ${typeColors[wo.type]} ${
+                              isDimmed ? 'opacity-30' : hasHighlightedEmployee ? 'ring-2 ring-indigo-400' : ''
+                            }`}
                           >
                             <div className="flex justify-between items-start mb-1">
                               <span className="text-xs font-medium">
@@ -670,78 +753,70 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* Статистика и загрузка */}
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Общая статистика */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="font-semibold text-gray-900 mb-3">Общая статистика</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-gray-900">{workOrders.length}</div>
-              <div className="text-sm text-gray-500">нарядов</div>
-            </div>
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-indigo-600">{formatHours(totalHours)}</div>
-              <div className="text-sm text-gray-500">запланировано</div>
-            </div>
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <div className="text-xl font-bold text-blue-600">{workOrders.filter(w => w.type === 'survey').length}</div>
-              <div className="text-sm text-blue-600">осмотров</div>
-            </div>
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-xl font-bold text-green-600">{workOrders.filter(w => w.type === 'installation').length}</div>
-              <div className="text-sm text-green-600">монтажей</div>
-            </div>
-          </div>
-        </div>
-
-        {/* График загруженности по сотрудникам */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold text-gray-900">Загрузка по сотрудникам</h3>
-            <button
-              onClick={() => setShowWorkloadChart(!showWorkloadChart)}
-              className="text-sm text-indigo-600 hover:text-indigo-800"
-            >
-              {showWorkloadChart ? 'Скрыть' : 'Показать'}
-            </button>
+      {/* Загрузка по сотрудникам */}
+      {employeeWorkload.length > 0 && (
+        <div className="mt-6 bg-white rounded-lg shadow p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold text-gray-900">
+              Загрузка по сотрудникам
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                (всего {formatHours(totalHours)} на {workOrders.length} нарядов)
+              </span>
+            </h3>
+            {highlightedEmployee && (
+              <button
+                onClick={() => setHighlightedEmployee(null)}
+                className="text-sm text-indigo-600 hover:text-indigo-800"
+              >
+                Сбросить выделение
+              </button>
+            )}
           </div>
 
-          {showWorkloadChart && (
-            <>
-              {employeeWorkload.length === 0 ? (
-                <div className="text-center text-gray-400 py-8">
-                  Нет данных о загрузке
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {employeeWorkload.map((emp) => (
-                    <div key={emp.id} className="relative">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm text-gray-700 truncate flex-1">{emp.name}</span>
-                        <span className="text-sm font-medium text-gray-900 ml-2">
-                          {formatHours(emp.hours)} ({emp.count})
-                        </span>
-                      </div>
-                      {/* Полоса загрузки */}
-                      <div className="h-6 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
-                          style={{ width: maxHours > 0 ? `${Math.max((emp.hours / maxHours) * 100, 5)}%` : '5%' }}
-                        >
-                          {emp.hours >= maxHours * 0.3 && (
-                            <span className="text-xs text-white font-medium">{formatHours(emp.hours)}</span>
-                          )}
-                        </div>
-                      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {employeeWorkload.map((emp) => {
+              const isHighlighted = highlightedEmployee === emp.id
+              const isDimmed = highlightedEmployee && highlightedEmployee !== emp.id
+
+              return (
+                <div
+                  key={emp.id}
+                  onClick={() => setHighlightedEmployee(isHighlighted ? null : emp.id)}
+                  className={`relative p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                    isHighlighted
+                      ? 'bg-indigo-100 ring-2 ring-indigo-500'
+                      : isDimmed
+                        ? 'bg-gray-50 opacity-40'
+                        : 'bg-gray-50 hover:bg-indigo-50'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <span className={`text-sm font-medium truncate flex-1 ${isHighlighted ? 'text-indigo-900' : 'text-gray-700'}`}>
+                      {emp.name}
+                    </span>
+                    <span className={`text-xs ml-2 ${isHighlighted ? 'text-indigo-700' : 'text-gray-500'}`}>
+                      {emp.count} нар.
+                    </span>
+                  </div>
+                  {/* Полоса загрузки */}
+                  <div className="h-5 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 flex items-center justify-end pr-2 ${
+                        isHighlighted
+                          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700'
+                          : 'bg-gradient-to-r from-indigo-400 to-indigo-500'
+                      }`}
+                      style={{ width: maxHours > 0 ? `${Math.max((emp.hours / maxHours) * 100, 10)}%` : '10%' }}
+                    >
+                      <span className="text-xs text-white font-medium">{formatHours(emp.hours)}</span>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              )}
-            </>
-          )}
+              )
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
