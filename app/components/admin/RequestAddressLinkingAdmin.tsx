@@ -272,6 +272,15 @@ export default function RequestAddressLinkingAdmin() {
   })
   const [isCreatingAddress, setIsCreatingAddress] = useState(false)
 
+  // Автоподсказки улиц при создании адреса
+  const [streetSuggestions, setStreetSuggestions] = useState<string[]>([])
+  const [showStreetSuggestions, setShowStreetSuggestions] = useState(false)
+  const [isLoadingStreets, setIsLoadingStreets] = useState(false)
+
+  // Проверка на похожие адреса перед созданием
+  const [similarAddresses, setSimilarAddresses] = useState<Address[]>([])
+  const [showSimilarWarning, setShowSimilarWarning] = useState(false)
+
   // Групповая привязка
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
   const [groupLinkAddress, setGroupLinkAddress] = useState<Address | null>(null)
@@ -425,6 +434,79 @@ export default function RequestAddressLinkingAdmin() {
     return () => clearTimeout(timeout)
   }, [addressSearchQuery, searchingForApp])
 
+  // Поиск улиц для автоподсказок
+  const searchStreets = useCallback(async (query: string) => {
+    if (!query.trim() || query.trim().length < 2) {
+      setStreetSuggestions([])
+      setShowStreetSuggestions(false)
+      return
+    }
+
+    setIsLoadingStreets(true)
+
+    try {
+      const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}`)
+      if (!response.ok) {
+        setStreetSuggestions([])
+        return
+      }
+
+      const data = await response.json()
+      const addresses = data.addresses || []
+
+      // Извлекаем уникальные названия улиц (только локальные адреса)
+      const uniqueStreets = [...new Set(
+        addresses
+          .filter((addr: Address) => addr.street)
+          .map((addr: Address) => addr.street)
+      )] as string[]
+
+      // Сортируем по релевантности
+      const queryLower = query.toLowerCase()
+      uniqueStreets.sort((a, b) => {
+        const aStartsWith = a.toLowerCase().startsWith(queryLower)
+        const bStartsWith = b.toLowerCase().startsWith(queryLower)
+        if (aStartsWith && !bStartsWith) return -1
+        if (!aStartsWith && bStartsWith) return 1
+        return a.localeCompare(b, 'ru')
+      })
+
+      setStreetSuggestions(uniqueStreets.slice(0, 8))
+      setShowStreetSuggestions(uniqueStreets.length > 0)
+    } catch (error) {
+      console.error('Error searching streets:', error)
+      setStreetSuggestions([])
+    } finally {
+      setIsLoadingStreets(false)
+    }
+  }, [])
+
+  // Debounce для поиска улиц при вводе
+  useEffect(() => {
+    if (!creatingForApp) return
+
+    const timeoutId = setTimeout(() => {
+      searchStreets(newAddressForm.street)
+    }, 200)
+
+    return () => clearTimeout(timeoutId)
+  }, [newAddressForm.street, creatingForApp, searchStreets])
+
+  // Поиск похожих адресов
+  const findSimilarAddresses = async (street: string, house: string): Promise<Address[]> => {
+    try {
+      const searchQuery = `${street} ${house}`.trim()
+      const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(searchQuery)}`)
+      if (!response.ok) return []
+
+      const data = await response.json()
+      return (data.addresses || []).filter((addr: Address) => addr.street)
+    } catch (error) {
+      console.error('Error finding similar addresses:', error)
+      return []
+    }
+  }
+
   // Привязка заявок к адресу
   const linkApplications = async (applicationIds: string[], addressId: string) => {
     if (applicationIds.length === 1) {
@@ -489,13 +571,8 @@ export default function RequestAddressLinkingAdmin() {
     }
   }
 
-  // Создание нового адреса и привязка
-  const createAddressAndLink = async (applicationId: string) => {
-    if (!newAddressForm.street.trim() || !newAddressForm.house.trim()) {
-      setError('Укажите улицу и номер дома')
-      return
-    }
-
+  // Фактическое создание адреса (после подтверждения)
+  const doCreateAddressAndLink = async (applicationId: string) => {
     setIsCreatingAddress(true)
     setError(null)
 
@@ -521,10 +598,48 @@ export default function RequestAddressLinkingAdmin() {
 
       setCreatingForApp(null)
       setNewAddressForm({ city: 'Томск', street: '', house: '', building: '' })
+      setSimilarAddresses([])
+      setShowSimilarWarning(false)
+      setStreetSuggestions([])
+      setShowStreetSuggestions(false)
     } catch (err) {
       console.error('Error creating address:', err)
       setError(err instanceof Error ? err.message : 'Ошибка создания адреса')
     } finally {
+      setIsCreatingAddress(false)
+    }
+  }
+
+  // Создание нового адреса и привязка (с проверкой на дубли)
+  const createAddressAndLink = async (applicationId: string) => {
+    if (!newAddressForm.street.trim() || !newAddressForm.house.trim()) {
+      setError('Укажите улицу и номер дома')
+      return
+    }
+
+    setIsCreatingAddress(true)
+    setError(null)
+
+    try {
+      // Ищем похожие адреса
+      const similar = await findSimilarAddresses(
+        newAddressForm.street.trim(),
+        newAddressForm.house.trim()
+      )
+
+      if (similar.length > 0) {
+        // Есть похожие - показываем предупреждение
+        setSimilarAddresses(similar)
+        setShowSimilarWarning(true)
+        setIsCreatingAddress(false)
+        return
+      }
+
+      // Нет похожих - сразу создаём
+      await doCreateAddressAndLink(applicationId)
+    } catch (err) {
+      console.error('Error creating address:', err)
+      setError(err instanceof Error ? err.message : 'Ошибка создания адреса')
       setIsCreatingAddress(false)
     }
   }
@@ -964,6 +1079,10 @@ export default function RequestAddressLinkingAdmin() {
                             onClick={() => {
                               setCreatingForApp(null)
                               setNewAddressForm({ city: 'Томск', street: '', house: '', building: '' })
+                              setSimilarAddresses([])
+                              setShowSimilarWarning(false)
+                              setStreetSuggestions([])
+                              setShowStreetSuggestions(false)
                             }}
                             className="text-indigo-600 hover:text-indigo-800"
                           >
@@ -981,27 +1100,105 @@ export default function RequestAddressLinkingAdmin() {
                               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
                             />
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-2 relative">
                             <label className="block text-xs text-gray-600 mb-1">Улица *</label>
-                            <input
-                              type="text"
-                              value={newAddressForm.street}
-                              onChange={(e) => setNewAddressForm(prev => ({ ...prev, street: e.target.value }))}
-                              placeholder="улица Ленина"
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
-                            />
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={newAddressForm.street}
+                                onChange={(e) => {
+                                  setNewAddressForm(prev => ({ ...prev, street: e.target.value }))
+                                  if (showSimilarWarning) {
+                                    setShowSimilarWarning(false)
+                                    setSimilarAddresses([])
+                                  }
+                                }}
+                                onFocus={() => {
+                                  if (streetSuggestions.length > 0) {
+                                    setShowStreetSuggestions(true)
+                                  }
+                                }}
+                                onBlur={() => {
+                                  setTimeout(() => setShowStreetSuggestions(false), 150)
+                                }}
+                                placeholder="Начните вводить название..."
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                              />
+                              {isLoadingStreets && (
+                                <div className="absolute right-2 top-2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                                </div>
+                              )}
+                            </div>
+                            {/* Выпадающий список подсказок */}
+                            {showStreetSuggestions && streetSuggestions.length > 0 && (
+                              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                {streetSuggestions.map((street, index) => (
+                                  <button
+                                    key={index}
+                                    type="button"
+                                    onClick={() => {
+                                      setNewAddressForm(prev => ({ ...prev, street }))
+                                      setShowStreetSuggestions(false)
+                                      setStreetSuggestions([])
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 transition border-b border-gray-100 last:border-b-0"
+                                  >
+                                    {street}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <label className="block text-xs text-gray-600 mb-1">Дом *</label>
                             <input
                               type="text"
                               value={newAddressForm.house}
-                              onChange={(e) => setNewAddressForm(prev => ({ ...prev, house: e.target.value }))}
+                              onChange={(e) => {
+                                setNewAddressForm(prev => ({ ...prev, house: e.target.value }))
+                                if (showSimilarWarning) {
+                                  setShowSimilarWarning(false)
+                                  setSimilarAddresses([])
+                                }
+                              }}
                               placeholder="15"
                               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
                             />
                           </div>
                         </div>
+
+                        {/* Похожие адреса */}
+                        {showSimilarWarning && similarAddresses.length > 0 && (
+                          <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-start gap-2 mb-2">
+                              <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              <div>
+                                <p className="text-sm font-medium text-amber-800">Найдены похожие адреса</p>
+                                <p className="text-xs text-amber-700">Выберите существующий или создайте новый</p>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              {similarAddresses.slice(0, 5).map((addr) => (
+                                <button
+                                  key={addr.id}
+                                  onClick={() => {
+                                    linkApplications([app.id], addr.id)
+                                    setShowSimilarWarning(false)
+                                    setSimilarAddresses([])
+                                  }}
+                                  disabled={linkingAppId === app.id}
+                                  className="w-full text-left px-3 py-2 text-sm rounded border border-amber-300 bg-white hover:bg-amber-50 transition disabled:opacity-50"
+                                >
+                                  <span className="font-medium text-gray-900">{addr.address}</span>
+                                  <span className="text-amber-600 float-right">Выбрать</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-3">
                           <div className="w-32">
@@ -1015,13 +1212,23 @@ export default function RequestAddressLinkingAdmin() {
                             />
                           </div>
                           <div className="flex-1"></div>
-                          <button
-                            onClick={() => createAddressAndLink(app.id)}
-                            disabled={isCreatingAddress || !newAddressForm.street.trim() || !newAddressForm.house.trim()}
-                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
-                          >
-                            {isCreatingAddress ? 'Создание...' : 'Создать и привязать'}
-                          </button>
+                          {showSimilarWarning ? (
+                            <button
+                              onClick={() => doCreateAddressAndLink(app.id)}
+                              disabled={isCreatingAddress}
+                              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition disabled:opacity-50"
+                            >
+                              {isCreatingAddress ? 'Создание...' : 'Всё равно создать'}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => createAddressAndLink(app.id)}
+                              disabled={isCreatingAddress || !newAddressForm.street.trim() || !newAddressForm.house.trim()}
+                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
+                            >
+                              {isCreatingAddress ? 'Проверка...' : 'Создать и привязать'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
