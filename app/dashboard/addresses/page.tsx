@@ -175,12 +175,13 @@ export default function AddressesPage() {
     }
   }
 
-  async function loadAddresses(searchOverride?: string) {
+  async function loadAddresses(searchOverride?: string, pageOverride?: number) {
     setIsLoading(true)
     setError('')
     try {
+      const currentPage = pageOverride ?? pagination.page
       const params = new URLSearchParams({
-        page: pagination.page.toString(),
+        page: currentPage.toString(),
         limit: pagination.limit.toString(),
         sort_field: sortField,
         sort_direction: sortDirection,
@@ -217,13 +218,16 @@ export default function AddressesPage() {
   }
 
   function handleSearch() {
-    loadAddresses()
+    // Сбрасываем на первую страницу при поиске
+    setPagination(p => ({ ...p, page: 1 }))
+    loadAddresses(undefined, 1)
   }
 
   function handleClearFilters() {
     setSearchQuery('')
-    // Передаем пустую строку явно, чтобы не зависеть от состояния
-    loadAddresses('')
+    // Сбрасываем на первую страницу и передаем пустую строку
+    setPagination(p => ({ ...p, page: 1 }))
+    loadAddresses('', 1)
   }
 
   function handleItemsPerPageChange(newLimit: number) {
