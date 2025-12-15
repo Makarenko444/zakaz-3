@@ -1107,3 +1107,20 @@ body {
 [data-theme="dark"] .border-fuchsia-200 {
   border-color: rgba(217, 70, 239, 0.3);
 }
+
+/* Кнопка открытия в новом окне - темная тема */
+[data-theme="dark"] .bg-white\/80 {
+  background-color: rgba(55, 65, 81, 0.9);
+}
+
+[data-theme="dark"] .hover\:bg-white:hover {
+  background-color: #4b5563;
+}
+
+[data-theme="dark"] .hover\:text-indigo-600:hover {
+  color: #93b3ff;
+}
+
+[data-theme="dark"] .hover\:bg-indigo-50:hover {
+  background-color: rgba(147, 179, 255, 0.15);
+}
