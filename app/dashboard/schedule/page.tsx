@@ -257,20 +257,19 @@ export default function SchedulePage() {
       const hours = parseDurationToHours(wo.estimated_duration)
       total += hours
 
-      // Распределяем часы по исполнителям
+      // Каждый исполнитель работает полное время (бригада работает вместе)
       if (wo.executors && wo.executors.length > 0) {
-        const hoursPerExecutor = hours / wo.executors.length
         wo.executors.forEach(exec => {
           if (exec.user) {
             const existing = employeeMap.get(exec.user.id)
             if (existing) {
-              existing.hours += hoursPerExecutor
+              existing.hours += hours
               existing.count += 1
             } else {
               employeeMap.set(exec.user.id, {
                 id: exec.user.id,
                 name: exec.user.full_name,
-                hours: hoursPerExecutor,
+                hours: hours,
                 count: 1,
               })
             }
