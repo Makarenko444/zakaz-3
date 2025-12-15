@@ -7,6 +7,8 @@ import { User, ApplicationStatus } from '@/lib/types'
 
 type ViewMode = 'cards' | 'list' | 'table'
 
+const VIEW_MODE_STORAGE_KEY = 'comments_view_mode'
+
 interface CommentItem {
   id: string
   application_id: string
@@ -82,9 +84,23 @@ export default function CommentsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
   const [stats, setStats] = useState<Stats | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('cards')
+  const [viewMode, setViewModeState] = useState<ViewMode>('cards')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [selectedStatuses, setSelectedStatuses] = useState<ApplicationStatus[]>([])
+
+  // Загрузка сохранённого режима просмотра
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode | null
+    if (savedViewMode && ['cards', 'list', 'table'].includes(savedViewMode)) {
+      setViewModeState(savedViewMode)
+    }
+  }, [])
+
+  // Функция установки режима с сохранением в localStorage
+  const setViewMode = (mode: ViewMode) => {
+    setViewModeState(mode)
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode)
+  }
 
   // Переключение статуса в фильтре
   const toggleStatus = (status: ApplicationStatus) => {
