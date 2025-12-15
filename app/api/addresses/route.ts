@@ -9,11 +9,63 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
 
     // Получаем параметры фильтрации
+    const id = searchParams.get('id') // Для загрузки конкретного адреса по ID
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const sortField = searchParams.get('sort_field') || 'created_at'
     const sortDirection = searchParams.get('sort_direction') || 'desc'
+
+    // Если запрашивается конкретный адрес по ID
+    if (id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('zakaz_addresses') as any)
+        .select(`
+          *,
+          zakaz_nodes(
+            id,
+            code,
+            presence_type,
+            status,
+            node_type
+          ),
+          zakaz_applications(
+            id,
+            status
+          )
+        `)
+        .eq('id', id)
+        .single()
+
+      if (error) {
+        console.error('Error fetching address by ID:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      if (!data) {
+        return NextResponse.json({ error: 'Address not found' }, { status: 404 })
+      }
+
+      // Статусы завершенных заявок
+      const completedStatuses = ['installed', 'rejected', 'no_tech']
+      const nodes = data.zakaz_nodes || []
+      const applications = data.zakaz_applications || []
+
+      const transformedData = {
+        ...data,
+        node_count: nodes.length,
+        applications_total: applications.length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        applications_active: applications.filter((app: any) => !completedStatuses.includes(app.status)).length,
+        zakaz_nodes: undefined,
+        zakaz_applications: undefined,
+      }
+
+      return NextResponse.json({
+        data: [transformedData],
+        pagination: { page: 1, limit: 1, total: 1, totalPages: 1 },
+      })
+    }
 
     // Базовый запрос для получения адресов с узлами и заявками
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
