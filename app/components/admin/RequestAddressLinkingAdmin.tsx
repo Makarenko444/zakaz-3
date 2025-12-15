@@ -55,6 +55,162 @@ interface Pagination {
 
 type ViewMode = 'applications' | 'addresses'
 
+// Компонент улучшенной пагинации
+function PaginationControls({
+  page,
+  totalPages,
+  onPageChange
+}: {
+  page: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}) {
+  const [inputPage, setInputPage] = useState(page.toString())
+
+  // Синхронизируем input с текущей страницей
+  useEffect(() => {
+    setInputPage(page.toString())
+  }, [page])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputPage(e.target.value)
+  }
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const newPage = parseInt(inputPage)
+      if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
+        onPageChange(newPage)
+      } else {
+        setInputPage(page.toString())
+      }
+    }
+  }
+
+  const handleInputBlur = () => {
+    const newPage = parseInt(inputPage)
+    if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
+      onPageChange(newPage)
+    } else {
+      setInputPage(page.toString())
+    }
+  }
+
+  // Генерируем номера страниц для отображения
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = []
+    const maxVisible = 7
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
+    } else {
+      // Всегда показываем первую страницу
+      pages.push(1)
+
+      if (page > 3) {
+        pages.push('...')
+      }
+
+      // Страницы вокруг текущей
+      const start = Math.max(2, page - 1)
+      const end = Math.min(totalPages - 1, page + 1)
+
+      for (let i = start; i <= end; i++) {
+        if (!pages.includes(i)) pages.push(i)
+      }
+
+      if (page < totalPages - 2) {
+        pages.push('...')
+      }
+
+      // Всегда показываем последнюю страницу
+      if (!pages.includes(totalPages)) pages.push(totalPages)
+    }
+
+    return pages
+  }
+
+  return (
+    <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        <span>Страница</span>
+        <input
+          type="text"
+          value={inputPage}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          onBlur={handleInputBlur}
+          className="w-14 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+        <span>из {totalPages}</span>
+      </div>
+
+      <div className="flex items-center gap-1">
+        {/* Кнопка "В начало" */}
+        <button
+          onClick={() => onPageChange(1)}
+          disabled={page <= 1}
+          className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="В начало"
+        >
+          «
+        </button>
+
+        {/* Кнопка "Назад" */}
+        <button
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+          className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          ‹
+        </button>
+
+        {/* Номера страниц */}
+        <div className="flex items-center gap-1 mx-2">
+          {getPageNumbers().map((p, idx) =>
+            typeof p === 'number' ? (
+              <button
+                key={idx}
+                onClick={() => onPageChange(p)}
+                className={`min-w-[32px] px-2 py-1 rounded transition ${
+                  p === page
+                    ? 'bg-indigo-600 text-white'
+                    : 'border border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                {p}
+              </button>
+            ) : (
+              <span key={idx} className="px-1 text-gray-400">
+                {p}
+              </span>
+            )
+          )}
+        </div>
+
+        {/* Кнопка "Вперёд" */}
+        <button
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= totalPages}
+          className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          ›
+        </button>
+
+        {/* Кнопка "В конец" */}
+        <button
+          onClick={() => onPageChange(totalPages)}
+          disabled={page >= totalPages}
+          className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="В конец"
+        >
+          »
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function RequestAddressLinkingAdmin() {
   // Режим отображения
   const [viewMode, setViewMode] = useState<ViewMode>('applications')
@@ -855,27 +1011,11 @@ export default function RequestAddressLinkingAdmin() {
 
             {/* Пагинация */}
             {pagination.totalPages > 1 && (
-              <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  Страница {pagination.page} из {pagination.totalPages}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                    disabled={pagination.page <= 1}
-                    className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                  >
-                    Назад
-                  </button>
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                    disabled={pagination.page >= pagination.totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                  >
-                    Вперёд
-                  </button>
-                </div>
-              </div>
+              <PaginationControls
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+              />
             )}
           </div>
         </>
@@ -1004,27 +1144,11 @@ export default function RequestAddressLinkingAdmin() {
 
             {/* Пагинация */}
             {pagination.totalPages > 1 && (
-              <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  Страница {pagination.page} из {pagination.totalPages}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                    disabled={pagination.page <= 1}
-                    className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                  >
-                    Назад
-                  </button>
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                    disabled={pagination.page >= pagination.totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                  >
-                    Вперёд
-                  </button>
-                </div>
-              </div>
+              <PaginationControls
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+              />
             )}
           </div>
         </>
