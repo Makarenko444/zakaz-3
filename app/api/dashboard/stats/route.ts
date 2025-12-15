@@ -18,6 +18,7 @@ interface UserRow {
   id: string
   full_name: string
   role?: string
+  active?: boolean
 }
 
 export async function GET(_request: NextRequest) {
@@ -103,12 +104,12 @@ export async function GET(_request: NextRequest) {
     // Получаем информацию о менеджерах
     const managerIds = Array.from(managerStatsMap.keys())
 
-    let managers: Array<{ id: string; name: string; count: number; activeCount: number }> = []
+    let managers: Array<{ id: string; name: string; count: number; activeCount: number; isActive: boolean }> = []
 
     if (managerIds.length > 0) {
       const { data: managersData, error: managersError } = await supabase
         .from('zakaz_users')
-        .select('id, full_name')
+        .select('id, full_name, active')
         .in('id', managerIds)
 
       if (!managersError && managersData) {
@@ -121,6 +122,7 @@ export async function GET(_request: NextRequest) {
             name: managerInfo?.full_name || 'Неизвестный менеджер',
             count: stats.total,
             activeCount: stats.active,
+            isActive: managerInfo?.active ?? true, // Статус сотрудника (активен/уволен)
           }
         })
       }
@@ -132,6 +134,7 @@ export async function GET(_request: NextRequest) {
         name: 'Менеджер не назначен',
         count: unassignedTotal,
         activeCount: unassignedActive,
+        isActive: true, // "Не назначен" всегда показываем как активный
       })
     }
 
