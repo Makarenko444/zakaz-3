@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth-client'
 import { User, ApplicationStatus } from '@/lib/types'
 
-type ViewMode = 'table' | 'cards'
+type ViewMode = 'cards' | 'list' | 'table'
 
 interface CommentItem {
   id: string
@@ -242,10 +242,23 @@ export default function CommentsPage() {
                     ? 'bg-indigo-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
-                title="Облачка"
+                title="Сетка"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-2 text-sm font-medium transition ${
+                  viewMode === 'list'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Список"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
               <button
@@ -258,7 +271,7 @@ export default function CommentsPage() {
                 title="Таблица"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 6h18M3 18h18M7 6v12M17 6v12" />
                 </svg>
               </button>
             </div>
@@ -314,13 +327,15 @@ export default function CommentsPage() {
           </svg>
           <p className="text-gray-500">{search ? 'Комментарии не найдены' : 'Нет комментариев'}</p>
         </div>
-      ) : viewMode === 'cards' ? (
-        /* Режим облачков */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      ) : viewMode === 'cards' || viewMode === 'list' ? (
+        /* Режим облачков (сетка или список) */
+        <div className={viewMode === 'cards' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "flex flex-col gap-4"}>
           {comments.map((comment) => (
             <div
               key={comment.id}
-              className="bg-white rounded-lg shadow hover:shadow-md transition cursor-pointer relative group"
+              className={`bg-white rounded-lg shadow hover:shadow-md transition cursor-pointer relative group ${
+                viewMode === 'list' ? 'flex flex-col md:flex-row' : ''
+              }`}
               onClick={() => router.push(`/dashboard/applications/${comment.application_id}`)}
             >
               {/* Кнопка открытия в новом окне */}
@@ -338,7 +353,11 @@ export default function CommentsPage() {
               </a>
 
               {/* Шапка карточки - информация о заявке */}
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+              <div className={`px-4 py-3 border-b border-gray-100 bg-gray-50 ${
+                viewMode === 'list'
+                  ? 'rounded-t-lg md:rounded-l-lg md:rounded-tr-none md:border-b-0 md:border-r md:w-64 md:flex-shrink-0'
+                  : 'rounded-t-lg'
+              }`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm font-semibold text-indigo-600">
@@ -368,12 +387,24 @@ export default function CommentsPage() {
                     </p>
                   </div>
                 )}
+                {/* Автор и время в режиме list - внизу шапки */}
+                {viewMode === 'list' && (
+                  <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">
+                        {comment.user_name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-xs font-medium text-gray-700">{comment.user_name}</span>
+                    </div>
+                    <span className="text-xs text-gray-500">{formatRelativeTime(comment.created_at)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Тело комментария */}
-              <div className="p-4">
+              <div className={`p-4 ${viewMode === 'list' ? 'flex-1' : ''}`}>
                 {/* Цитата если это ответ */}
-                {comment.replied_comment && (
+                {comment.replied_comment && comment.replied_comment.comment && (
                   <div className="mb-3 p-2 bg-gray-100 border-l-4 border-blue-400 rounded text-xs">
                     <span className="font-medium text-blue-600">{comment.replied_comment.user_name}:</span>
                     <p className="text-gray-600 line-clamp-1">{comment.replied_comment.comment}</p>
@@ -383,24 +414,26 @@ export default function CommentsPage() {
                 {/* Текст комментария */}
                 <div className="relative">
                   <div className="absolute -left-2 top-0 w-1 h-full bg-indigo-200 rounded-full"></div>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap line-clamp-4 pl-2">
+                  <p className={`text-sm text-gray-800 whitespace-pre-wrap pl-2 ${viewMode === 'list' ? '' : 'line-clamp-4'}`}>
                     {comment.comment}
                   </p>
                 </div>
               </div>
 
-              {/* Футер - автор и время */}
-              <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 rounded-b-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">
-                      {comment.user_name.charAt(0).toUpperCase()}
+              {/* Футер - автор и время (только для режима cards) */}
+              {viewMode === 'cards' && (
+                <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 rounded-b-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">
+                        {comment.user_name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">{comment.user_name}</span>
                     </div>
-                    <span className="text-sm font-medium text-gray-700">{comment.user_name}</span>
+                    <span className="text-xs text-gray-500">{formatRelativeTime(comment.created_at)}</span>
                   </div>
-                  <span className="text-xs text-gray-500">{formatRelativeTime(comment.created_at)}</span>
                 </div>
-              </div>
+              )}
             </div>
           ))}
         </div>
@@ -472,7 +505,7 @@ export default function CommentsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="max-w-md">
-                        {comment.replied_comment && (
+                        {comment.replied_comment && comment.replied_comment.comment && (
                           <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
