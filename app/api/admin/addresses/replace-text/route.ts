@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 import { requireAdmin } from '@/lib/auth-api'
 
+interface AddressRow {
+  id: string
+  street: string | null
+  address: string | null
+}
+
 /**
  * POST /api/admin/addresses/replace-text
  * Массовая замена текста в адресах
@@ -35,10 +41,10 @@ export async function POST(request: Request) {
     const supabase = createDirectClient()
 
     // Сначала находим все записи для замены
-    const { data: toUpdate, error: selectError } = await supabase
+    const { data, error: selectError } = await supabase
       .from('zakaz_addresses')
       .select('id, street, address')
-      .ilike(field, `%${search}%`)
+      .ilike(field, `%${search}%`) as { data: AddressRow[] | null; error: { message: string } | null }
 
     if (selectError) {
       console.error('Select error:', selectError)
@@ -48,15 +54,19 @@ export async function POST(request: Request) {
       )
     }
 
-    const count = toUpdate?.length || 0
+    const toUpdate = data || []
+    const count = toUpdate.length
 
     if (dryRun) {
       // Режим предпросмотра - только показываем что будет изменено
-      const preview = (toUpdate || []).slice(0, 20).map(row => ({
-        id: row.id,
-        before: row[field],
-        after: row[field]?.replace(new RegExp(search, 'gi'), replace)
-      }))
+      const preview = toUpdate.slice(0, 20).map(row => {
+        const fieldValue = field === 'street' ? row.street : row.address
+        return {
+          id: row.id,
+          before: fieldValue,
+          after: fieldValue?.replace(new RegExp(search, 'gi'), replace)
+        }
+      })
 
       return NextResponse.json({
         dryRun: true,
@@ -70,22 +80,22 @@ export async function POST(request: Request) {
     let updated = 0
     const errors: string[] = []
 
-    for (const row of toUpdate || []) {
+    for (const row of toUpdate) {
       const newStreet = row.street?.replace(new RegExp(search, 'gi'), replace)
       const newAddress = row.address?.replace(new RegExp(search, 'gi'), replace)
 
       const updateData: Record<string, string> = {}
       if (field === 'street' && newStreet !== row.street) {
-        updateData.street = newStreet
+        updateData.street = newStreet || ''
         // Также обновляем полный адрес
-        updateData.address = newAddress
+        updateData.address = newAddress || ''
       } else if (field === 'address' && newAddress !== row.address) {
-        updateData.address = newAddress
+        updateData.address = newAddress || ''
       }
 
       if (Object.keys(updateData).length > 0) {
-        const { error: updateError } = await supabase
-          .from('zakaz_addresses')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: updateError } = await (supabase.from as any)('zakaz_addresses')
           .update(updateData)
           .eq('id', row.id)
 
