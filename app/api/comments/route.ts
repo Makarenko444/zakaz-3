@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
     const sortDir = searchParams.get('sort_dir') || 'desc'
     const userId = searchParams.get('user_id')
     const applicationId = searchParams.get('application_id')
-    const status = searchParams.get('status') // Фильтр по статусу заявки
+    const status = searchParams.get('status') // Фильтр по статусу заявки (может быть через запятую)
+    const statuses = status ? status.split(',').filter(s => s.trim()) : []
 
     // Валидация полей сортировки
     const allowedSortFields = ['created_at', 'updated_at', 'user_name']
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
     const validSortDir = sortDir === 'asc' || sortDir === 'desc' ? sortDir : 'desc'
 
     // Если фильтруем по статусу, используем inner join
-    const applicationJoin = status
+    const applicationJoin = statuses.length > 0
       ? 'application:zakaz_applications!inner(id,application_number,customer_fullname,customer_phone,status,city,street_and_house,address_details)'
       : 'application:zakaz_applications!application_id(id,application_number,customer_fullname,customer_phone,status,city,street_and_house,address_details)'
 
@@ -66,9 +67,9 @@ export async function GET(request: NextRequest) {
       `, { count: 'exact' })
       .order(validSortBy, { ascending: validSortDir === 'asc' })
 
-    // Фильтр по статусу заявки
-    if (status) {
-      query = query.eq('application.status', status)
+    // Фильтр по статусам заявки (множественный выбор)
+    if (statuses.length > 0) {
+      query = query.in('application.status', statuses)
     }
 
     // Фильтр по пользователю

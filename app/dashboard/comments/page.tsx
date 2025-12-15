@@ -84,7 +84,17 @@ export default function CommentsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [statusFilter, setStatusFilter] = useState<string>('')
+  const [selectedStatuses, setSelectedStatuses] = useState<ApplicationStatus[]>([])
+
+  // Переключение статуса в фильтре
+  const toggleStatus = (status: ApplicationStatus) => {
+    if (selectedStatuses.includes(status)) {
+      setSelectedStatuses(selectedStatuses.filter(s => s !== status))
+    } else {
+      setSelectedStatuses([...selectedStatuses, status])
+    }
+    setPage(1)
+  }
 
   const loadComments = useCallback(async () => {
     try {
@@ -98,8 +108,8 @@ export default function CommentsPage() {
       if (search) {
         params.set('search', search)
       }
-      if (statusFilter) {
-        params.set('status', statusFilter)
+      if (selectedStatuses.length > 0) {
+        params.set('status', selectedStatuses.join(','))
       }
 
       const response = await fetch(`/api/comments?${params}`)
@@ -115,7 +125,7 @@ export default function CommentsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, search, sortDir, statusFilter])
+  }, [page, search, sortDir, selectedStatuses])
 
   useEffect(() => {
     async function loadUser() {
@@ -280,30 +290,6 @@ export default function CommentsPage() {
               </button>
             </div>
 
-            {/* Фильтр по статусу */}
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value)
-                setPage(1)
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            >
-              <option value="">Все статусы</option>
-              <option value="new">Новая</option>
-              <option value="thinking">Думает</option>
-              <option value="estimation">Расчёт</option>
-              <option value="estimation_done">Расчёт готов</option>
-              <option value="contract">Договор</option>
-              <option value="design">Проект</option>
-              <option value="approval">Согласование</option>
-              <option value="queue_install">Очередь</option>
-              <option value="install">Монтаж</option>
-              <option value="installed">Выполнено</option>
-              <option value="rejected">Отказ</option>
-              <option value="no_tech">Нет ТВ</option>
-            </select>
-
             {/* Сортировка */}
             <button
               onClick={() => {
@@ -339,6 +325,38 @@ export default function CommentsPage() {
               </svg>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Фильтры по статусам */}
+      <div className="bg-white rounded-lg shadow p-3">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex-1">
+            <h3 className="text-xs font-medium text-gray-700 mb-2">Фильтр по статусам заявок:</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {(Object.keys(statusLabels) as ApplicationStatus[]).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => toggleStatus(status)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-full transition ${
+                    selectedStatuses.includes(status)
+                      ? statusColors[status] + ' ring-2 ring-indigo-500'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {statusLabels[status]}
+                </button>
+              ))}
+            </div>
+          </div>
+          {selectedStatuses.length > 0 && (
+            <button
+              onClick={() => setSelectedStatuses([])}
+              className="text-xs text-gray-500 hover:text-gray-700 underline"
+            >
+              Сбросить
+            </button>
+          )}
         </div>
       </div>
 
