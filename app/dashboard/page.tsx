@@ -264,7 +264,7 @@ export default function DashboardPage() {
           {stats && stats.managers && stats.managers.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-bold text-gray-900">Заявки по менеджерам</h2>
+                <h2 className="text-lg font-bold text-gray-900">Активные заявки по менеджерам</h2>
                 {/* Тумблер Активные/Все */}
                 <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                   <button
@@ -292,7 +292,7 @@ export default function DashboardPage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-200 max-h-80 overflow-y-auto">
                 {stats.managers
                   .filter(m => showActiveOnly ? m.isActive : true)
-                  .sort((a, b) => b.count - a.count)
+                  .sort((a, b) => b.activeCount - a.activeCount)
                   .map((manager) => (
                   <button
                     key={manager.id}
@@ -316,7 +316,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-gray-900 group-hover:text-indigo-600">
-                        {manager.count}
+                        {manager.activeCount}
                       </span>
                       <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
