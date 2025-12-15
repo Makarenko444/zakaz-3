@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { WorkOrderType, WorkOrderStatus } from '@/lib/types'
@@ -30,6 +30,13 @@ interface ScheduleWorkOrder {
   }>
 }
 
+interface EmployeeWorkload {
+  id: string
+  name: string
+  hours: number
+  count: number
+}
+
 const typeLabels: Record<WorkOrderType, string> = {
   survey: 'Осмотр',
   installation: 'Монтаж',
@@ -51,6 +58,27 @@ const statusColors: Record<WorkOrderStatus, string> = {
 const DAYS_RU = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 const MONTHS_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 
+// Парсинг длительности в часы
+function parseDurationToHours(duration: string | null): number {
+  if (!duration) return 0
+  const parts = duration.split(':')
+  if (parts.length >= 2) {
+    const hours = parseInt(parts[0]) || 0
+    const minutes = parseInt(parts[1]) || 0
+    return hours + minutes / 60
+  }
+  return 0
+}
+
+// Форматирование часов
+function formatHours(hours: number): string {
+  if (hours === 0) return '0ч'
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  if (m === 0) return `${h}ч`
+  return `${h}ч ${m}м`
+}
+
 export default function SchedulePage() {
   const router = useRouter()
   const [view, setView] = useState<'day' | 'week'>('week')
@@ -59,6 +87,7 @@ export default function SchedulePage() {
   const [groupedByDate, setGroupedByDate] = useState<Record<string, ScheduleWorkOrder[]>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState<WorkOrderType | ''>('')
+  const [showWorkloadChart, setShowWorkloadChart] = useState(true)
 
   const fetchSchedule = useCallback(async () => {
     setIsLoading(true)
@@ -85,6 +114,43 @@ export default function SchedulePage() {
   useEffect(() => {
     fetchSchedule()
   }, [fetchSchedule])
+
+  // Расчёт общей загрузки и загрузки по сотрудникам
+  const { totalHours, employeeWorkload, maxHours } = useMemo(() => {
+    let total = 0
+    const employeeMap = new Map<string, EmployeeWorkload>()
+
+    workOrders.forEach(wo => {
+      const hours = parseDurationToHours(wo.estimated_duration)
+      total += hours
+
+      // Распределяем часы по исполнителям
+      if (wo.executors && wo.executors.length > 0) {
+        const hoursPerExecutor = hours / wo.executors.length
+        wo.executors.forEach(exec => {
+          if (exec.user) {
+            const existing = employeeMap.get(exec.user.id)
+            if (existing) {
+              existing.hours += hoursPerExecutor
+              existing.count += 1
+            } else {
+              employeeMap.set(exec.user.id, {
+                id: exec.user.id,
+                name: exec.user.full_name,
+                hours: hoursPerExecutor,
+                count: 1,
+              })
+            }
+          }
+        })
+      }
+    })
+
+    const workload = Array.from(employeeMap.values()).sort((a, b) => b.hours - a.hours)
+    const max = workload.length > 0 ? Math.max(...workload.map(e => e.hours)) : 0
+
+    return { totalHours: total, employeeWorkload: workload, maxHours: max }
+  }, [workOrders])
 
   // Навигация по датам
   const goToday = () => setCurrentDate(new Date())
@@ -145,6 +211,12 @@ export default function SchedulePage() {
       return `${start.getDate()} — ${end.getDate()} ${MONTHS_RU[start.getMonth()].toLowerCase()}`
     }
     return `${start.getDate()} ${MONTHS_RU[start.getMonth()].toLowerCase().slice(0, 3)} — ${end.getDate()} ${MONTHS_RU[end.getMonth()].toLowerCase().slice(0, 3)}`
+  }
+
+  // Расчёт загрузки по дню
+  const getDayWorkload = (dateKey: string) => {
+    const dayOrders = groupedByDate[dateKey] || []
+    return dayOrders.reduce((sum, wo) => sum + parseDurationToHours(wo.estimated_duration), 0)
   }
 
   return (
@@ -227,19 +299,26 @@ export default function SchedulePage() {
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {/* Заголовки дней */}
           <div className={`grid border-b ${view === 'week' ? 'grid-cols-7' : 'grid-cols-1'}`}>
-            {weekDates.map((date, idx) => (
-              <div
-                key={idx}
-                className={`p-3 text-center border-r last:border-r-0 ${
-                  isToday(date) ? 'bg-indigo-50' : 'bg-gray-50'
-                }`}
-              >
-                <div className="text-xs text-gray-500 uppercase">{DAYS_RU[idx % 7]}</div>
-                <div className={`text-lg font-semibold ${isToday(date) ? 'text-indigo-600' : 'text-gray-900'}`}>
-                  {date.getDate()}
+            {weekDates.map((date, idx) => {
+              const dateKey = formatDateKey(date)
+              const dayHours = getDayWorkload(dateKey)
+              return (
+                <div
+                  key={idx}
+                  className={`p-3 text-center border-r last:border-r-0 ${
+                    isToday(date) ? 'bg-indigo-50' : 'bg-gray-50'
+                  }`}
+                >
+                  <div className="text-xs text-gray-500 uppercase">{DAYS_RU[idx % 7]}</div>
+                  <div className={`text-lg font-semibold ${isToday(date) ? 'text-indigo-600' : 'text-gray-900'}`}>
+                    {date.getDate()}
+                  </div>
+                  {dayHours > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">{formatHours(dayHours)}</div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Содержимое */}
@@ -259,33 +338,52 @@ export default function SchedulePage() {
                     <div className="text-center text-gray-400 text-sm py-4">—</div>
                   ) : (
                     <div className="space-y-2">
-                      {dayWorkOrders.map((wo) => (
-                        <div
-                          key={wo.id}
-                          onClick={() => router.push(`/dashboard/work-orders/${wo.id}`)}
-                          className={`border-l-4 rounded p-2 cursor-pointer hover:shadow transition-shadow ${typeColors[wo.type]}`}
-                        >
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="text-xs font-medium">
-                              {wo.scheduled_time?.slice(0, 5) || '—'}
-                            </span>
-                            <span className={`text-xs ${statusColors[wo.status]}`}>●</span>
-                          </div>
-                          <div className="text-sm font-medium text-gray-900 truncate">
-                            №{wo.work_order_number} {typeLabels[wo.type]}
-                          </div>
-                          {wo.application && (
-                            <div className="text-xs text-gray-600 truncate mt-1">
-                              {wo.application.street_and_house}
+                      {dayWorkOrders.map((wo) => {
+                        const hours = parseDurationToHours(wo.estimated_duration)
+                        return (
+                          <div
+                            key={wo.id}
+                            onClick={() => router.push(`/dashboard/work-orders/${wo.id}`)}
+                            className={`border-l-4 rounded p-2 cursor-pointer hover:shadow transition-shadow ${typeColors[wo.type]}`}
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="text-xs font-medium">
+                                {wo.scheduled_time?.slice(0, 5) || '—'}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {hours > 0 && (
+                                  <span className="text-xs text-gray-500 bg-white/70 px-1 rounded">
+                                    {formatHours(hours)}
+                                  </span>
+                                )}
+                                <span className={`text-xs ${statusColors[wo.status]}`}>●</span>
+                              </div>
                             </div>
-                          )}
-                          {wo.executors && wo.executors.length > 0 && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {wo.executors.map(e => e.user?.full_name?.split(' ')[0]).join(', ')}
+                            {/* Визуальный индикатор длительности */}
+                            {hours > 0 && (
+                              <div className="h-1 bg-gray-200 rounded-full mb-1 overflow-hidden">
+                                <div
+                                  className="h-full bg-current opacity-40 rounded-full"
+                                  style={{ width: `${Math.min(hours / 8 * 100, 100)}%` }}
+                                />
+                              </div>
+                            )}
+                            <div className="text-sm font-medium text-gray-900 truncate">
+                              №{wo.work_order_number} {typeLabels[wo.type]}
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            {wo.application && (
+                              <div className="text-xs text-gray-600 truncate mt-1">
+                                {wo.application.street_and_house}
+                              </div>
+                            )}
+                            {wo.executors && wo.executors.length > 0 && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {wo.executors.map(e => e.user?.full_name?.split(' ')[0]).join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -295,18 +393,76 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* Статистика */}
-      <div className="mt-6 flex gap-4 text-sm text-gray-600">
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 bg-blue-500 rounded"></span>
-          <span>Осмотр: {workOrders.filter(w => w.type === 'survey').length}</span>
+      {/* Статистика и загрузка */}
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Общая статистика */}
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="font-semibold text-gray-900 mb-3">Общая статистика</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-gray-900">{workOrders.length}</div>
+              <div className="text-sm text-gray-500">нарядов</div>
+            </div>
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-indigo-600">{formatHours(totalHours)}</div>
+              <div className="text-sm text-gray-500">запланировано</div>
+            </div>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-xl font-bold text-blue-600">{workOrders.filter(w => w.type === 'survey').length}</div>
+              <div className="text-sm text-blue-600">осмотров</div>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <div className="text-xl font-bold text-green-600">{workOrders.filter(w => w.type === 'installation').length}</div>
+              <div className="text-sm text-green-600">монтажей</div>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 bg-green-500 rounded"></span>
-          <span>Монтаж: {workOrders.filter(w => w.type === 'installation').length}</span>
-        </div>
-        <div className="ml-4">
-          Всего: {workOrders.length} нарядов
+
+        {/* График загруженности по сотрудникам */}
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-semibold text-gray-900">Загрузка по сотрудникам</h3>
+            <button
+              onClick={() => setShowWorkloadChart(!showWorkloadChart)}
+              className="text-sm text-indigo-600 hover:text-indigo-800"
+            >
+              {showWorkloadChart ? 'Скрыть' : 'Показать'}
+            </button>
+          </div>
+
+          {showWorkloadChart && (
+            <>
+              {employeeWorkload.length === 0 ? (
+                <div className="text-center text-gray-400 py-8">
+                  Нет данных о загрузке
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {employeeWorkload.map((emp) => (
+                    <div key={emp.id} className="relative">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm text-gray-700 truncate flex-1">{emp.name}</span>
+                        <span className="text-sm font-medium text-gray-900 ml-2">
+                          {formatHours(emp.hours)} ({emp.count})
+                        </span>
+                      </div>
+                      {/* Полоса загрузки */}
+                      <div className="h-6 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+                          style={{ width: maxHours > 0 ? `${Math.max((emp.hours / maxHours) * 100, 5)}%` : '5%' }}
+                        >
+                          {emp.hours >= maxHours * 0.3 && (
+                            <span className="text-xs text-white font-medium">{formatHours(emp.hours)}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
