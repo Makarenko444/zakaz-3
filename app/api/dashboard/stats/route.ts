@@ -59,6 +59,7 @@ export async function GET(_request: NextRequest) {
       new: 'Новая',
       thinking: 'Думает',
       estimation: 'Расчёт',
+      estimation_done: 'Расчёт выполнен',
       contract: 'Договор и оплата',
       design: 'Проектирование',
       approval: 'Согласование',
@@ -70,7 +71,7 @@ export async function GET(_request: NextRequest) {
     }
 
     // Порядок статусов по этапам работы
-    const statusOrder = ['new', 'thinking', 'estimation', 'contract', 'design', 'approval', 'queue_install', 'install', 'installed', 'rejected', 'no_tech']
+    const statusOrder = ['new', 'thinking', 'estimation', 'estimation_done', 'contract', 'design', 'approval', 'queue_install', 'install', 'installed', 'rejected', 'no_tech']
 
     const statuses = Array.from(statusStatsMap.entries())
       .map(([status, count]) => ({

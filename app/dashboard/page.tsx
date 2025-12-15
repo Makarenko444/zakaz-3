@@ -109,6 +109,7 @@ export default function DashboardPage() {
     new: 'bg-gray-100 text-gray-800 border-gray-300',
     thinking: 'bg-blue-50 text-blue-700 border-blue-200',
     estimation: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    estimation_done: 'bg-sky-50 text-sky-700 border-sky-200',
     waiting_payment: 'bg-amber-50 text-amber-700 border-amber-200',
     contract: 'bg-cyan-50 text-cyan-700 border-cyan-200',
     design: 'bg-teal-50 text-teal-700 border-teal-200',
