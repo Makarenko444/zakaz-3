@@ -31,6 +31,7 @@ interface DashboardStats {
     name: string
     count: number
     activeCount: number
+    isActive: boolean
   }>
   users: Array<{
     id: string
@@ -290,8 +291,8 @@ export default function DashboardPage() {
               </div>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-200 max-h-80 overflow-y-auto">
                 {stats.managers
-                  .filter(m => showActiveOnly ? m.activeCount > 0 : true)
-                  .sort((a, b) => showActiveOnly ? b.activeCount - a.activeCount : b.count - a.count)
+                  .filter(m => showActiveOnly ? m.isActive : true)
+                  .sort((a, b) => b.count - a.count)
                   .map((manager) => (
                   <button
                     key={manager.id}
@@ -315,7 +316,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-gray-900 group-hover:text-indigo-600">
-                        {showActiveOnly ? manager.activeCount : manager.count}
+                        {manager.count}
                       </span>
                       <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
