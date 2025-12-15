@@ -530,7 +530,7 @@ export default function RequestAddressLinkingAdmin() {
   }
 
   // Парсинг адреса из строки заявки
-  const parseAddressFromApplication = (streetAndHouse: string) => {
+  const parseAddressFromApplication = (streetAndHouse: string, city?: string) => {
     const parts = streetAndHouse.split(',').map(p => p.trim())
     let street = parts[0] || ''
     let house = parts[1] || ''
@@ -541,16 +541,37 @@ export default function RequestAddressLinkingAdmin() {
       house = houseMatch[2]
     }
 
-    const hasPrefix = /^(улица|ул\.?|проспект|пр\.?|переулок|пер\.?|бульвар|б-р|шоссе|набережная|площадь)/i.test(street)
+    // Проверяем наличие префикса (включая тракт)
+    const hasPrefix = /^(улица|ул\.?|проспект|просп\.?|пр\.?|пр-т|переулок|пер\.?|бульвар|бул\.?|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д|тракт)/i.test(street)
+
     if (!hasPrefix && street) {
-      street = `улица ${street}`
+      // Для Томска определяем тип улицы по названию
+      const streetLower = street.toLowerCase().trim()
+      const isTomsk = !city || city.toLowerCase() === 'томск'
+
+      if (isTomsk) {
+        // Проспекты в Томске
+        if (/^(ленина|кирова)$/i.test(streetLower)) {
+          street = `проспект ${street}`
+        }
+        // Тракты в Томске
+        else if (/^(московский|иркутский)$/i.test(streetLower)) {
+          street = `${street} тракт`
+        }
+        // Остальные - улицы
+        else {
+          street = `улица ${street}`
+        }
+      } else {
+        street = `улица ${street}`
+      }
     }
 
     return { street, house }
   }
 
   const openCreateForm = (app: Application) => {
-    const parsed = parseAddressFromApplication(app.street_and_house || '')
+    const parsed = parseAddressFromApplication(app.street_and_house || '', app.city)
     setNewAddressForm({
       city: app.city || 'Томск',
       street: parsed.street,
