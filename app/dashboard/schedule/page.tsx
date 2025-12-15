@@ -37,6 +37,19 @@ interface EmployeeWorkload {
   count: number
 }
 
+interface DayViewEmployee {
+  id: string
+  name: string
+  workOrders: ScheduleWorkOrder[]
+}
+
+interface TimeSlot {
+  workOrder: ScheduleWorkOrder
+  startMinutes: number
+  endMinutes: number
+  row: number // для обработки нахлеста
+}
+
 const typeLabels: Record<WorkOrderType, string> = {
   survey: 'Осмотр',
   installation: 'Монтаж',
@@ -77,6 +90,53 @@ function formatHours(hours: number): string {
   const m = Math.round((hours - h) * 60)
   if (m === 0) return `${h}ч`
   return `${h}ч ${m}м`
+}
+
+// Парсинг времени в минуты от полуночи
+function parseTimeToMinutes(time: string | null): number {
+  if (!time) return 8 * 60 // по умолчанию 8:00
+  const parts = time.split(':')
+  const hours = parseInt(parts[0]) || 8
+  const minutes = parseInt(parts[1]) || 0
+  return hours * 60 + minutes
+}
+
+// Парсинг длительности в минуты
+function parseDurationToMinutes(duration: string | null): number {
+  if (!duration) return 60 // по умолчанию 1 час
+  const parts = duration.split(':')
+  const hours = parseInt(parts[0]) || 0
+  const minutes = parseInt(parts[1]) || 0
+  return hours * 60 + minutes
+}
+
+// Рассчитать нахлесты и распределить по строкам
+function calculateOverlapRows(slots: TimeSlot[]): TimeSlot[] {
+  // Сортируем по времени начала
+  const sorted = [...slots].sort((a, b) => a.startMinutes - b.startMinutes)
+
+  // Для каждого слота находим свободную строку
+  sorted.forEach((slot, idx) => {
+    const occupiedRows = new Set<number>()
+
+    // Проверяем пересечения с предыдущими
+    for (let i = 0; i < idx; i++) {
+      const prev = sorted[i]
+      // Если есть пересечение
+      if (prev.endMinutes > slot.startMinutes && prev.startMinutes < slot.endMinutes) {
+        occupiedRows.add(prev.row)
+      }
+    }
+
+    // Находим первую свободную строку
+    let row = 0
+    while (occupiedRows.has(row)) {
+      row++
+    }
+    slot.row = row
+  })
+
+  return sorted
 }
 
 export default function SchedulePage() {
@@ -151,6 +211,74 @@ export default function SchedulePage() {
 
     return { totalHours: total, employeeWorkload: workload, maxHours: max }
   }, [workOrders])
+
+  // Данные для дневного вида с временной шкалой
+  const dayViewData = useMemo(() => {
+    if (view !== 'day') return { employees: [], startHour: 8, endHour: 19 }
+
+    const dateKey = formatDateKey(currentDate)
+    const dayOrders = groupedByDate[dateKey] || []
+
+    // Группируем по сотрудникам
+    const employeeMap = new Map<string, DayViewEmployee>()
+
+    // Также собираем заказы без исполнителей
+    const unassigned: ScheduleWorkOrder[] = []
+
+    dayOrders.forEach(wo => {
+      if (wo.executors && wo.executors.length > 0) {
+        wo.executors.forEach(exec => {
+          if (exec.user) {
+            const existing = employeeMap.get(exec.user.id)
+            if (existing) {
+              // Проверяем что этого заказа еще нет
+              if (!existing.workOrders.find(w => w.id === wo.id)) {
+                existing.workOrders.push(wo)
+              }
+            } else {
+              employeeMap.set(exec.user.id, {
+                id: exec.user.id,
+                name: exec.user.full_name,
+                workOrders: [wo]
+              })
+            }
+          }
+        })
+      } else {
+        unassigned.push(wo)
+      }
+    })
+
+    // Определяем диапазон времени
+    let minMinutes = 8 * 60 // 8:00
+    let maxMinutes = 19 * 60 // 19:00
+
+    dayOrders.forEach(wo => {
+      const start = parseTimeToMinutes(wo.scheduled_time)
+      const duration = parseDurationToMinutes(wo.estimated_duration)
+      const end = start + duration
+
+      if (start < minMinutes) minMinutes = start
+      if (end > maxMinutes) maxMinutes = end
+    })
+
+    // Округляем до целых часов
+    const startHour = Math.floor(minMinutes / 60)
+    const endHour = Math.ceil(maxMinutes / 60)
+
+    // Преобразуем в массив и добавляем нераспределенных
+    const employees = Array.from(employeeMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+
+    if (unassigned.length > 0) {
+      employees.push({
+        id: 'unassigned',
+        name: 'Не назначено',
+        workOrders: unassigned
+      })
+    }
+
+    return { employees, startHour, endHour }
+  }, [view, currentDate, groupedByDate])
 
   // Навигация по датам
   const goToday = () => setCurrentDate(new Date())
@@ -295,10 +423,122 @@ export default function SchedulePage() {
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
         </div>
+      ) : view === 'day' ? (
+        /* ==================== ВИД НА ДЕНЬ С ВРЕМЕННОЙ ШКАЛОЙ ==================== */
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {/* Заголовок временной шкалы */}
+          <div className="flex border-b">
+            {/* Колонка с именами сотрудников */}
+            <div className="w-40 flex-shrink-0 p-3 bg-gray-50 border-r font-medium text-gray-700">
+              Сотрудник
+            </div>
+            {/* Временные метки */}
+            <div className="flex-1 flex">
+              {Array.from({ length: dayViewData.endHour - dayViewData.startHour }, (_, i) => (
+                <div
+                  key={i}
+                  className="flex-1 p-2 text-center text-xs text-gray-500 border-r last:border-r-0 bg-gray-50"
+                  style={{ minWidth: '60px' }}
+                >
+                  {dayViewData.startHour + i}:00
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Строки сотрудников */}
+          {dayViewData.employees.length === 0 ? (
+            <div className="text-center text-gray-400 py-12">
+              На этот день нет запланированных нарядов
+            </div>
+          ) : (
+            dayViewData.employees.map((employee) => {
+              // Подготовим слоты для этого сотрудника
+              const slots: TimeSlot[] = employee.workOrders.map(wo => ({
+                workOrder: wo,
+                startMinutes: parseTimeToMinutes(wo.scheduled_time),
+                endMinutes: parseTimeToMinutes(wo.scheduled_time) + parseDurationToMinutes(wo.estimated_duration),
+                row: 0
+              }))
+
+              // Расчёт нахлестов
+              const calculatedSlots = calculateOverlapRows(slots)
+              const maxRow = Math.max(0, ...calculatedSlots.map(s => s.row))
+              const rowHeight = 48 // пикселей на ряд
+              const totalHeight = (maxRow + 1) * rowHeight
+
+              const timelineStart = dayViewData.startHour * 60
+              const timelineEnd = dayViewData.endHour * 60
+              const timelineWidth = timelineEnd - timelineStart
+
+              return (
+                <div key={employee.id} className="flex border-b last:border-b-0">
+                  {/* Имя сотрудника */}
+                  <div className={`w-40 flex-shrink-0 p-3 border-r text-sm font-medium flex items-center ${
+                    employee.id === 'unassigned' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'
+                  }`}>
+                    <span className="truncate">{employee.name}</span>
+                  </div>
+
+                  {/* Временная шкала с задачами */}
+                  <div
+                    className="flex-1 relative"
+                    style={{ minHeight: `${Math.max(totalHeight, rowHeight)}px` }}
+                  >
+                    {/* Вертикальные линии часов */}
+                    <div className="absolute inset-0 flex pointer-events-none">
+                      {Array.from({ length: dayViewData.endHour - dayViewData.startHour }, (_, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 border-r border-gray-100"
+                          style={{ minWidth: '60px' }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Задачи */}
+                    {calculatedSlots.map((slot) => {
+                      const leftPercent = ((slot.startMinutes - timelineStart) / timelineWidth) * 100
+                      const widthPercent = ((slot.endMinutes - slot.startMinutes) / timelineWidth) * 100
+                      const wo = slot.workOrder
+                      const bgColor = wo.type === 'survey' ? 'bg-blue-100 border-blue-400' : 'bg-green-100 border-green-400'
+
+                      return (
+                        <div
+                          key={wo.id}
+                          onClick={() => router.push(`/dashboard/work-orders/${wo.id}`)}
+                          className={`absolute border-l-4 rounded px-2 py-1 cursor-pointer hover:shadow-md transition-shadow overflow-hidden ${bgColor}`}
+                          style={{
+                            left: `${leftPercent}%`,
+                            width: `${Math.max(widthPercent, 3)}%`,
+                            top: `${slot.row * rowHeight + 4}px`,
+                            height: `${rowHeight - 8}px`,
+                          }}
+                          title={`№${wo.work_order_number} ${typeLabels[wo.type]} - ${wo.scheduled_time?.slice(0, 5) || '—'} (${formatHours(parseDurationToHours(wo.estimated_duration))})`}
+                        >
+                          <div className="flex items-center gap-1 h-full">
+                            <span className={`text-xs ${statusColors[wo.status]}`}>●</span>
+                            <span className="text-xs font-medium truncate">
+                              №{wo.work_order_number}
+                            </span>
+                            <span className="text-xs text-gray-600 truncate hidden sm:inline">
+                              {wo.application?.street_and_house}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
       ) : (
+        /* ==================== ВИД НА НЕДЕЛЮ ==================== */
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {/* Заголовки дней */}
-          <div className={`grid border-b ${view === 'week' ? 'grid-cols-7' : 'grid-cols-1'}`}>
+          <div className="grid grid-cols-7 border-b">
             {weekDates.map((date, idx) => {
               const dateKey = formatDateKey(date)
               const dayHours = getDayWorkload(dateKey)
@@ -322,7 +562,7 @@ export default function SchedulePage() {
           </div>
 
           {/* Содержимое */}
-          <div className={`grid min-h-[400px] ${view === 'week' ? 'grid-cols-7' : 'grid-cols-1'}`}>
+          <div className="grid grid-cols-7 min-h-[400px]">
             {weekDates.map((date, idx) => {
               const dateKey = formatDateKey(date)
               const dayWorkOrders = groupedByDate[dateKey] || []
