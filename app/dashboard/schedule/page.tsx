@@ -659,7 +659,11 @@ export default function SchedulePage() {
               return (
                 <div
                   key={idx}
-                  className={`p-3 text-center border-r last:border-r-0 ${
+                  onClick={() => {
+                    setCurrentDate(date)
+                    setView('day')
+                  }}
+                  className={`p-3 text-center border-r last:border-r-0 cursor-pointer hover:bg-indigo-100 transition-colors ${
                     isToday(date) ? 'bg-indigo-50' : 'bg-gray-50'
                   }`}
                 >
@@ -790,26 +794,24 @@ export default function SchedulePage() {
                         : 'bg-gray-50 hover:bg-indigo-50'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className={`text-sm font-medium truncate flex-1 ${isHighlighted ? 'text-indigo-900' : 'text-gray-700'}`}>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className={`text-sm font-medium truncate ${isHighlighted ? 'text-indigo-900' : 'text-gray-700'}`}>
                       {emp.name}
                     </span>
-                    <span className={`text-xs ml-2 ${isHighlighted ? 'text-indigo-700' : 'text-gray-500'}`}>
-                      {emp.count} нар.
+                    <span className={`text-sm font-semibold whitespace-nowrap ml-2 ${isHighlighted ? 'text-indigo-700' : 'text-gray-600'}`}>
+                      {formatHours(emp.hours)} · {emp.count} нар.
                     </span>
                   </div>
                   {/* Полоса загрузки */}
-                  <div className="h-5 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-300 flex items-center justify-end pr-2 ${
+                      className={`h-full rounded-full transition-all duration-300 ${
                         isHighlighted
                           ? 'bg-gradient-to-r from-indigo-600 to-indigo-700'
                           : 'bg-gradient-to-r from-indigo-400 to-indigo-500'
                       }`}
-                      style={{ width: maxHours > 0 ? `${Math.max((emp.hours / maxHours) * 100, 10)}%` : '10%' }}
-                    >
-                      <span className="text-xs text-white font-medium">{formatHours(emp.hours)}</span>
-                    </div>
+                      style={{ width: maxHours > 0 ? `${Math.max((emp.hours / maxHours) * 100, 5)}%` : '5%' }}
+                    />
                   </div>
                 </div>
               )
