@@ -362,13 +362,19 @@ export default function WorkOrderDetailPage() {
             </svg>
             Печать
           </button>
+          <Link
+            href={`/dashboard/work-orders/${id}/edit`}
+            className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+          >
+            Редактировать
+          </Link>
           <button
             onClick={() => setShowStatusModal(true)}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             Сменить статус
           </button>
-          {currentUser?.role === 'admin' && (
+          {(currentUser?.role === 'admin' || currentUser?.id === workOrder.created_by) && (
             <button
               onClick={handleDeleteWorkOrder}
               disabled={isDeleting}

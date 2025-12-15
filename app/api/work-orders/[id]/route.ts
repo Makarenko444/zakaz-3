@@ -102,6 +102,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Разрешённые поля для обновления
     const allowedFields = [
+      'type',
       'scheduled_date',
       'scheduled_time',
       'estimated_duration',
