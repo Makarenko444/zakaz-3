@@ -162,6 +162,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const session = await validateSession(request)
 
+    // Только админы могут создавать узлы
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Only admins can create nodes' },
+        { status: 403 }
+      )
+    }
+
     // Валидация обязательных полей
     if (!body.street) {
       return NextResponse.json(
