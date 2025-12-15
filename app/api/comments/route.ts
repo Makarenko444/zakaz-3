@@ -41,26 +41,23 @@ export async function GET(request: NextRequest) {
     const sortDir = searchParams.get('sort_dir') || 'desc'
     const userId = searchParams.get('user_id')
     const applicationId = searchParams.get('application_id')
+    const status = searchParams.get('status') // Фильтр по статусу заявки
 
     // Валидация полей сортировки
     const allowedSortFields = ['created_at', 'updated_at', 'user_name']
     const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at'
     const validSortDir = sortDir === 'asc' || sortDir === 'desc' ? sortDir : 'desc'
 
+    // Если фильтруем по статусу, используем inner join
+    const applicationJoin = status
+      ? 'application:zakaz_applications!inner(id,application_number,customer_fullname,customer_phone,status,city,street_and_house,address_details)'
+      : 'application:zakaz_applications!application_id(id,application_number,customer_fullname,customer_phone,status,city,street_and_house,address_details)'
+
     let query = supabase
       .from('zakaz_application_comments')
       .select(`
         *,
-        application:zakaz_applications!application_id(
-          id,
-          application_number,
-          customer_fullname,
-          customer_phone,
-          status,
-          city,
-          street_and_house,
-          address_details
-        ),
+        ${applicationJoin},
         replied_comment:zakaz_application_comments!reply_to_comment_id(
           id,
           user_name,
@@ -68,6 +65,11 @@ export async function GET(request: NextRequest) {
         )
       `, { count: 'exact' })
       .order(validSortBy, { ascending: validSortDir === 'asc' })
+
+    // Фильтр по статусу заявки
+    if (status) {
+      query = query.eq('application.status', status)
+    }
 
     // Фильтр по пользователю
     if (userId) {

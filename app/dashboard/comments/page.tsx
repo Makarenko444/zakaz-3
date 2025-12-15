@@ -84,6 +84,7 @@ export default function CommentsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [statusFilter, setStatusFilter] = useState<string>('')
 
   const loadComments = useCallback(async () => {
     try {
@@ -96,6 +97,9 @@ export default function CommentsPage() {
       })
       if (search) {
         params.set('search', search)
+      }
+      if (statusFilter) {
+        params.set('status', statusFilter)
       }
 
       const response = await fetch(`/api/comments?${params}`)
@@ -111,7 +115,7 @@ export default function CommentsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, search, sortDir])
+  }, [page, search, sortDir, statusFilter])
 
   useEffect(() => {
     async function loadUser() {
@@ -275,6 +279,30 @@ export default function CommentsPage() {
                 </svg>
               </button>
             </div>
+
+            {/* Фильтр по статусу */}
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setPage(1)
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            >
+              <option value="">Все статусы</option>
+              <option value="new">Новая</option>
+              <option value="thinking">Думает</option>
+              <option value="estimation">Расчёт</option>
+              <option value="estimation_done">Расчёт готов</option>
+              <option value="contract">Договор</option>
+              <option value="design">Проект</option>
+              <option value="approval">Согласование</option>
+              <option value="queue_install">Очередь</option>
+              <option value="install">Монтаж</option>
+              <option value="installed">Выполнено</option>
+              <option value="rejected">Отказ</option>
+              <option value="no_tech">Нет ТВ</option>
+            </select>
 
             {/* Сортировка */}
             <button
