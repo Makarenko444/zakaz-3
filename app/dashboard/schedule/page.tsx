@@ -71,6 +71,11 @@ const statusColors: Record<WorkOrderStatus, string> = {
 const DAYS_RU = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 const MONTHS_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 
+// Форматирование даты в ключ YYYY-MM-DD
+function formatDateKey(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
 // Парсинг длительности в часы
 function parseDurationToHours(duration: string | null): number {
   if (!duration) return 0
@@ -320,8 +325,6 @@ export default function SchedulePage() {
   }
 
   const weekDates = view === 'week' ? getWeekDates() : [currentDate]
-
-  const formatDateKey = (date: Date) => date.toISOString().split('T')[0]
 
   const isToday = (date: Date) => {
     const today = new Date()
