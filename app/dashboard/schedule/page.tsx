@@ -115,6 +115,50 @@ function parseDurationToMinutes(duration: string | null): number {
   return hours * 60 + minutes
 }
 
+// Определить визуальный стиль наряда по статусу
+function getWorkOrderStatusStyle(wo: ScheduleWorkOrder): {
+  ringClass: string
+  opacityClass: string
+  bgOverride?: string
+} {
+  const today = formatDateKey(new Date())
+  const scheduledDate = wo.scheduled_date || ''
+
+  // Выполненные - зелёная рамка
+  if (wo.status === 'completed') {
+    return {
+      ringClass: 'ring-2 ring-green-500',
+      opacityClass: '',
+      bgOverride: undefined
+    }
+  }
+
+  // Просроченные - красная рамка (дата прошла, не выполнен и не отменён)
+  if (scheduledDate && scheduledDate < today && wo.status !== 'cancelled') {
+    return {
+      ringClass: 'ring-2 ring-red-500',
+      opacityClass: '',
+      bgOverride: undefined
+    }
+  }
+
+  // Черновики или не назначенные - затемнённые
+  if (wo.status === 'draft' || !wo.executors || wo.executors.length === 0) {
+    return {
+      ringClass: '',
+      opacityClass: 'opacity-50',
+      bgOverride: 'bg-gray-100 border-gray-400'
+    }
+  }
+
+  // Обычный стиль
+  return {
+    ringClass: '',
+    opacityClass: '',
+    bgOverride: undefined
+  }
+}
+
 // Рассчитать нахлесты и распределить по строкам
 function calculateOverlapRows(slots: TimeSlot[]): TimeSlot[] {
   // Сортируем по времени начала
@@ -608,19 +652,31 @@ export default function SchedulePage() {
                       const leftPercent = ((slot.startMinutes - timelineStart) / timelineWidth) * 100
                       const widthPercent = ((slot.endMinutes - slot.startMinutes) / timelineWidth) * 100
                       const wo = slot.workOrder
-                      const bgColor = wo.type === 'survey' ? 'bg-blue-100 border-blue-400' : 'bg-green-100 border-green-400'
+
+                      // Стиль по статусу наряда (выполнен/просрочен/черновик)
+                      const statusStyle = getWorkOrderStatusStyle(wo)
+                      const defaultBgColor = wo.type === 'survey' ? 'bg-blue-100 border-blue-400' : 'bg-green-100 border-green-400'
+                      const bgColor = statusStyle.bgOverride || defaultBgColor
 
                       // Проверяем выделение сотрудника
                       const hasHighlightedEmployee = highlightedEmployee && wo.executors?.some(e => e.user_id === highlightedEmployee)
-                      const isDimmed = highlightedEmployee && !hasHighlightedEmployee
+                      const isDimmedByEmployee = highlightedEmployee && !hasHighlightedEmployee
+
+                      // Комбинируем стили: приоритет у выделения сотрудника, затем статус
+                      const ringClass = isDimmedByEmployee
+                        ? ''
+                        : hasHighlightedEmployee
+                          ? 'ring-2 ring-indigo-400 z-10'
+                          : statusStyle.ringClass
+                      const opacityClass = isDimmedByEmployee
+                        ? 'opacity-30'
+                        : statusStyle.opacityClass
 
                       return (
                         <div
                           key={wo.id}
                           onClick={() => router.push(`/dashboard/work-orders/${wo.id}`)}
-                          className={`absolute border-l-4 rounded px-2 py-1 cursor-pointer hover:shadow-md transition-all overflow-hidden ${bgColor} ${
-                            isDimmed ? 'opacity-30' : hasHighlightedEmployee ? 'ring-2 ring-indigo-400 z-10' : ''
-                          }`}
+                          className={`absolute border-l-4 rounded px-2 py-1 cursor-pointer hover:shadow-md transition-all overflow-hidden ${bgColor} ${ringClass} ${opacityClass}`}
                           style={{
                             left: `${leftPercent}%`,
                             width: `${Math.max(widthPercent, 3)}%`,
@@ -697,17 +753,31 @@ export default function SchedulePage() {
                     <div className="space-y-2">
                       {dayWorkOrders.map((wo) => {
                         const hours = parseDurationToHours(wo.estimated_duration)
+
+                        // Стиль по статусу наряда (выполнен/просрочен/черновик)
+                        const statusStyle = getWorkOrderStatusStyle(wo)
+                        const defaultTypeColor = typeColors[wo.type]
+                        const bgColor = statusStyle.bgOverride || defaultTypeColor
+
                         // Проверяем, связан ли наряд с выделенным сотрудником
                         const hasHighlightedEmployee = highlightedEmployee && wo.executors?.some(e => e.user_id === highlightedEmployee)
-                        const isDimmed = highlightedEmployee && !hasHighlightedEmployee
+                        const isDimmedByEmployee = highlightedEmployee && !hasHighlightedEmployee
+
+                        // Комбинируем стили: приоритет у выделения сотрудника, затем статус
+                        const ringClass = isDimmedByEmployee
+                          ? ''
+                          : hasHighlightedEmployee
+                            ? 'ring-2 ring-indigo-400'
+                            : statusStyle.ringClass
+                        const opacityClass = isDimmedByEmployee
+                          ? 'opacity-30'
+                          : statusStyle.opacityClass
 
                         return (
                           <div
                             key={wo.id}
                             onClick={() => router.push(`/dashboard/work-orders/${wo.id}`)}
-                            className={`border-l-4 rounded p-2 cursor-pointer hover:shadow transition-all ${typeColors[wo.type]} ${
-                              isDimmed ? 'opacity-30' : hasHighlightedEmployee ? 'ring-2 ring-indigo-400' : ''
-                            }`}
+                            className={`border-l-4 rounded p-2 cursor-pointer hover:shadow transition-all ${bgColor} ${ringClass} ${opacityClass}`}
                           >
                             <div className="flex justify-between items-start mb-1">
                               <span className="text-xs font-medium">
