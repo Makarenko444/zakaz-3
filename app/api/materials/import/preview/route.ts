@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const noHeadersStr = formData.get('noHeaders') as string | null
+    const noHeaders = noHeadersStr === 'true'
 
     if (!file) {
       return NextResponse.json(
@@ -46,23 +48,38 @@ export async function POST(request: NextRequest) {
     // Получаем диапазон данных
     const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
 
-    // Получаем заголовки (первая строка)
-    const headers: string[] = []
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: range.s.r, c: col })
-      const cell = worksheet[cellAddress]
-      headers.push(cell ? String(cell.v) : `Колонка ${col + 1}`)
-    }
-
-    // Конвертируем в JSON (первые 15 строк для предпросмотра)
+    // Конвертируем в JSON
     const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 0 }) as unknown[][]
 
-    // Первая строка - заголовки, остальные - данные
-    const dataRows = rawData.slice(1, 16) // 15 строк данных
+    let headers: string[]
+    let dataRows: unknown[][]
+    let totalRows: number
+
+    if (noHeaders) {
+      // Файл без заголовков - генерируем названия колонок
+      const colCount = range.e.c - range.s.c + 1
+      headers = Array.from({ length: colCount }, (_, i) => `Колонка ${i + 1}`)
+      // Все строки - данные (берём первые 15)
+      dataRows = rawData.slice(0, 15)
+      totalRows = rawData.length
+    } else {
+      // Файл с заголовками - первая строка = заголовки
+      headers = []
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: range.s.r, c: col })
+        const cell = worksheet[cellAddress]
+        headers.push(cell ? String(cell.v) : `Колонка ${col + 1}`)
+      }
+      // Остальные строки - данные (берём первые 15)
+      dataRows = rawData.slice(1, 16)
+      totalRows = rawData.length - 1
+    }
 
     // Преобразуем в объекты с заголовками
     const preview = dataRows.map((row, index) => {
-      const obj: Record<string, unknown> = { __rowNumber: index + 2 } // +2 потому что Excel нумерация с 1 и заголовок
+      // Номер строки в Excel: +1 для Excel-нумерации, +1 если есть заголовок
+      const rowNumber = noHeaders ? index + 1 : index + 2
+      const obj: Record<string, unknown> = { __rowNumber: rowNumber }
       headers.forEach((header, colIndex) => {
         obj[header] = row[colIndex] !== undefined ? row[colIndex] : ''
       })
@@ -73,7 +90,7 @@ export async function POST(request: NextRequest) {
       success: true,
       filename: file.name,
       sheetName: firstSheetName,
-      totalRows: rawData.length - 1, // минус заголовок
+      totalRows,
       headers,
       preview,
     })
