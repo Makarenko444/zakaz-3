@@ -544,76 +544,84 @@ export default function WorkOrderDetailPage() {
           onCompleteClick={() => setShowCompleteModal(true)}
           disabled={!canEdit}
         />
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Информация о заявке */}
-        <div className="bg-white rounded-lg shadow p-5">
-          <h2 className="text-lg font-semibold mb-4">Заявка</h2>
-          {workOrder.application ? (
-            <div className="space-y-3">
-              <div>
-                <span className="text-gray-500 text-sm">Номер:</span>
-                <Link
-                  href={`/dashboard/applications/${workOrder.application.id}`}
-                  className="ml-2 text-indigo-600 hover:text-indigo-800 font-medium"
-                >
-                  №{workOrder.application.application_number}
-                </Link>
-              </div>
-              <div>
-                <span className="text-gray-500 text-sm">Клиент:</span>
-                <span className="ml-2">{workOrder.application.customer_fullname}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 text-sm">Телефон:</span>
-                <a href={`tel:${workOrder.application.customer_phone}`} className="ml-2 text-indigo-600">
-                  {workOrder.application.customer_phone}
-                </a>
-              </div>
-              <div>
-                <span className="text-gray-500 text-sm">Адрес:</span>
-                <span className="ml-2">
-                  {workOrder.application.city}, {workOrder.application.street_and_house}
-                  {workOrder.application.address_details && `, ${workOrder.application.address_details}`}
-                </span>
-              </div>
+        {/* Компактная информация о планировании */}
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-600 bg-gray-50 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="font-medium">{formatDate(workOrder.scheduled_date)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{workOrder.scheduled_time?.slice(0, 5) || '—'}</span>
+          </div>
+          {workOrder.estimated_duration && (
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>~{workOrder.estimated_duration.slice(0, 5)}</span>
             </div>
-          ) : (
-            <p className="text-gray-500">Заявка не найдена</p>
+          )}
+          {workOrder.actual_start_at && (
+            <div className="flex items-center gap-2 text-green-600">
+              <span className="text-xs">Начато:</span>
+              <span>{formatDateTime(workOrder.actual_start_at)}</span>
+            </div>
+          )}
+          {workOrder.actual_end_at && (
+            <div className="flex items-center gap-2 text-green-600">
+              <span className="text-xs">Завершено:</span>
+              <span>{formatDateTime(workOrder.actual_end_at)}</span>
+            </div>
           )}
         </div>
+      </div>
 
-        {/* Планирование */}
-        <div className="bg-white rounded-lg shadow p-5">
-          <h2 className="text-lg font-semibold mb-4">Планирование</h2>
-          <div className="space-y-3">
-            <div>
-              <span className="text-gray-500 text-sm">Дата:</span>
-              <span className="ml-2">{formatDate(workOrder.scheduled_date)}</span>
-            </div>
-            <div>
-              <span className="text-gray-500 text-sm">Время:</span>
-              <span className="ml-2">{workOrder.scheduled_time?.slice(0, 5) || '—'}</span>
-            </div>
-            <div>
-              <span className="text-gray-500 text-sm">Длительность:</span>
-              <span className="ml-2">{workOrder.estimated_duration?.slice(0, 5) || '—'}</span>
-            </div>
-            {workOrder.actual_start_at && (
-              <div>
-                <span className="text-gray-500 text-sm">Факт. начало:</span>
-                <span className="ml-2">{formatDateTime(workOrder.actual_start_at)}</span>
+      {/* Основной контент: 2/3 слева + 1/3 справа */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Левая колонка 2/3 */}
+        <div className="lg:w-2/3 space-y-6">
+          {/* Информация о заявке */}
+          <div className="bg-white rounded-lg shadow p-5">
+            <h2 className="text-lg font-semibold mb-4">Заявка</h2>
+            {workOrder.application ? (
+              <div className="space-y-3">
+                <div>
+                  <span className="text-gray-500 text-sm">Номер:</span>
+                  <Link
+                    href={`/dashboard/applications/${workOrder.application.id}`}
+                    className="ml-2 text-indigo-600 hover:text-indigo-800 font-medium"
+                  >
+                    №{workOrder.application.application_number}
+                  </Link>
+                </div>
+                <div>
+                  <span className="text-gray-500 text-sm">Клиент:</span>
+                  <span className="ml-2">{workOrder.application.customer_fullname}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 text-sm">Телефон:</span>
+                  <a href={`tel:${workOrder.application.customer_phone}`} className="ml-2 text-indigo-600">
+                    {workOrder.application.customer_phone}
+                  </a>
+                </div>
+                <div>
+                  <span className="text-gray-500 text-sm">Адрес:</span>
+                  <span className="ml-2">
+                    {workOrder.application.city}, {workOrder.application.street_and_house}
+                    {workOrder.application.address_details && `, ${workOrder.application.address_details}`}
+                  </span>
+                </div>
               </div>
-            )}
-            {workOrder.actual_end_at && (
-              <div>
-                <span className="text-gray-500 text-sm">Факт. окончание:</span>
-                <span className="ml-2">{formatDateTime(workOrder.actual_end_at)}</span>
-              </div>
+            ) : (
+              <p className="text-gray-500">Заявка не найдена</p>
             )}
           </div>
-        </div>
 
         {/* Исполнители */}
         <div className="bg-white rounded-lg shadow p-5">
@@ -702,83 +710,84 @@ export default function WorkOrderDetailPage() {
             <p className="text-gray-500 text-sm">Материалы не указаны</p>
           )}
         </div>
-      </div>
 
-      {/* Примечания */}
-      {(workOrder.notes || workOrder.result_notes) && (
-        <div className="mt-6 bg-white rounded-lg shadow p-5">
-          <h2 className="text-lg font-semibold mb-4">Примечания</h2>
-          {workOrder.notes && (
-            <div className="mb-3">
-              <span className="text-gray-500 text-sm">При выдаче:</span>
-              <p className="mt-1">{workOrder.notes}</p>
-            </div>
-          )}
-          {workOrder.result_notes && (
-            <div>
-              <span className="text-gray-500 text-sm">Результат:</span>
-              <p className="mt-1">{workOrder.result_notes}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Файлы наряда */}
-      <div className="mt-6 bg-white rounded-lg shadow p-5">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Файлы</h2>
-          <label className="text-sm text-indigo-600 hover:text-indigo-800 cursor-pointer">
-            <input
-              type="file"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleUploadFile(file)
-                e.target.value = ''
-              }}
-              disabled={isUploadingFile}
-            />
-            {isUploadingFile ? 'Загрузка...' : '+ Добавить файл'}
-          </label>
-        </div>
-        {workOrderFiles.length > 0 ? (
-          <div className="space-y-2">
-            {workOrderFiles.map((file) => (
-              <div key={file.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
-                    {file.mime_type.startsWith('image/') ? '🖼️' :
-                     file.mime_type === 'application/pdf' ? '📄' : '📎'}
-                  </div>
-                  <div>
-                    <a
-                      href={`/api/applications/${workOrder.application_id}/files/${file.id}/download`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-indigo-600 hover:text-indigo-800"
-                    >
-                      {file.original_filename}
-                    </a>
-                    <div className="text-xs text-gray-500">
-                      {formatFileSize(file.file_size)}
-                      {file.description && ` • ${file.description}`}
-                      {file.uploaded_by_user && ` • ${file.uploaded_by_user.full_name}`}
-                    </div>
-                  </div>
+          {/* Примечания */}
+          {(workOrder.notes || workOrder.result_notes) && (
+            <div className="bg-white rounded-lg shadow p-5">
+              <h2 className="text-lg font-semibold mb-4">Примечания</h2>
+              {workOrder.notes && (
+                <div className="mb-3">
+                  <span className="text-gray-500 text-sm">При выдаче:</span>
+                  <p className="mt-1">{workOrder.notes}</p>
                 </div>
-                <span className="text-xs text-gray-400">
-                  {new Date(file.uploaded_at).toLocaleDateString('ru-RU')}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 text-sm">Файлы не прикреплены</p>
-        )}
-      </div>
+              )}
+              {workOrder.result_notes && (
+                <div>
+                  <span className="text-gray-500 text-sm">Результат:</span>
+                  <p className="mt-1">{workOrder.result_notes}</p>
+                </div>
+              )}
+            </div>
+          )}
 
-      {/* История исполнения */}
-      <div className="mt-6 bg-white rounded-lg shadow p-5">
+          {/* Файлы наряда */}
+          <div className="bg-white rounded-lg shadow p-5">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Файлы</h2>
+              <label className="text-sm text-indigo-600 hover:text-indigo-800 cursor-pointer">
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleUploadFile(file)
+                    e.target.value = ''
+                  }}
+                  disabled={isUploadingFile}
+                />
+                {isUploadingFile ? 'Загрузка...' : '+ Добавить файл'}
+              </label>
+            </div>
+            {workOrderFiles.length > 0 ? (
+              <div className="space-y-2">
+                {workOrderFiles.map((file) => (
+                  <div key={file.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
+                        {file.mime_type.startsWith('image/') ? '🖼️' :
+                         file.mime_type === 'application/pdf' ? '📄' : '📎'}
+                      </div>
+                      <div>
+                        <a
+                          href={`/api/applications/${workOrder.application_id}/files/${file.id}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-indigo-600 hover:text-indigo-800"
+                        >
+                          {file.original_filename}
+                        </a>
+                        <div className="text-xs text-gray-500">
+                          {formatFileSize(file.file_size)}
+                          {file.description && ` • ${file.description}`}
+                          {file.uploaded_by_user && ` • ${file.uploaded_by_user.full_name}`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {new Date(file.uploaded_at).toLocaleDateString('ru-RU')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">Файлы не прикреплены</p>
+            )}
+          </div>
+        </div>
+
+        {/* Правая колонка 1/3 — История исполнения */}
+        <div className="lg:w-1/3">
+          <div className="bg-white rounded-lg shadow p-5 sticky top-6">
         <h2 className="text-lg font-semibold mb-4">История исполнения</h2>
         <div className="relative">
           {/* Вертикальная линия */}
@@ -888,6 +897,8 @@ export default function WorkOrderDetailPage() {
             {!createdInfo && statusHistory.length === 0 && (
               <p className="text-gray-500 text-sm">История не найдена</p>
             )}
+          </div>
+        </div>
           </div>
         </div>
       </div>
