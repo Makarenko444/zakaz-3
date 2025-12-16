@@ -360,6 +360,40 @@ export default function MaterialsPage() {
     }
   }
 
+  const handleMoveItem = async (itemId: string, direction: 'up' | 'down') => {
+    if (!selectedTemplate?.items) return
+
+    const items = [...selectedTemplate.items]
+    const currentIndex = items.findIndex(item => item.id === itemId)
+    if (currentIndex === -1) return
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (newIndex < 0 || newIndex >= items.length) return
+
+    // Меняем местами
+    const currentItem = items[currentIndex]
+    const swapItem = items[newIndex]
+
+    try {
+      // Обновляем sort_order для обоих элементов
+      await Promise.all([
+        fetch(`/api/material-templates/${selectedTemplate.id}/items`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: currentItem.id, sort_order: swapItem.sort_order }),
+        }),
+        fetch(`/api/material-templates/${selectedTemplate.id}/items`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: swapItem.id, sort_order: currentItem.sort_order }),
+        }),
+      ])
+      fetchTemplateDetails(selectedTemplate.id)
+    } catch (error) {
+      console.error('Error moving item:', error)
+    }
+  }
+
   function formatPrice(price: number): string {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -659,6 +693,7 @@ export default function MaterialsPage() {
               onAddItem={handleAddItemToTemplate}
               onRemoveItem={handleRemoveItemFromTemplate}
               onUpdateItem={handleUpdateItemQuantity}
+              onMoveItem={handleMoveItem}
             />
           ) : (
             <div className="lg:col-span-2 bg-white rounded-lg shadow p-6 flex items-center justify-center text-gray-500">
@@ -918,12 +953,14 @@ function TemplateEditor({
   onAddItem,
   onRemoveItem,
   onUpdateItem,
+  onMoveItem,
 }: {
   template: MaterialTemplate
   materials: Material[]
   onAddItem: (materialId: string | null, name: string, unit: string, quantity: number | null) => void
   onRemoveItem: (itemId: string) => void
   onUpdateItem: (itemId: string, quantity: number | null) => void
+  onMoveItem: (itemId: string, direction: 'up' | 'down') => void
 }) {
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -966,6 +1003,7 @@ function TemplateEditor({
             <table className="w-full">
               <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
+                  <th className="pb-2 w-16 text-center">Порядок</th>
                   <th className="pb-2">Материал</th>
                   <th className="pb-2 w-24 text-center">Кол-во</th>
                   <th className="pb-2 w-16 text-center">Ед.</th>
@@ -973,8 +1011,32 @@ function TemplateEditor({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {template.items.map((item) => (
+                {template.items.map((item, index) => (
                   <tr key={item.id} className="group">
+                    <td className="py-2 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => onMoveItem(item.id, 'up')}
+                          disabled={index === 0}
+                          className="p-1 text-gray-400 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Вверх"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => onMoveItem(item.id, 'down')}
+                          disabled={index === template.items!.length - 1}
+                          className="p-1 text-gray-400 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Вниз"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                     <td className="py-2 pr-2">
                       <span className="text-sm">{item.material_name}</span>
                     </td>
