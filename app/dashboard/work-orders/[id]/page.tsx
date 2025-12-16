@@ -83,6 +83,10 @@ export default function WorkOrderDetailPage() {
   const [showPrefillModal, setShowPrefillModal] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
 
+  // Поиск и сортировка исполнителей
+  const [executorSearch, setExecutorSearch] = useState('')
+  const [popularExecutorIds, setPopularExecutorIds] = useState<string[]>([])
+
   // Отчёт об исполнении
   const [resultNotes, setResultNotes] = useState('')
   const [completionFiles, setCompletionFiles] = useState<File[]>([])
@@ -191,6 +195,27 @@ export default function WorkOrderDetailPage() {
     fetchHistory()
   }, [fetchWorkOrder, fetchWorkOrderFiles, fetchHistory])
 
+  // Загрузка популярных исполнителей для текущего пользователя
+  const fetchPopularExecutors = useCallback(async () => {
+    if (!currentUser?.id) return
+    try {
+      const res = await fetch(`/api/users/${currentUser.id}/popular-executors`)
+      const data = await res.json()
+      if (res.ok) {
+        setPopularExecutorIds(data.popular_executor_ids || [])
+      }
+    } catch {
+      console.error('Error fetching popular executors')
+    }
+  }, [currentUser?.id])
+
+  // Открытие модалки с загрузкой популярных исполнителей
+  const handleOpenExecutorModal = () => {
+    setExecutorSearch('')
+    fetchPopularExecutors()
+    setShowExecutorModal(true)
+  }
+
   const handleAddExecutor = async (userId: string, isLead: boolean) => {
     try {
       const res = await fetch(`/api/work-orders/${id}/executors`, {
@@ -201,6 +226,7 @@ export default function WorkOrderDetailPage() {
 
       if (res.ok) {
         setShowExecutorModal(false)
+        setExecutorSearch('')
         fetchWorkOrder()
       }
     } catch {
@@ -632,7 +658,7 @@ export default function WorkOrderDetailPage() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Исполнители</h2>
             <button
-              onClick={() => setShowExecutorModal(true)}
+              onClick={handleOpenExecutorModal}
               className="text-sm text-indigo-600 hover:text-indigo-800"
             >
               + Добавить
@@ -734,64 +760,12 @@ export default function WorkOrderDetailPage() {
             </div>
           )}
 
-          {/* Файлы наряда */}
-          <div className="bg-white rounded-lg shadow p-5">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Файлы</h2>
-              <label className="text-sm text-indigo-600 hover:text-indigo-800 cursor-pointer">
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleUploadFile(file)
-                    e.target.value = ''
-                  }}
-                  disabled={isUploadingFile}
-                />
-                {isUploadingFile ? 'Загрузка...' : '+ Добавить файл'}
-              </label>
-            </div>
-            {workOrderFiles.length > 0 ? (
-              <div className="space-y-2">
-                {workOrderFiles.map((file) => (
-                  <div key={file.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
-                        {file.mime_type.startsWith('image/') ? '🖼️' :
-                         file.mime_type === 'application/pdf' ? '📄' : '📎'}
-                      </div>
-                      <div>
-                        <a
-                          href={`/api/applications/${workOrder.application_id}/files/${file.id}/download`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-indigo-600 hover:text-indigo-800"
-                        >
-                          {file.original_filename}
-                        </a>
-                        <div className="text-xs text-gray-500">
-                          {formatFileSize(file.file_size)}
-                          {file.description && ` • ${file.description}`}
-                          {file.uploaded_by_user && ` • ${file.uploaded_by_user.full_name}`}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-400">
-                      {new Date(file.uploaded_at).toLocaleDateString('ru-RU')}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">Файлы не прикреплены</p>
-            )}
-          </div>
         </div>
 
-        {/* Правая колонка 1/3 — История исполнения */}
-        <div className="lg:w-1/3">
-          <div className="bg-white rounded-lg shadow p-5 sticky top-6">
+        {/* Правая колонка 1/3 */}
+        <div className="lg:w-1/3 space-y-6">
+          {/* История исполнения */}
+          <div className="bg-white rounded-lg shadow p-5">
         <h2 className="text-lg font-semibold mb-4">История исполнения</h2>
         <div className="relative">
           {/* Вертикальная линия */}
@@ -904,6 +878,60 @@ export default function WorkOrderDetailPage() {
           </div>
         </div>
           </div>
+
+          {/* Файлы наряда */}
+          <div className="bg-white rounded-lg shadow p-5">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Файлы</h2>
+              <label className="text-sm text-indigo-600 hover:text-indigo-800 cursor-pointer">
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleUploadFile(file)
+                    e.target.value = ''
+                  }}
+                  disabled={isUploadingFile}
+                />
+                {isUploadingFile ? 'Загрузка...' : '+ Добавить файл'}
+              </label>
+            </div>
+            {workOrderFiles.length > 0 ? (
+              <div className="space-y-2">
+                {workOrderFiles.map((file) => (
+                  <div key={file.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
+                        {file.mime_type.startsWith('image/') ? '🖼️' :
+                         file.mime_type === 'application/pdf' ? '📄' : '📎'}
+                      </div>
+                      <div>
+                        <a
+                          href={`/api/applications/${workOrder.application_id}/files/${file.id}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-indigo-600 hover:text-indigo-800"
+                        >
+                          {file.original_filename}
+                        </a>
+                        <div className="text-xs text-gray-500">
+                          {formatFileSize(file.file_size)}
+                          {file.description && ` • ${file.description}`}
+                          {file.uploaded_by_user && ` • ${file.uploaded_by_user.full_name}`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {new Date(file.uploaded_at).toLocaleDateString('ru-RU')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">Файлы не прикреплены</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -914,44 +942,108 @@ export default function WorkOrderDetailPage() {
       </div>
 
       {/* Модалка добавления исполнителя */}
-      {showExecutorModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Добавить исполнителя</h3>
-            {availableUsers.length === 0 ? (
-              <p className="text-gray-500 mb-4">Нет доступных пользователей</p>
-            ) : (
-              <div className="max-h-64 overflow-y-auto space-y-2 mb-4">
-                {availableUsers.map((user) => (
-                  <div key={user.id} className="flex justify-between items-center py-2 border-b">
-                    <span>{user.full_name}</span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleAddExecutor(user.id, false)}
-                        className="px-2 py-1 text-xs bg-gray-100 rounded hover:bg-gray-200"
-                      >
-                        Добавить
-                      </button>
-                      <button
-                        onClick={() => handleAddExecutor(user.id, true)}
-                        className="px-2 py-1 text-xs bg-yellow-100 rounded hover:bg-yellow-200"
-                      >
-                        Бригадир
-                      </button>
-                    </div>
-                  </div>
-                ))}
+      {showExecutorModal && (() => {
+        // Фильтруем по поиску
+        const searchLower = executorSearch.toLowerCase().trim()
+        const filteredUsers = searchLower
+          ? availableUsers.filter(u => u.full_name.toLowerCase().includes(searchLower))
+          : availableUsers
+
+        // Сортируем: 1) Автор наряда, 2) Популярные, 3) Остальные
+        const sortedUsers = [...filteredUsers].sort((a, b) => {
+          // Автор (создатель наряда) всегда первый
+          const isAuthorA = a.id === workOrder?.created_by
+          const isAuthorB = b.id === workOrder?.created_by
+          if (isAuthorA && !isAuthorB) return -1
+          if (!isAuthorA && isAuthorB) return 1
+
+          // Популярные исполнители следующие
+          const popIndexA = popularExecutorIds.indexOf(a.id)
+          const popIndexB = popularExecutorIds.indexOf(b.id)
+          const isPopularA = popIndexA !== -1
+          const isPopularB = popIndexB !== -1
+
+          if (isPopularA && !isPopularB) return -1
+          if (!isPopularA && isPopularB) return 1
+          if (isPopularA && isPopularB) return popIndexA - popIndexB
+
+          // Остальные по алфавиту
+          return a.full_name.localeCompare(b.full_name, 'ru')
+        })
+
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4">Добавить исполнителя</h3>
+
+              {/* Поле поиска */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={executorSearch}
+                  onChange={(e) => setExecutorSearch(e.target.value)}
+                  placeholder="Поиск по имени..."
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  autoFocus
+                />
               </div>
-            )}
-            <button
-              onClick={() => setShowExecutorModal(false)}
-              className="w-full px-4 py-2 border rounded-lg"
-            >
-              Закрыть
-            </button>
+
+              {sortedUsers.length === 0 ? (
+                <p className="text-gray-500 mb-4">
+                  {executorSearch ? 'Никого не найдено' : 'Нет доступных пользователей'}
+                </p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto space-y-2 mb-4">
+                  {sortedUsers.map((user) => {
+                    const isAuthor = user.id === workOrder?.created_by
+                    const isPopular = popularExecutorIds.includes(user.id)
+
+                    return (
+                      <div
+                        key={user.id}
+                        className={`flex justify-between items-center py-2 border-b ${isAuthor ? 'bg-indigo-50' : isPopular ? 'bg-gray-50' : ''}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{user.full_name}</span>
+                          {isAuthor && (
+                            <span className="text-xs text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded">автор</span>
+                          )}
+                          {!isAuthor && isPopular && (
+                            <span className="text-xs text-gray-500">часто</span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAddExecutor(user.id, false)}
+                            className="px-2 py-1 text-xs bg-gray-100 rounded hover:bg-gray-200"
+                          >
+                            Добавить
+                          </button>
+                          <button
+                            onClick={() => handleAddExecutor(user.id, true)}
+                            className="px-2 py-1 text-xs bg-yellow-100 rounded hover:bg-yellow-200"
+                          >
+                            Бригадир
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  setShowExecutorModal(false)
+                  setExecutorSearch('')
+                }}
+                className="w-full px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Закрыть
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Модалка добавления материала */}
       {showMaterialModal && (
