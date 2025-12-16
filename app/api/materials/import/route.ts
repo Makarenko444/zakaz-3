@@ -21,8 +21,35 @@ function parseNumber(value: unknown): number {
   if (value === undefined || value === null || value === '') return 0
   if (typeof value === 'number') return value
 
-  // Убираем пробелы и заменяем запятую на точку
-  const cleaned = String(value).replace(/\s/g, '').replace(',', '.')
+  const strValue = String(value)
+
+  // Убираем пробелы (включая неразрывные) и обрабатываем разные форматы
+  let cleaned = strValue.replace(/[\s\u00A0]/g, '')
+
+  // Определяем формат числа:
+  // - Если есть и точка и запятая - запятая разделитель тысяч (1,234.56) или точка (1.234,56)
+  // - Если только запятая - это десятичный разделитель (2,5 = 2.5)
+  // - Если только точка - это десятичный разделитель (2.5)
+
+  const hasComma = cleaned.includes(',')
+  const hasDot = cleaned.includes('.')
+
+  if (hasComma && hasDot) {
+    // Определяем какой разделитель последний - тот и десятичный
+    const lastComma = cleaned.lastIndexOf(',')
+    const lastDot = cleaned.lastIndexOf('.')
+    if (lastComma > lastDot) {
+      // Формат 1.234,56 (европейский)
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.')
+    } else {
+      // Формат 1,234.56 (американский)
+      cleaned = cleaned.replace(/,/g, '')
+    }
+  } else if (hasComma) {
+    // Только запятая - заменяем на точку
+    cleaned = cleaned.replace(',', '.')
+  }
+
   const parsed = parseFloat(cleaned)
   return isNaN(parsed) ? 0 : parsed
 }
@@ -187,6 +214,11 @@ export async function POST(request: NextRequest) {
           if (columnMapping.unit) unit = row[columnMapping.unit]
           if (columnMapping.price) price = row[columnMapping.price]
           if (columnMapping.quantity) quantity = row[columnMapping.quantity]
+
+          // Логируем первые 3 строки для отладки
+          if (i < 3) {
+            console.log(`[Materials Import] Row ${rowNumber}: quantity column="${columnMapping.quantity}", raw value=`, quantity, `type=${typeof quantity}`)
+          }
         } else {
           // Автоматическое определение колонок (fallback)
           for (const [key, value] of Object.entries(row)) {
