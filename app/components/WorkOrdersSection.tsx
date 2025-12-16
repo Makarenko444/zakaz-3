@@ -84,13 +84,16 @@ export default function WorkOrdersSection({ applicationId }: Props) {
 
   const fetchPopularExecutors = async (userId: string) => {
     try {
+      console.log('[WorkOrdersSection] Fetching popular executors for user:', userId)
       const res = await fetch(`/api/users/${userId}/popular-executors`)
       const data = await res.json()
+      console.log('[WorkOrdersSection] Popular executors response:', data)
       if (res.ok) {
         setPopularExecutorIds(data.popular_executor_ids || [])
+        console.log('[WorkOrdersSection] Set popular executor IDs:', data.popular_executor_ids)
       }
-    } catch {
-      console.error('Error fetching popular executors')
+    } catch (err) {
+      console.error('[WorkOrdersSection] Error fetching popular executors:', err)
     }
   }
 
@@ -114,6 +117,7 @@ export default function WorkOrdersSection({ applicationId }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           application_id: applicationId,
+          created_by: currentUser?.id,
           ...data,
         }),
       })
@@ -283,12 +287,29 @@ function CreateWorkOrderModal({
     setSelectedExecutors(prev => prev.filter(e => e.user_id !== userId))
   }
 
+  const [validationError, setValidationError] = useState('')
+
   const handleSubmit = () => {
+    // Валидация обязательных полей
+    if (!scheduledDate) {
+      setValidationError('Укажите дату выполнения работ')
+      return
+    }
+    if (!scheduledTime) {
+      setValidationError('Укажите время начала работ')
+      return
+    }
+    if (!estimatedDuration) {
+      setValidationError('Укажите продолжительность работ')
+      return
+    }
+    setValidationError('')
+
     onSubmit({
       type,
-      scheduled_date: scheduledDate || undefined,
-      scheduled_time: scheduledTime || undefined,
-      estimated_duration: estimatedDuration || undefined,
+      scheduled_date: scheduledDate,
+      scheduled_time: scheduledTime,
+      estimated_duration: estimatedDuration,
       notes: notes || undefined,
       executors: selectedExecutors.length > 0 ? selectedExecutors : undefined,
     })
@@ -458,6 +479,13 @@ function CreateWorkOrderModal({
           />
         </div>
 
+        {/* Сообщение об ошибке */}
+        {validationError && (
+          <p className="text-sm text-red-600 mb-3 text-center bg-red-50 p-2 rounded-lg">
+            {validationError}
+          </p>
+        )}
+
         {/* Кнопки */}
         <div className="flex justify-end gap-2">
           <button
@@ -468,18 +496,11 @@ function CreateWorkOrderModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={selectedExecutors.length === 0}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={selectedExecutors.length === 0 ? 'Выберите хотя бы одного исполнителя' : undefined}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             Создать наряд
           </button>
         </div>
-        {selectedExecutors.length === 0 && (
-          <p className="text-sm text-amber-600 mt-2 text-right">
-            * Необходимо выбрать хотя бы одного исполнителя
-          </p>
-        )}
       </div>
     </div>
   )
