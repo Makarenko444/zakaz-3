@@ -72,7 +72,8 @@ export async function POST(
     await (supabase.from as any)('zakaz_work_order_status_history')
       .insert({
         work_order_id: workOrderId,
-        status: 'completed',
+        old_status: workOrder.status,
+        new_status: 'completed',
         changed_by: user.id,
         comment: result_notes || 'Наряд выполнен',
       })

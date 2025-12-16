@@ -375,6 +375,7 @@ export default function WorkOrderDetailPage() {
         setCompletionFiles([])
         fetchWorkOrder()
         fetchWorkOrderFiles()
+        fetchHistory()
       } else {
         const data = await res.json()
         alert(data.error || 'Ошибка при завершении наряда')
@@ -534,9 +535,12 @@ export default function WorkOrderDetailPage() {
               const res = await fetch(`/api/work-orders/${id}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus }),
+                body: JSON.stringify({ status: newStatus, user_id: currentUser?.id }),
               })
-              if (res.ok) fetchWorkOrder()
+              if (res.ok) {
+                fetchWorkOrder()
+                fetchHistory()
+              }
             } catch {
               console.error('Error changing status')
             }
