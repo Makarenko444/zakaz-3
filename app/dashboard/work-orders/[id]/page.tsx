@@ -106,7 +106,6 @@ export default function WorkOrderDetailPage() {
 
       if (res.ok) {
         setWorkOrder(data.work_order)
-        setSelectedStatus(data.work_order.status)
       } else {
         setError(data.error || 'Ошибка загрузки')
       }
