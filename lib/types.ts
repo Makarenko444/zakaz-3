@@ -166,11 +166,15 @@ export interface Node {
 // Справочник материалов
 export interface Material {
   id: string
+  code: string | null // Код из 1С
   name: string
   unit: string
   category: string | null
+  price: number // Цена за единицу
+  stock_quantity: number // Остаток на складе
   is_active: boolean
   sort_order: number
+  last_import_at: string | null // Дата последнего импорта
   created_at: string
   updated_at: string
 }
