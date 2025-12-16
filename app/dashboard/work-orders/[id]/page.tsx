@@ -83,6 +83,10 @@ export default function WorkOrderDetailPage() {
   const [showPrefillModal, setShowPrefillModal] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
 
+  // Поиск и сортировка исполнителей
+  const [executorSearch, setExecutorSearch] = useState('')
+  const [popularExecutorIds, setPopularExecutorIds] = useState<string[]>([])
+
   // Отчёт об исполнении
   const [resultNotes, setResultNotes] = useState('')
   const [completionFiles, setCompletionFiles] = useState<File[]>([])
@@ -191,6 +195,27 @@ export default function WorkOrderDetailPage() {
     fetchHistory()
   }, [fetchWorkOrder, fetchWorkOrderFiles, fetchHistory])
 
+  // Загрузка популярных исполнителей для текущего пользователя
+  const fetchPopularExecutors = useCallback(async () => {
+    if (!currentUser?.id) return
+    try {
+      const res = await fetch(`/api/users/${currentUser.id}/popular-executors`)
+      const data = await res.json()
+      if (res.ok) {
+        setPopularExecutorIds(data.popular_executor_ids || [])
+      }
+    } catch {
+      console.error('Error fetching popular executors')
+    }
+  }, [currentUser?.id])
+
+  // Открытие модалки с загрузкой популярных исполнителей
+  const handleOpenExecutorModal = () => {
+    setExecutorSearch('')
+    fetchPopularExecutors()
+    setShowExecutorModal(true)
+  }
+
   const handleAddExecutor = async (userId: string, isLead: boolean) => {
     try {
       const res = await fetch(`/api/work-orders/${id}/executors`, {
@@ -201,6 +226,7 @@ export default function WorkOrderDetailPage() {
 
       if (res.ok) {
         setShowExecutorModal(false)
+        setExecutorSearch('')
         fetchWorkOrder()
       }
     } catch {
@@ -632,7 +658,7 @@ export default function WorkOrderDetailPage() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Исполнители</h2>
             <button
-              onClick={() => setShowExecutorModal(true)}
+              onClick={handleOpenExecutorModal}
               className="text-sm text-indigo-600 hover:text-indigo-800"
             >
               + Добавить
@@ -916,44 +942,108 @@ export default function WorkOrderDetailPage() {
       </div>
 
       {/* Модалка добавления исполнителя */}
-      {showExecutorModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Добавить исполнителя</h3>
-            {availableUsers.length === 0 ? (
-              <p className="text-gray-500 mb-4">Нет доступных пользователей</p>
-            ) : (
-              <div className="max-h-64 overflow-y-auto space-y-2 mb-4">
-                {availableUsers.map((user) => (
-                  <div key={user.id} className="flex justify-between items-center py-2 border-b">
-                    <span>{user.full_name}</span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleAddExecutor(user.id, false)}
-                        className="px-2 py-1 text-xs bg-gray-100 rounded hover:bg-gray-200"
-                      >
-                        Добавить
-                      </button>
-                      <button
-                        onClick={() => handleAddExecutor(user.id, true)}
-                        className="px-2 py-1 text-xs bg-yellow-100 rounded hover:bg-yellow-200"
-                      >
-                        Бригадир
-                      </button>
-                    </div>
-                  </div>
-                ))}
+      {showExecutorModal && (() => {
+        // Фильтруем по поиску
+        const searchLower = executorSearch.toLowerCase().trim()
+        const filteredUsers = searchLower
+          ? availableUsers.filter(u => u.full_name.toLowerCase().includes(searchLower))
+          : availableUsers
+
+        // Сортируем: 1) Автор наряда, 2) Популярные, 3) Остальные
+        const sortedUsers = [...filteredUsers].sort((a, b) => {
+          // Автор (создатель наряда) всегда первый
+          const isAuthorA = a.id === workOrder?.created_by
+          const isAuthorB = b.id === workOrder?.created_by
+          if (isAuthorA && !isAuthorB) return -1
+          if (!isAuthorA && isAuthorB) return 1
+
+          // Популярные исполнители следующие
+          const popIndexA = popularExecutorIds.indexOf(a.id)
+          const popIndexB = popularExecutorIds.indexOf(b.id)
+          const isPopularA = popIndexA !== -1
+          const isPopularB = popIndexB !== -1
+
+          if (isPopularA && !isPopularB) return -1
+          if (!isPopularA && isPopularB) return 1
+          if (isPopularA && isPopularB) return popIndexA - popIndexB
+
+          // Остальные по алфавиту
+          return a.full_name.localeCompare(b.full_name, 'ru')
+        })
+
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4">Добавить исполнителя</h3>
+
+              {/* Поле поиска */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={executorSearch}
+                  onChange={(e) => setExecutorSearch(e.target.value)}
+                  placeholder="Поиск по имени..."
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  autoFocus
+                />
               </div>
-            )}
-            <button
-              onClick={() => setShowExecutorModal(false)}
-              className="w-full px-4 py-2 border rounded-lg"
-            >
-              Закрыть
-            </button>
+
+              {sortedUsers.length === 0 ? (
+                <p className="text-gray-500 mb-4">
+                  {executorSearch ? 'Никого не найдено' : 'Нет доступных пользователей'}
+                </p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto space-y-2 mb-4">
+                  {sortedUsers.map((user) => {
+                    const isAuthor = user.id === workOrder?.created_by
+                    const isPopular = popularExecutorIds.includes(user.id)
+
+                    return (
+                      <div
+                        key={user.id}
+                        className={`flex justify-between items-center py-2 border-b ${isAuthor ? 'bg-indigo-50' : isPopular ? 'bg-gray-50' : ''}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{user.full_name}</span>
+                          {isAuthor && (
+                            <span className="text-xs text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded">автор</span>
+                          )}
+                          {!isAuthor && isPopular && (
+                            <span className="text-xs text-gray-500">часто</span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAddExecutor(user.id, false)}
+                            className="px-2 py-1 text-xs bg-gray-100 rounded hover:bg-gray-200"
+                          >
+                            Добавить
+                          </button>
+                          <button
+                            onClick={() => handleAddExecutor(user.id, true)}
+                            className="px-2 py-1 text-xs bg-yellow-100 rounded hover:bg-yellow-200"
+                          >
+                            Бригадир
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  setShowExecutorModal(false)
+                  setExecutorSearch('')
+                }}
+                className="w-full px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Закрыть
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Модалка добавления материала */}
       {showMaterialModal && (
