@@ -25,6 +25,22 @@ interface ImportResult {
   }
 }
 
+interface PreviewData {
+  filename: string
+  sheetName: string
+  totalRows: number
+  headers: string[]
+  preview: Array<Record<string, unknown>>
+}
+
+interface ColumnMapping {
+  code: string
+  name: string
+  unit: string
+  price: string
+  quantity: string
+}
+
 export default function MaterialsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('materials')
   const [materials, setMaterials] = useState<Material[]>([])
@@ -37,6 +53,19 @@ export default function MaterialsPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
+  // Предпросмотр
+  const [isPreviewing, setIsPreviewing] = useState(false)
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
+    code: '',
+    name: '',
+    unit: '',
+    price: '',
+    quantity: '',
+  })
 
   // Поиск и фильтры
   const [searchQuery, setSearchQuery] = useState('')
@@ -57,7 +86,7 @@ export default function MaterialsPage() {
   const fetchMaterials = useCallback(async () => {
     try {
       const params = new URLSearchParams()
-      params.set('active_only', 'false') // Показываем все материалы, включая неактивные
+      params.set('active_only', 'false')
       if (searchQuery) params.set('search', searchQuery)
       if (selectedCategory) params.set('category', selectedCategory)
 
@@ -101,18 +130,93 @@ export default function MaterialsPage() {
     fetchTemplates()
   }, [fetchCurrentUser, fetchMaterials, fetchTemplates])
 
-  // Обработчик импорта файла
-  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  // Автоматическое определение колонок по названиям
+  function autoDetectColumns(headers: string[]): ColumnMapping {
+    const mapping: ColumnMapping = { code: '', name: '', unit: '', price: '', quantity: '' }
+
+    const codePatterns = ['код', 'code', 'артикул', 'id', 'номер']
+    const namePatterns = ['наименование', 'название', 'name', 'материал', 'товар', 'номенклатура']
+    const unitPatterns = ['ед.изм', 'ед. изм', 'единица', 'unit', 'ед.']
+    const pricePatterns = ['цена', 'price', 'стоимость', 'сумма']
+    const qtyPatterns = ['остаток', 'количество', 'qty', 'stock', 'кол-во', 'кол.']
+
+    for (const header of headers) {
+      const lowerHeader = header.toLowerCase()
+
+      if (!mapping.code && codePatterns.some(p => lowerHeader.includes(p))) {
+        mapping.code = header
+      }
+      if (!mapping.name && namePatterns.some(p => lowerHeader.includes(p))) {
+        mapping.name = header
+      }
+      if (!mapping.unit && unitPatterns.some(p => lowerHeader.includes(p))) {
+        mapping.unit = header
+      }
+      if (!mapping.price && pricePatterns.some(p => lowerHeader.includes(p))) {
+        mapping.price = header
+      }
+      if (!mapping.quantity && qtyPatterns.some(p => lowerHeader.includes(p))) {
+        mapping.quantity = header
+      }
+    }
+
+    return mapping
+  }
+
+  // Обработчик выбора файла - показываем предпросмотр
+  async function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
 
-    setIsImporting(true)
-    setImportResult(null)
+    setSelectedFile(file)
+    setIsPreviewing(true)
     setImportError(null)
 
     try {
       const formData = new FormData()
       formData.append('file', file)
+
+      const response = await fetch('/api/materials/import/preview', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Preview failed')
+      }
+
+      setPreviewData(result)
+      setColumnMapping(autoDetectColumns(result.headers))
+      setShowPreviewModal(true)
+    } catch (error) {
+      console.error('Error previewing file:', error)
+      setImportError(String(error))
+    } finally {
+      setIsPreviewing(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  // Импорт с выбранными колонками
+  async function handleImport() {
+    if (!selectedFile || !columnMapping.name) {
+      setImportError('Необходимо выбрать колонку с названием материала')
+      return
+    }
+
+    setIsImporting(true)
+    setShowPreviewModal(false)
+    setImportResult(null)
+    setImportError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+      formData.append('columnMapping', JSON.stringify(columnMapping))
 
       const response = await fetch('/api/materials/import', {
         method: 'POST',
@@ -126,18 +230,20 @@ export default function MaterialsPage() {
       }
 
       setImportResult(result)
-
-      // Перезагружаем список материалов
       await fetchMaterials()
     } catch (error) {
       console.error('Error importing materials:', error)
       setImportError(String(error))
     } finally {
       setIsImporting(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      setSelectedFile(null)
     }
+  }
+
+  function handleClosePreviewModal() {
+    setShowPreviewModal(false)
+    setPreviewData(null)
+    setSelectedFile(null)
   }
 
   const handleSaveTemplate = async (name: string, description: string) => {
@@ -216,7 +322,6 @@ export default function MaterialsPage() {
     }
   }
 
-  // Форматирование цены
   function formatPrice(price: number): string {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -226,7 +331,6 @@ export default function MaterialsPage() {
     }).format(price)
   }
 
-  // Форматирование количества
   function formatQuantity(qty: number, unit: string): string {
     const formatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2)
     return `${formatted} ${unit}`
@@ -240,16 +344,16 @@ export default function MaterialsPage() {
           <div className="flex gap-2">
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
+              disabled={isImporting || isPreviewing}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isImporting ? (
+              {isImporting || isPreviewing ? (
                 <>
                   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Импорт...
+                  {isPreviewing ? 'Загрузка...' : 'Импорт...'}
                 </>
               ) : (
                 <>
@@ -264,7 +368,7 @@ export default function MaterialsPage() {
               ref={fileInputRef}
               type="file"
               accept=".xlsx,.xls"
-              onChange={handleFileUpload}
+              onChange={handleFileSelect}
               className="hidden"
             />
           </div>
@@ -304,10 +408,7 @@ export default function MaterialsPage() {
                 </details>
               )}
             </div>
-            <button
-              onClick={() => setImportResult(null)}
-              className="ml-3 text-green-400 hover:text-green-500"
-            >
+            <button onClick={() => setImportResult(null)} className="ml-3 text-green-400 hover:text-green-500">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -324,13 +425,10 @@ export default function MaterialsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div className="ml-3 flex-1">
-              <h3 className="text-sm font-medium text-red-800">Ошибка импорта</h3>
+              <h3 className="text-sm font-medium text-red-800">Ошибка</h3>
               <p className="mt-1 text-sm text-red-700">{importError}</p>
             </div>
-            <button
-              onClick={() => setImportError(null)}
-              className="ml-3 text-red-400 hover:text-red-500"
-            >
+            <button onClick={() => setImportError(null)} className="ml-3 text-red-400 hover:text-red-500">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -429,15 +527,9 @@ export default function MaterialsPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {materials.map((m) => (
                     <tr key={m.id} className={`hover:bg-gray-50 ${!m.is_active ? 'opacity-50' : ''}`}>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {m.code || '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.name}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                        {m.category || '—'}
-                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{m.code || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{m.name}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{m.category || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
                         {m.price > 0 ? formatPrice(m.price) : '—'}
                       </td>
@@ -466,15 +558,11 @@ export default function MaterialsPage() {
 
       {activeTab === 'templates' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Список шаблонов */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">Шаблоны</h2>
               <button
-                onClick={() => {
-                  setEditingTemplate(null)
-                  setShowTemplateModal(true)
-                }}
+                onClick={() => { setEditingTemplate(null); setShowTemplateModal(true) }}
                 className="text-sm text-indigo-600 hover:text-indigo-800"
               >
                 + Создать
@@ -488,40 +576,27 @@ export default function MaterialsPage() {
                   <div
                     key={t.id}
                     className={`p-3 rounded-lg border cursor-pointer transition ${
-                      selectedTemplate?.id === t.id
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                      selectedTemplate?.id === t.id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => fetchTemplateDetails(t.id)}
                   >
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-medium">{t.name}</p>
-                        {t.description && (
-                          <p className="text-sm text-gray-500">{t.description}</p>
-                        )}
+                        {t.description && <p className="text-sm text-gray-500">{t.description}</p>}
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditingTemplate(t)
-                            setShowTemplateModal(true)
-                          }}
+                          onClick={(e) => { e.stopPropagation(); setEditingTemplate(t); setShowTemplateModal(true) }}
                           className="text-gray-400 hover:text-indigo-600"
-                          title="Редактировать"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                           </svg>
                         </button>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteTemplate(t.id)
-                          }}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id) }}
                           className="text-gray-400 hover:text-red-600"
-                          title="Удалить"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -537,16 +612,12 @@ export default function MaterialsPage() {
             )}
           </div>
 
-          {/* Содержимое выбранного шаблона */}
           <div className="bg-white rounded-lg shadow p-6">
             {selectedTemplate ? (
               <>
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold">{selectedTemplate.name}</h2>
-                  <button
-                    onClick={() => setShowItemModal(true)}
-                    className="text-sm text-indigo-600 hover:text-indigo-800"
-                  >
+                  <button onClick={() => setShowItemModal(true)} className="text-sm text-indigo-600 hover:text-indigo-800">
                     + Добавить материал
                   </button>
                 </div>
@@ -567,10 +638,7 @@ export default function MaterialsPage() {
                           <td className="py-2 text-center">{item.quantity}</td>
                           <td className="py-2 text-center text-gray-600">{item.unit}</td>
                           <td className="py-2">
-                            <button
-                              onClick={() => handleRemoveItemFromTemplate(item.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
+                            <button onClick={() => handleRemoveItemFromTemplate(item.id)} className="text-red-500 hover:text-red-700">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                               </svg>
@@ -591,15 +659,168 @@ export default function MaterialsPage() {
         </div>
       )}
 
+      {/* Модалка предпросмотра импорта */}
+      {showPreviewModal && previewData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold">Предпросмотр файла: {previewData.filename}</h3>
+                <p className="text-sm text-gray-500">Лист: {previewData.sheetName} | Всего строк: {previewData.totalRows}</p>
+              </div>
+              <button onClick={handleClosePreviewModal} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Маппинг колонок */}
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Сопоставление колонок:</h4>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Код</label>
+                  <select
+                    value={columnMapping.code}
+                    onChange={(e) => setColumnMapping({ ...columnMapping, code: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {previewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Наименование *</label>
+                  <select
+                    value={columnMapping.name}
+                    onChange={(e) => setColumnMapping({ ...columnMapping, name: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {previewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Ед. изм.</label>
+                  <select
+                    value={columnMapping.unit}
+                    onChange={(e) => setColumnMapping({ ...columnMapping, unit: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {previewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Цена</label>
+                  <select
+                    value={columnMapping.price}
+                    onChange={(e) => setColumnMapping({ ...columnMapping, price: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {previewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Остаток</label>
+                  <select
+                    value={columnMapping.quantity}
+                    onChange={(e) => setColumnMapping({ ...columnMapping, quantity: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {previewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Таблица предпросмотра */}
+            <div className="flex-1 overflow-auto p-4">
+              <table className="min-w-full text-sm border">
+                <thead className="bg-gray-100 sticky top-0">
+                  <tr>
+                    <th className="px-2 py-2 border text-left text-xs font-medium text-gray-500">#</th>
+                    {previewData.headers.map((header) => (
+                      <th
+                        key={header}
+                        className={`px-2 py-2 border text-left text-xs font-medium ${
+                          header === columnMapping.name ? 'bg-green-100 text-green-800' :
+                          header === columnMapping.code ? 'bg-blue-100 text-blue-800' :
+                          header === columnMapping.unit ? 'bg-purple-100 text-purple-800' :
+                          header === columnMapping.price ? 'bg-yellow-100 text-yellow-800' :
+                          header === columnMapping.quantity ? 'bg-orange-100 text-orange-800' :
+                          'text-gray-500'
+                        }`}
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewData.preview.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-2 py-1 border text-gray-400">{row.__rowNumber as number}</td>
+                      {previewData.headers.map((header) => (
+                        <td
+                          key={header}
+                          className={`px-2 py-1 border ${
+                            header === columnMapping.name ? 'bg-green-50' :
+                            header === columnMapping.code ? 'bg-blue-50' :
+                            header === columnMapping.unit ? 'bg-purple-50' :
+                            header === columnMapping.price ? 'bg-yellow-50' :
+                            header === columnMapping.quantity ? 'bg-orange-50' :
+                            ''
+                          }`}
+                        >
+                          {row[header] !== undefined && row[header] !== null ? String(row[header]) : ''}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Кнопки */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={handleClosePreviewModal}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={!columnMapping.name || isImporting}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {isImporting ? 'Импортирую...' : `Импортировать ${previewData.totalRows} строк`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Модалка создания/редактирования шаблона */}
       {showTemplateModal && (
         <TemplateModal
           template={editingTemplate}
           onSave={handleSaveTemplate}
-          onClose={() => {
-            setShowTemplateModal(false)
-            setEditingTemplate(null)
-          }}
+          onClose={() => { setShowTemplateModal(false); setEditingTemplate(null) }}
         />
       )}
 
@@ -615,7 +836,6 @@ export default function MaterialsPage() {
   )
 }
 
-// Модалка шаблона
 function TemplateModal({
   template,
   onSave,
@@ -631,9 +851,7 @@ function TemplateModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold mb-4">
-          {template ? 'Редактировать шаблон' : 'Новый шаблон'}
-        </h3>
+        <h3 className="text-lg font-semibold mb-4">{template ? 'Редактировать шаблон' : 'Новый шаблон'}</h3>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
@@ -656,9 +874,7 @@ function TemplateModal({
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg">
-            Отмена
-          </button>
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg">Отмена</button>
           <button
             onClick={() => onSave(name, description)}
             disabled={!name.trim()}
@@ -672,7 +888,6 @@ function TemplateModal({
   )
 }
 
-// Модалка добавления материала
 function AddItemModal({
   materials,
   onAdd,
@@ -707,11 +922,7 @@ function AddItemModal({
 
         <div className="mb-4">
           <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={useCustom}
-              onChange={(e) => setUseCustom(e.target.checked)}
-            />
+            <input type="checkbox" checked={useCustom} onChange={(e) => setUseCustom(e.target.checked)} />
             <span className="text-sm">Свободный ввод</span>
           </label>
         </div>
@@ -724,9 +935,7 @@ function AddItemModal({
           >
             <option value="">Выберите материал</option>
             {materials.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name} ({m.unit})
-              </option>
+              <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>
             ))}
           </select>
         ) : (
@@ -761,9 +970,7 @@ function AddItemModal({
         </div>
 
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg">
-            Отмена
-          </button>
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg">Отмена</button>
           <button
             onClick={handleSubmit}
             disabled={!useCustom && !selectedMaterialId}
