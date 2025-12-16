@@ -235,8 +235,6 @@ function CreateWorkOrderModal({
     })
   }
 
-  const availableUsers = users.filter(u => !selectedExecutors.find(e => e.user_id === u.id))
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -295,53 +293,78 @@ function CreateWorkOrderModal({
           </select>
         </div>
 
-        {/* Исполнители */}
+        {/* Исполнители - список с чекбоксами */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Исполнители</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Исполнители *
+          </label>
 
-          {/* Выбранные */}
-          {selectedExecutors.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2">
-              {selectedExecutors.map((ex) => {
-                const user = users.find(u => u.id === ex.user_id)
+          <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+            {users.length === 0 ? (
+              <p className="p-3 text-gray-500 text-sm">Нет доступных пользователей</p>
+            ) : (
+              users.map((user) => {
+                const isSelected = selectedExecutors.some(e => e.user_id === user.id)
+                const isLead = selectedExecutors.find(e => e.user_id === user.id)?.is_lead
+
                 return (
-                  <span
-                    key={ex.user_id}
-                    className={`inline-flex items-center gap-1 px-2 py-1 text-sm rounded ${
-                      ex.is_lead ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'
+                  <div
+                    key={user.id}
+                    className={`flex items-center justify-between p-3 transition-colors ${
+                      isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50'
                     }`}
                   >
-                    {user?.full_name || '?'}
-                    {ex.is_lead && ' (бригадир)'}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveExecutor(ex.user_id)}
-                      className="ml-1 text-gray-500 hover:text-red-500"
-                    >
-                      ×
-                    </button>
-                  </span>
-                )
-              })}
-            </div>
-          )}
+                    <label className="flex items-center gap-3 cursor-pointer flex-1">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            handleAddExecutor(user.id, false)
+                          } else {
+                            handleRemoveExecutor(user.id)
+                          }
+                        }}
+                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-gray-900">{user.full_name}</span>
+                        <span className="text-xs text-gray-500 ml-2">({user.role})</span>
+                      </div>
+                    </label>
 
-          {/* Добавление */}
-          {availableUsers.length > 0 && (
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  handleAddExecutor(e.target.value, false)
-                  e.target.value = ''
-                }
-              }}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">+ Добавить исполнителя</option>
-              {availableUsers.map((u) => (
-                <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
-              ))}
-            </select>
+                    {/* Кнопка "бригадир" */}
+                    {isSelected && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Назначить/снять бригадира
+                          setSelectedExecutors(prev =>
+                            prev.map(e =>
+                              e.user_id === user.id
+                                ? { ...e, is_lead: !e.is_lead }
+                                : { ...e, is_lead: false } // снять флаг с других при назначении
+                            )
+                          )
+                        }}
+                        className={`px-2 py-1 text-xs rounded transition-colors ${
+                          isLead
+                            ? 'bg-yellow-200 text-yellow-800 hover:bg-yellow-300'
+                            : 'bg-gray-100 text-gray-600 hover:bg-yellow-100 hover:text-yellow-700'
+                        }`}
+                        title={isLead ? 'Снять бригадира' : 'Назначить бригадиром'}
+                      >
+                        ★ {isLead ? 'Бригадир' : 'Назначить бригадиром'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          {selectedExecutors.length === 0 && (
+            <p className="text-xs text-gray-500 mt-1">Выберите хотя бы одного исполнителя</p>
           )}
         </div>
 
@@ -366,11 +389,18 @@ function CreateWorkOrderModal({
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            disabled={selectedExecutors.length === 0}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={selectedExecutors.length === 0 ? 'Выберите хотя бы одного исполнителя' : undefined}
           >
             Создать наряд
           </button>
         </div>
+        {selectedExecutors.length === 0 && (
+          <p className="text-sm text-amber-600 mt-2 text-right">
+            * Необходимо выбрать хотя бы одного исполнителя
+          </p>
+        )}
       </div>
     </div>
   )
