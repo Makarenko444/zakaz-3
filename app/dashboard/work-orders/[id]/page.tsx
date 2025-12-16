@@ -98,6 +98,24 @@ export default function WorkOrderDetailPage() {
   }>>([])
   const [isUploadingFile, setIsUploadingFile] = useState(false)
 
+  // История исполнения
+  const [statusHistory, setStatusHistory] = useState<Array<{
+    id: string
+    old_status: string | null
+    new_status: string
+    old_status_label: string | null
+    new_status_label: string
+    changed_by: string | null
+    comment: string | null
+    created_at: string
+    user?: { id: string; full_name: string } | null
+  }>>([])
+  const [createdInfo, setCreatedInfo] = useState<{
+    created_at: string
+    created_by: string | null
+    created_by_user?: { id: string; full_name: string } | null
+  } | null>(null)
+
   const fetchWorkOrder = useCallback(async () => {
     setIsLoading(true)
     try {
@@ -150,6 +168,19 @@ export default function WorkOrderDetailPage() {
     }
   }, [id])
 
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/work-orders/${id}/history`)
+      const data = await res.json()
+      if (res.ok) {
+        setStatusHistory(data.history || [])
+        setCreatedInfo(data.created || null)
+      }
+    } catch {
+      console.error('Error fetching history')
+    }
+  }, [id])
+
   useEffect(() => {
     fetchWorkOrder()
     fetchUsers()
@@ -157,7 +188,8 @@ export default function WorkOrderDetailPage() {
     fetchCurrentUser()
     fetchTemplates()
     fetchWorkOrderFiles()
-  }, [fetchWorkOrder, fetchWorkOrderFiles])
+    fetchHistory()
+  }, [fetchWorkOrder, fetchWorkOrderFiles, fetchHistory])
 
   const handleAddExecutor = async (userId: string, isLead: boolean) => {
     try {
@@ -477,19 +509,6 @@ export default function WorkOrderDetailPage() {
               </Link>
             )}
 
-            {/* Выполнено - зелёная кнопка */}
-            {workOrder.status !== 'completed' && workOrder.status !== 'cancelled' && canEdit && (
-              <button
-                onClick={() => setShowCompleteModal(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-medium transition"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Выполнено
-              </button>
-            )}
-
             {/* Удалить - красный outline с иконкой */}
             {canDelete && (
               <button
@@ -522,6 +541,7 @@ export default function WorkOrderDetailPage() {
               console.error('Error changing status')
             }
           }}
+          onCompleteClick={() => setShowCompleteModal(true)}
           disabled={!canEdit}
         />
       </div>
@@ -755,6 +775,121 @@ export default function WorkOrderDetailPage() {
         ) : (
           <p className="text-gray-500 text-sm">Файлы не прикреплены</p>
         )}
+      </div>
+
+      {/* История исполнения */}
+      <div className="mt-6 bg-white rounded-lg shadow p-5">
+        <h2 className="text-lg font-semibold mb-4">История исполнения</h2>
+        <div className="relative">
+          {/* Вертикальная линия */}
+          <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-gray-200"></div>
+
+          <div className="space-y-4">
+            {/* Создание наряда */}
+            {createdInfo && (
+              <div className="flex gap-4 relative">
+                <div className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-indigo-400 flex items-center justify-center z-10 flex-shrink-0">
+                  <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </div>
+                <div className="flex-1 pb-2">
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-900">Наряд создан</span>
+                    {createdInfo.created_by_user && (
+                      <span className="text-gray-600"> — {createdInfo.created_by_user.full_name}</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {new Date(createdInfo.created_at).toLocaleString('ru-RU', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* История изменений статусов */}
+            {statusHistory.map((item) => {
+              // Определяем цвет и иконку по новому статусу
+              let iconBg = 'bg-gray-100 border-gray-400'
+              let iconColor = 'text-gray-600'
+              let icon = (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              )
+
+              if (item.new_status === 'completed') {
+                iconBg = 'bg-green-100 border-green-500'
+                iconColor = 'text-green-600'
+                icon = (
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )
+              } else if (item.new_status === 'cancelled') {
+                iconBg = 'bg-red-100 border-red-500'
+                iconColor = 'text-red-600'
+                icon = (
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )
+              } else if (item.new_status === 'assigned') {
+                iconBg = 'bg-yellow-100 border-yellow-500'
+                iconColor = 'text-yellow-600'
+              }
+
+              return (
+                <div key={item.id} className="flex gap-4 relative">
+                  <div className={`w-6 h-6 rounded-full border-2 ${iconBg} flex items-center justify-center z-10 flex-shrink-0`}>
+                    <span className={iconColor}>{icon}</span>
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <div className="text-sm">
+                      {item.old_status_label ? (
+                        <>
+                          <span className="text-gray-600">{item.old_status_label}</span>
+                          <span className="text-gray-400 mx-1">→</span>
+                          <span className="font-medium text-gray-900">{item.new_status_label}</span>
+                        </>
+                      ) : (
+                        <span className="font-medium text-gray-900">{item.new_status_label}</span>
+                      )}
+                      {item.user && (
+                        <span className="text-gray-600"> — {item.user.full_name}</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {new Date(item.created_at).toLocaleString('ru-RU', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                    {item.comment && (
+                      <div className="text-sm text-gray-600 mt-1 italic">
+                        &ldquo;{item.comment}&rdquo;
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Если нет истории */}
+            {!createdInfo && statusHistory.length === 0 && (
+              <p className="text-gray-500 text-sm">История не найдена</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Мета-информация */}

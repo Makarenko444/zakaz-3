@@ -7,6 +7,7 @@ import { FileAttachment } from '@/lib/types'
 interface FileListProps {
   applicationId: string
   commentId?: string | null
+  workOrderId?: string | null // ID наряда для загрузки файлов наряда
   showDirectFilesOnly?: boolean
   refreshTrigger?: number
   className?: string
@@ -20,6 +21,7 @@ interface FileListProps {
 export default function FileList({
   applicationId,
   commentId,
+  workOrderId,
   showDirectFilesOnly = false,
   refreshTrigger = 0,
   className = '',
@@ -42,12 +44,19 @@ export default function FileList({
     setError('')
 
     try {
-      let url = `/api/applications/${applicationId}/files`
+      let url: string
 
-      if (commentId) {
-        url += `?comment_id=${commentId}`
-      } else if (showDirectFilesOnly) {
-        url += '?comment_id=null'
+      // Если указан workOrderId - загружаем файлы наряда
+      if (workOrderId) {
+        url = `/api/work-orders/${workOrderId}/files`
+      } else {
+        url = `/api/applications/${applicationId}/files`
+
+        if (commentId) {
+          url += `?comment_id=${commentId}`
+        } else if (showDirectFilesOnly) {
+          url += '?comment_id=null'
+        }
       }
 
       const response = await fetch(url)
@@ -64,7 +73,7 @@ export default function FileList({
     } finally {
       setIsLoading(false)
     }
-  }, [applicationId, commentId, showDirectFilesOnly])
+  }, [applicationId, commentId, workOrderId, showDirectFilesOnly])
 
   useEffect(() => {
     loadFiles()

@@ -20,6 +20,26 @@ interface Comment {
   } | null
 }
 
+// Отчёт об исполнении наряда
+interface WorkOrderReport {
+  id: string
+  work_order_id: string
+  work_order_number: number
+  type: 'survey' | 'installation'
+  result_notes: string
+  completed_at: string // updated_at когда status стал completed
+  completed_by_user?: {
+    id: string
+    full_name: string
+  } | null
+  executors?: Array<{
+    user?: {
+      id: string
+      full_name: string
+    }
+  }>
+}
+
 interface CommentsProps {
   applicationId: string
   currentUserId?: string
@@ -42,6 +62,7 @@ export default function Comments({
   onUserClick
 }: CommentsProps) {
   const [comments, setComments] = useState<Comment[]>([])
+  const [workOrderReports, setWorkOrderReports] = useState<WorkOrderReport[]>([])
   const [newComment, setNewComment] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -56,7 +77,6 @@ export default function Comments({
   const [replyToComment, setReplyToComment] = useState<Comment | null>(null)
 
   const loadComments = useCallback(async () => {
-    setIsLoading(true)
     try {
       const response = await fetch(`/api/applications/${applicationId}/comments`)
 
@@ -69,14 +89,51 @@ export default function Comments({
     } catch (error) {
       console.error('Error loading comments:', error)
       setError('Не удалось загрузить комментарии')
-    } finally {
-      setIsLoading(false)
+    }
+  }, [applicationId])
+
+  // Загрузка отчётов по нарядам (завершённые наряды с result_notes)
+  const loadWorkOrderReports = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/work-orders?application_id=${applicationId}`)
+      if (!response.ok) return
+
+      const data = await response.json()
+      const reports: WorkOrderReport[] = (data.work_orders || [])
+        .filter((wo: { status: string; result_notes?: string }) => wo.status === 'completed' && wo.result_notes)
+        .map((wo: {
+          id: string
+          work_order_number: number
+          type: 'survey' | 'installation'
+          result_notes: string
+          updated_at: string
+          updated_by_user?: { id: string; full_name: string } | null
+          executors?: Array<{ user?: { id: string; full_name: string } }>
+        }) => ({
+          id: `report-${wo.id}`,
+          work_order_id: wo.id,
+          work_order_number: wo.work_order_number,
+          type: wo.type,
+          result_notes: wo.result_notes,
+          completed_at: wo.updated_at,
+          completed_by_user: wo.updated_by_user,
+          executors: wo.executors,
+        }))
+
+      setWorkOrderReports(reports)
+    } catch (error) {
+      console.error('Error loading work order reports:', error)
     }
   }, [applicationId])
 
   useEffect(() => {
-    loadComments()
-  }, [loadComments])
+    const loadAll = async () => {
+      setIsLoading(true)
+      await Promise.all([loadComments(), loadWorkOrderReports()])
+      setIsLoading(false)
+    }
+    loadAll()
+  }, [loadComments, loadWorkOrderReports])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -308,20 +365,101 @@ export default function Comments({
     }
   }
 
+  // Объединяем комментарии и отчёты в единую ленту, сортируем по дате
+  const typeLabels = { survey: 'Осмотр', installation: 'Монтаж' }
+
+  type TimelineItem =
+    | { type: 'comment'; data: Comment; date: string }
+    | { type: 'report'; data: WorkOrderReport; date: string }
+
+  const timeline: TimelineItem[] = [
+    ...comments.map((c) => ({ type: 'comment' as const, data: c, date: c.created_at })),
+    ...workOrderReports.map((r) => ({ type: 'report' as const, data: r, date: r.completed_at })),
+  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
   return (
     <div className="space-y-4">
-      {/* Список комментариев */}
+      {/* Список комментариев и отчётов */}
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
         </div>
-      ) : comments.length === 0 ? (
+      ) : timeline.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           <p>Комментариев пока нет</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {comments.map((comment) => (
+          {timeline.map((item) => {
+            // Отчёт об исполнении наряда
+            if (item.type === 'report') {
+              const report = item.data
+              const executorNames = report.executors
+                ?.map(e => e.user?.full_name)
+                .filter(Boolean)
+                .join(', ') || 'Не указаны'
+
+              return (
+                <div
+                  key={report.id}
+                  className="bg-green-50 border border-green-200 rounded-lg overflow-hidden"
+                >
+                  {/* Заголовок отчёта */}
+                  <div className="bg-green-100 px-4 py-3 border-b border-green-200">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-semibold text-green-800">
+                        Отчёт по наряду №{report.work_order_number}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 bg-green-200 text-green-800 rounded-full">
+                        {typeLabels[report.type]}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-green-700">
+                      <span>Исполнители: {executorNames}</span>
+                      <span className="mx-2">•</span>
+                      <span>{formatDate(report.completed_at)}</span>
+                    </div>
+                  </div>
+
+                  {/* Текст отчёта */}
+                  <div className="px-4 py-3">
+                    <p className="text-gray-800 whitespace-pre-wrap">{report.result_notes}</p>
+                  </div>
+
+                  {/* Файлы наряда */}
+                  <div className="px-4 pb-3">
+                    <FileList
+                      applicationId={applicationId}
+                      workOrderId={report.work_order_id}
+                      refreshTrigger={0}
+                      showThumbnails={true}
+                      currentUserId={currentUserId}
+                      currentUserRole={currentUserRole}
+                    />
+                  </div>
+
+                  {/* Ссылка на наряд */}
+                  <div className="px-4 py-2 bg-green-100 border-t border-green-200">
+                    <a
+                      href={`/dashboard/work-orders/${report.work_order_id}`}
+                      className="text-sm text-green-700 hover:text-green-900 hover:underline flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Открыть наряд
+                    </a>
+                  </div>
+                </div>
+              )
+            }
+
+            // Обычный комментарий
+            const comment = item.data
+            return (
             <div key={comment.id} id={`comment-${comment.id}`} className="bg-white border border-gray-200 rounded-lg overflow-hidden transition-all">
               {/* Заголовок комментария - отдельный блок */}
               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
@@ -480,7 +618,8 @@ export default function Comments({
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
