@@ -59,6 +59,7 @@ export default function MaterialsPage() {
   const [isPreviewing, setIsPreviewing] = useState(false)
   const [previewData, setPreviewData] = useState<PreviewData | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [noHeaders, setNoHeaders] = useState(false)
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
     code: '',
     name: '',
@@ -163,18 +164,15 @@ export default function MaterialsPage() {
     return mapping
   }
 
-  // Обработчик выбора файла - показываем предпросмотр
-  async function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    setSelectedFile(file)
+  // Загрузка предпросмотра файла
+  async function loadPreview(file: File, withNoHeaders: boolean) {
     setIsPreviewing(true)
     setImportError(null)
 
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('noHeaders', String(withNoHeaders))
 
       const response = await fetch('/api/materials/import/preview', {
         method: 'POST',
@@ -195,9 +193,28 @@ export default function MaterialsPage() {
       setImportError(String(error))
     } finally {
       setIsPreviewing(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+    }
+  }
+
+  // Обработчик выбора файла - показываем предпросмотр
+  async function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setSelectedFile(file)
+    setNoHeaders(false) // Сбрасываем при выборе нового файла
+    await loadPreview(file, false)
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Обработчик переключения "без заголовков"
+  async function handleNoHeadersChange(checked: boolean) {
+    setNoHeaders(checked)
+    if (selectedFile) {
+      await loadPreview(selectedFile, checked)
     }
   }
 
@@ -217,6 +234,7 @@ export default function MaterialsPage() {
       const formData = new FormData()
       formData.append('file', selectedFile)
       formData.append('columnMapping', JSON.stringify(columnMapping))
+      formData.append('noHeaders', String(noHeaders))
 
       const response = await fetch('/api/materials/import', {
         method: 'POST',
@@ -673,6 +691,28 @@ export default function MaterialsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
+            </div>
+
+            {/* Опция "без заголовков" */}
+            <div className="px-6 py-3 border-b border-gray-200 bg-amber-50">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={noHeaders}
+                  onChange={(e) => handleNoHeadersChange(e.target.checked)}
+                  disabled={isPreviewing}
+                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                />
+                <span className="text-sm font-medium text-amber-800">
+                  Первая строка — данные (файл без заголовков)
+                </span>
+                {isPreviewing && (
+                  <svg className="animate-spin h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+              </label>
             </div>
 
             {/* Маппинг колонок */}

@@ -95,6 +95,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get('file') as File
     const columnMappingStr = formData.get('columnMapping') as string | null
+    const noHeadersStr = formData.get('noHeaders') as string | null
+    const noHeaders = noHeadersStr === 'true'
 
     if (!file) {
       return NextResponse.json(
@@ -131,8 +133,22 @@ export async function POST(request: NextRequest) {
     const firstSheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[firstSheetName]
 
-    // Конвертируем в JSON
-    const rawData: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet)
+    // Получаем диапазон данных для определения количества колонок
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
+    const colCount = range.e.c - range.s.c + 1
+
+    let rawData: ExcelRow[]
+
+    if (noHeaders) {
+      // Файл без заголовков - генерируем названия колонок "Колонка 1", "Колонка 2", ...
+      const generatedHeaders = Array.from({ length: colCount }, (_, i) => `Колонка ${i + 1}`)
+      const allRows = XLSX.utils.sheet_to_json(worksheet, { header: generatedHeaders, range: 0 }) as ExcelRow[]
+      rawData = allRows
+      console.log('[Materials Import] No headers mode - generated headers:', generatedHeaders)
+    } else {
+      // Файл с заголовками - стандартное поведение
+      rawData = XLSX.utils.sheet_to_json(worksheet)
+    }
 
     if (rawData.length === 0) {
       return NextResponse.json(
@@ -144,6 +160,7 @@ export async function POST(request: NextRequest) {
     // Логируем первую строку для отладки
     console.log('[Materials Import] First row columns:', Object.keys(rawData[0]))
     console.log('[Materials Import] Column mapping:', columnMapping)
+    console.log('[Materials Import] noHeaders:', noHeaders)
 
     // Подготавливаем данные для вставки
     const materialsToInsert = []
@@ -153,7 +170,8 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i]
-      const rowNumber = i + 2 // +2 потому что в Excel нумерация с 1 и первая строка - заголовок
+      // +1 для Excel-нумерации (с 1), +1 если есть заголовок
+      const rowNumber = noHeaders ? i + 1 : i + 2
 
       try {
         // Если есть маппинг колонок - используем его
