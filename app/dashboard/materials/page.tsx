@@ -44,6 +44,7 @@ interface ColumnMapping {
 export default function MaterialsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('materials')
   const [materials, setMaterials] = useState<Material[]>([])
+  const [allMaterials, setAllMaterials] = useState<Material[]>([]) // Все материалы для шаблонов
   const [templates, setTemplates] = useState<MaterialTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -101,6 +102,19 @@ export default function MaterialsPage() {
     }
   }, [searchQuery, selectedCategory])
 
+  // Загрузка всех материалов (для шаблонов, без фильтров)
+  const fetchAllMaterials = useCallback(async () => {
+    try {
+      const res = await fetch('/api/materials?active_only=false')
+      const data = await res.json()
+      if (res.ok) {
+        setAllMaterials(data.materials || [])
+      }
+    } catch (error) {
+      console.error('Error fetching all materials:', error)
+    }
+  }, [])
+
   const fetchTemplates = useCallback(async () => {
     setIsLoading(true)
     try {
@@ -127,8 +141,9 @@ export default function MaterialsPage() {
   useEffect(() => {
     fetchCurrentUser()
     fetchMaterials()
+    fetchAllMaterials()
     fetchTemplates()
-  }, [fetchCurrentUser, fetchMaterials, fetchTemplates])
+  }, [fetchCurrentUser, fetchMaterials, fetchAllMaterials, fetchTemplates])
 
   // Автоматическое определение колонок по названиям
   function autoDetectColumns(headers: string[]): ColumnMapping {
@@ -248,6 +263,7 @@ export default function MaterialsPage() {
 
       setImportResult(result)
       await fetchMaterials()
+      await fetchAllMaterials()
     } catch (error) {
       console.error('Error importing materials:', error)
       setImportError(String(error))
@@ -689,7 +705,7 @@ export default function MaterialsPage() {
           {selectedTemplate ? (
             <TemplateEditor
               template={selectedTemplate}
-              materials={materials}
+              materials={allMaterials}
               onAddItem={handleAddItemToTemplate}
               onRemoveItem={handleRemoveItemFromTemplate}
               onUpdateItem={handleUpdateItemQuantity}
