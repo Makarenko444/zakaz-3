@@ -35,7 +35,7 @@ export async function POST(
         material_id: material_id || null,
         material_name,
         unit: unit || 'шт',
-        quantity: quantity || 1,
+        quantity: quantity !== undefined ? quantity : null,
         notes: notes || null,
         sort_order: nextSortOrder,
       })
