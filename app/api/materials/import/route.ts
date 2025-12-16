@@ -4,25 +4,16 @@ import { logAudit, getClientIP, getUserAgent } from '@/lib/audit-log'
 import { validateSession } from '@/lib/session'
 import * as XLSX from 'xlsx'
 
-// Возможные названия колонок (1С может экспортировать с разными заголовками)
-const CODE_COLUMNS = ['Код', 'код', 'Code', 'code', 'Артикул', 'артикул', 'ID', 'id']
-const NAME_COLUMNS = ['Наименование', 'наименование', 'Название', 'название', 'Name', 'name', 'Материал', 'материал']
-const UNIT_COLUMNS = ['Ед.изм.', 'Ед. изм.', 'Единица измерения', 'ед.изм.', 'Unit', 'unit', 'Единица', 'ед.']
-const PRICE_COLUMNS = ['Цена', 'цена', 'Price', 'price', 'Цена за ед.', 'Стоимость']
-const QUANTITY_COLUMNS = ['Остаток на складе', 'Остаток', 'остаток', 'Количество', 'количество', 'Qty', 'qty', 'Stock', 'stock', 'Кол-во']
+interface ColumnMapping {
+  code: string
+  name: string
+  unit: string
+  price: string
+  quantity: string
+}
 
 interface ExcelRow {
   [key: string]: string | number | undefined
-}
-
-// Функция для поиска значения по возможным названиям колонок
-function findColumnValue(row: ExcelRow, possibleNames: string[]): string | number | undefined {
-  for (const name of possibleNames) {
-    if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
-      return row[name]
-    }
-  }
-  return undefined
 }
 
 // Функция для парсинга числового значения
@@ -103,12 +94,23 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const columnMappingStr = formData.get('columnMapping') as string | null
 
     if (!file) {
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
       )
+    }
+
+    // Парсим маппинг колонок (если передан)
+    let columnMapping: ColumnMapping | null = null
+    if (columnMappingStr) {
+      try {
+        columnMapping = JSON.parse(columnMappingStr)
+      } catch (e) {
+        console.error('[Materials Import] Failed to parse columnMapping:', e)
+      }
     }
 
     // Проверяем расширение файла
@@ -141,7 +143,7 @@ export async function POST(request: NextRequest) {
 
     // Логируем первую строку для отладки
     console.log('[Materials Import] First row columns:', Object.keys(rawData[0]))
-    console.log('[Materials Import] First row data:', rawData[0])
+    console.log('[Materials Import] Column mapping:', columnMapping)
 
     // Подготавливаем данные для вставки
     const materialsToInsert = []
@@ -154,21 +156,40 @@ export async function POST(request: NextRequest) {
       const rowNumber = i + 2 // +2 потому что в Excel нумерация с 1 и первая строка - заголовок
 
       try {
-        const code = findColumnValue(row, CODE_COLUMNS)
-        const name = findColumnValue(row, NAME_COLUMNS)
-        const unit = findColumnValue(row, UNIT_COLUMNS)
-        const price = findColumnValue(row, PRICE_COLUMNS)
-        const quantity = findColumnValue(row, QUANTITY_COLUMNS)
+        // Если есть маппинг колонок - используем его
+        let code: unknown = null
+        let name: unknown = null
+        let unit: unknown = null
+        let price: unknown = null
+        let quantity: unknown = null
+
+        if (columnMapping) {
+          if (columnMapping.code) code = row[columnMapping.code]
+          if (columnMapping.name) name = row[columnMapping.name]
+          if (columnMapping.unit) unit = row[columnMapping.unit]
+          if (columnMapping.price) price = row[columnMapping.price]
+          if (columnMapping.quantity) quantity = row[columnMapping.quantity]
+        } else {
+          // Автоматическое определение колонок (fallback)
+          for (const [key, value] of Object.entries(row)) {
+            const lowerKey = key.toLowerCase()
+            if (!code && (lowerKey.includes('код') || lowerKey === 'code' || lowerKey.includes('артикул'))) code = value
+            if (!name && (lowerKey.includes('наименование') || lowerKey.includes('название') || lowerKey === 'name')) name = value
+            if (!unit && (lowerKey.includes('ед.изм') || lowerKey.includes('ед. изм') || lowerKey === 'unit')) unit = value
+            if (!price && (lowerKey.includes('цена') || lowerKey === 'price')) price = value
+            if (!quantity && (lowerKey.includes('остаток') || lowerKey.includes('количество') || lowerKey === 'qty')) quantity = value
+          }
+        }
 
         // Проверяем обязательные поля
         if (!name) {
-          skipped.push({ row: rowNumber, reason: 'Отсутствует наименование', data: row })
+          skipped.push({ row: rowNumber, reason: 'Отсутствует наименование' })
           continue
         }
 
         const nameStr = String(name).trim()
         if (!nameStr) {
-          skipped.push({ row: rowNumber, reason: 'Пустое наименование', data: row })
+          skipped.push({ row: rowNumber, reason: 'Пустое наименование' })
           continue
         }
 
@@ -185,7 +206,7 @@ export async function POST(request: NextRequest) {
         })
       } catch (error) {
         console.error(`[Materials Import] Error processing row ${rowNumber}:`, error)
-        errors.push({ row: rowNumber, error: String(error), data: row })
+        errors.push({ row: rowNumber, error: String(error) })
       }
     }
 
@@ -194,7 +215,7 @@ export async function POST(request: NextRequest) {
     const duplicates = []
 
     for (const material of materialsToInsert) {
-      const key = material.code || material.name // Если нет кода, используем название как ключ
+      const key = material.code || material.name
       if (uniqueMaterialsMap.has(key)) {
         duplicates.push({
           key,
@@ -207,7 +228,6 @@ export async function POST(request: NextRequest) {
     const uniqueMaterialsToInsert = Array.from(uniqueMaterialsMap.values())
 
     // Вставляем материалы партиями по 100 штук
-    // Используем upsert для обновления существующих записей
     const batchSize = 100
     let processedCount = 0
     let insertedCount = 0
