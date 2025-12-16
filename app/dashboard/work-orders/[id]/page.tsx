@@ -935,12 +935,6 @@ export default function WorkOrderDetailPage() {
         </div>
       </div>
 
-      {/* Мета-информация */}
-      <div className="mt-6 text-sm text-gray-500">
-        <p>Создан: {formatDateTime(workOrder.created_at)} {workOrder.created_by_user?.full_name && `(${workOrder.created_by_user.full_name})`}</p>
-        <p>Изменён: {formatDateTime(workOrder.updated_at)} {workOrder.updated_by_user?.full_name && `(${workOrder.updated_by_user.full_name})`}</p>
-      </div>
-
       {/* Модалка добавления исполнителя */}
       {showExecutorModal && (() => {
         // Фильтруем по поиску
