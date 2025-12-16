@@ -338,6 +338,20 @@ export default function MaterialsPage() {
     }
   }
 
+  const handleUpdateItemQuantity = async (itemId: string, quantity: number | null) => {
+    if (!selectedTemplate) return
+    try {
+      const res = await fetch(`/api/material-templates/${selectedTemplate.id}/items`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: itemId, quantity }),
+      })
+      if (res.ok) fetchTemplateDetails(selectedTemplate.id)
+    } catch (error) {
+      console.error('Error updating item:', error)
+    }
+  }
+
   function formatPrice(price: number): string {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -636,6 +650,7 @@ export default function MaterialsPage() {
               materials={materials}
               onAddItem={handleAddItemToTemplate}
               onRemoveItem={handleRemoveItemFromTemplate}
+              onUpdateItem={handleUpdateItemQuantity}
             />
           ) : (
             <div className="lg:col-span-2 bg-white rounded-lg shadow p-6 flex items-center justify-center text-gray-500">
@@ -894,127 +909,134 @@ function TemplateEditor({
   materials,
   onAddItem,
   onRemoveItem,
+  onUpdateItem,
 }: {
   template: MaterialTemplate
   materials: Material[]
   onAddItem: (materialId: string | null, name: string, unit: string, quantity: number | null) => void
   onRemoveItem: (itemId: string) => void
+  onUpdateItem: (itemId: string, quantity: number | null) => void
 }) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [itemQuantities, setItemQuantities] = useState<Record<string, string>>({})
 
   // ID материалов уже в шаблоне
   const templateMaterialIds = new Set(
     template.items?.map(item => item.material_id).filter(Boolean) || []
   )
 
-  // Фильтрация материалов по поиску
+  // Фильтрация материалов по поиску (исключаем уже добавленные)
   const filteredMaterials = materials.filter(m =>
-    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (m.code && m.code.toLowerCase().includes(searchQuery.toLowerCase()))
+    !templateMaterialIds.has(m.id) && (
+      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.code && m.code.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
   )
 
-  // Проверка, есть ли материал в шаблоне
-  const isInTemplate = (materialId: string) => templateMaterialIds.has(materialId)
-
-  // Переключение материала в шаблоне
-  const toggleMaterial = (material: Material) => {
-    if (isInTemplate(material.id)) {
-      // Найти item и удалить
-      const item = template.items?.find(i => i.material_id === material.id)
-      if (item) onRemoveItem(item.id)
-    } else {
-      // Добавить материал
-      const qty = itemQuantities[material.id]
-      const quantity = qty ? parseFloat(qty.replace(',', '.')) : null
-      onAddItem(material.id, material.name, material.unit, quantity)
-    }
+  // Добавить материал
+  const addMaterial = (material: Material) => {
+    onAddItem(material.id, material.name, material.unit, null)
   }
 
-  // Обновление количества для материала
-  const handleQuantityChange = (materialId: string, value: string) => {
-    setItemQuantities(prev => ({ ...prev, [materialId]: value }))
+  // Обновить количество (с debounce через onBlur)
+  const handleQuantityBlur = (itemId: string, value: string) => {
+    const qty = value.trim() ? parseFloat(value.replace(',', '.')) : null
+    onUpdateItem(itemId, isNaN(qty as number) ? null : qty)
   }
 
   return (
-    <div className="lg:col-span-2 flex flex-col gap-4">
+    <div className="lg:col-span-2 flex flex-col gap-4 h-full">
       {/* Материалы в шаблоне */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <h2 className="text-lg font-semibold mb-3">{template.name}</h2>
-        {template.items && template.items.length > 0 ? (
-          <div className="space-y-2">
-            {template.items.map((item) => (
-              <div key={item.id} className="flex items-center justify-between py-2 px-3 bg-indigo-50 rounded-lg">
-                <span className="flex-1">{item.material_name}</span>
-                <span className="text-sm text-gray-600 mx-4">
-                  {item.quantity ? `${item.quantity} ${item.unit}` : item.unit}
-                </span>
-                <button
-                  onClick={() => onRemoveItem(item.id)}
-                  className="text-red-500 hover:text-red-700 p-1"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 text-sm">Выберите материалы из списка ниже</p>
-        )}
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-4 py-3 border-b border-gray-200">
+          <h2 className="text-lg font-semibold">{template.name}</h2>
+          {template.description && <p className="text-sm text-gray-500">{template.description}</p>}
+        </div>
+
+        <div className="p-4">
+          {template.items && template.items.length > 0 ? (
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-xs text-gray-500 uppercase">
+                  <th className="pb-2">Материал</th>
+                  <th className="pb-2 w-24 text-center">Кол-во</th>
+                  <th className="pb-2 w-16 text-center">Ед.</th>
+                  <th className="pb-2 w-10"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {template.items.map((item) => (
+                  <tr key={item.id} className="group">
+                    <td className="py-2 pr-2">
+                      <span className="text-sm">{item.material_name}</span>
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="text"
+                        defaultValue={item.quantity || ''}
+                        placeholder="—"
+                        onBlur={(e) => handleQuantityBlur(item.id, e.target.value)}
+                        className="w-full px-2 py-1 text-sm text-center border border-gray-200 rounded focus:border-indigo-500 focus:outline-none"
+                      />
+                    </td>
+                    <td className="py-2 text-center text-sm text-gray-500">{item.unit}</td>
+                    <td className="py-2 text-center">
+                      <button
+                        onClick={() => onRemoveItem(item.id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-gray-400 text-sm text-center py-4">Добавьте материалы из списка ниже</p>
+          )}
+        </div>
       </div>
 
-      {/* Список всех материалов */}
-      <div className="bg-white rounded-lg shadow p-4 flex-1">
-        <div className="mb-4">
+      {/* Добавление материалов */}
+      <div className="bg-white rounded-lg shadow flex-1 flex flex-col min-h-0">
+        <div className="px-4 py-3 border-b border-gray-200">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск материалов..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            placeholder="Поиск материалов для добавления..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
           />
         </div>
 
-        <div className="max-h-[400px] overflow-y-auto space-y-1">
+        <div className="flex-1 overflow-y-auto p-2" style={{ maxHeight: '300px' }}>
           {filteredMaterials.length > 0 ? (
-            filteredMaterials.map((material) => {
-              const inTemplate = isInTemplate(material.id)
-              return (
+            <div className="space-y-1">
+              {filteredMaterials.map((material) => (
                 <div
                   key={material.id}
-                  className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition ${
-                    inTemplate ? 'bg-indigo-100 border border-indigo-300' : 'hover:bg-gray-50 border border-transparent'
-                  }`}
-                  onClick={() => toggleMaterial(material)}
+                  className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 group"
                 >
-                  <input
-                    type="checkbox"
-                    checked={inTemplate}
-                    onChange={() => {}}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 mr-3">
                     <p className="text-sm truncate">{material.name}</p>
-                    <p className="text-xs text-gray-500">{material.unit}</p>
+                    <p className="text-xs text-gray-400">{material.unit}</p>
                   </div>
-                  {!inTemplate && (
-                    <input
-                      type="text"
-                      placeholder="Кол-во"
-                      value={itemQuantities[material.id] || ''}
-                      onChange={(e) => handleQuantityChange(material.id, e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  )}
+                  <button
+                    onClick={() => addMaterial(material)}
+                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
                 </div>
-              )
-            })
+              ))}
+            </div>
           ) : (
-            <p className="text-gray-500 text-center py-4">
-              {searchQuery ? 'Материалы не найдены' : 'Нет доступных материалов'}
+            <p className="text-gray-400 text-sm text-center py-8">
+              {searchQuery ? 'Ничего не найдено' : 'Все материалы уже добавлены'}
             </p>
           )}
         </div>
