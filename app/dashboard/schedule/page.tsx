@@ -97,6 +97,18 @@ function formatHours(hours: number): string {
   return `${h}ч ${m}м`
 }
 
+// Форматирование имени: "Воронов Андрей" -> "Андрей В."
+function formatShortName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/)
+  if (parts.length >= 2) {
+    // Предполагаем формат "Фамилия Имя" или "Фамилия Имя Отчество"
+    const lastName = parts[0]
+    const firstName = parts[1]
+    return `${firstName} ${lastName[0]}.`
+  }
+  return fullName
+}
+
 // Парсинг времени в минуты от полуночи
 function parseTimeToMinutes(time: string | null): number {
   if (!time) return 8 * 60 // по умолчанию 8:00
@@ -370,7 +382,7 @@ export default function SchedulePage() {
           // Формируем название группы из имён сотрудников
           const names = wo.executors
             ?.filter(e => e.user)
-            .map(e => e.user!.full_name.split(' ')[0]) // Только имя
+            .map(e => formatShortName(e.user!.full_name))
             .join(', ') || 'Бригада'
 
           brigadeMap.set(key, {
@@ -811,7 +823,7 @@ export default function SchedulePage() {
                             )}
                             {wo.executors && wo.executors.length > 0 && (
                               <div className="text-xs text-gray-500 mt-1">
-                                {wo.executors.map(e => e.user?.full_name?.split(' ')[0]).join(', ')}
+                                {wo.executors.map(e => e.user?.full_name ? formatShortName(e.user.full_name) : '').join(', ')}
                               </div>
                             )}
                           </div>

@@ -66,23 +66,13 @@ export default function WorkOrdersSection({ applicationId }: Props) {
     }
   }, [applicationId])
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     const res = await fetch('/api/users?active=true')
     const data = await res.json()
     if (res.ok) setUsers(data.users || [])
-  }
+  }, [])
 
-  const fetchCurrentUser = async () => {
-    const res = await fetch('/api/auth/session')
-    const data = await res.json()
-    if (res.ok && data.user) {
-      setCurrentUser(data.user)
-      // Сразу загружаем популярных исполнителей
-      fetchPopularExecutors(data.user.id)
-    }
-  }
-
-  const fetchPopularExecutors = async (userId: string) => {
+  const fetchPopularExecutors = useCallback(async (userId: string) => {
     try {
       console.log('[WorkOrdersSection] Fetching popular executors for user:', userId)
       const res = await fetch(`/api/users/${userId}/popular-executors`)
@@ -95,13 +85,23 @@ export default function WorkOrdersSection({ applicationId }: Props) {
     } catch (err) {
       console.error('[WorkOrdersSection] Error fetching popular executors:', err)
     }
-  }
+  }, [])
+
+  const fetchCurrentUser = useCallback(async () => {
+    const res = await fetch('/api/auth/session')
+    const data = await res.json()
+    if (res.ok && data.user) {
+      setCurrentUser(data.user)
+      // Сразу загружаем популярных исполнителей
+      fetchPopularExecutors(data.user.id)
+    }
+  }, [fetchPopularExecutors])
 
   useEffect(() => {
     fetchWorkOrders()
     fetchUsers()
     fetchCurrentUser()
-  }, [fetchWorkOrders])
+  }, [fetchWorkOrders, fetchUsers, fetchCurrentUser])
 
   const handleCreateWorkOrder = async (data: {
     type: WorkOrderType

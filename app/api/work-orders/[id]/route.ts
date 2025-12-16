@@ -153,6 +153,42 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Записываем в историю изменений
+    const changedFields = Object.keys(newValues).filter(
+      key => key !== 'updated_by' && oldValues[key] !== newValues[key]
+    )
+
+    if (changedFields.length > 0) {
+      const changeDescriptions: string[] = []
+
+      // Описания изменений полей
+      const fieldLabels: Record<string, string> = {
+        type: 'Тип',
+        scheduled_date: 'Дата',
+        scheduled_time: 'Время',
+        estimated_duration: 'Длительность',
+        notes: 'Примечания',
+        result_notes: 'Результат',
+      }
+
+      for (const field of changedFields) {
+        const label = fieldLabels[field] || field
+        const oldVal = oldValues[field] || '—'
+        const newVal = newValues[field] || '—'
+        changeDescriptions.push(`${label}: ${oldVal} → ${newVal}`)
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from as any)('zakaz_work_order_status_history')
+        .insert({
+          work_order_id: id,
+          old_status: currentData.status,
+          new_status: currentData.status, // статус не меняется при редактировании
+          changed_by: body.user_id || body.updated_by || null,
+          comment: `Редактирование: ${changeDescriptions.join('; ')}`,
+        })
+    }
+
     // Логируем изменение
     const userData = await getUserData(body.user_id || body.updated_by)
 
