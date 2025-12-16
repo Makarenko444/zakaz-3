@@ -107,7 +107,7 @@ export default function WorkOrderDetailPage() {
     new_status_label: string
     changed_by: string | null
     comment: string | null
-    created_at: string
+    changed_at: string
     user?: { id: string; full_name: string } | null
   }>>([])
   const [createdInfo, setCreatedInfo] = useState<{
@@ -879,7 +879,7 @@ export default function WorkOrderDetailPage() {
                       )}
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      {new Date(item.created_at).toLocaleString('ru-RU', {
+                      {new Date(item.changed_at).toLocaleString('ru-RU', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric',
