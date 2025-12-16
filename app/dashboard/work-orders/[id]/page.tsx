@@ -698,6 +698,25 @@ export default function WorkOrderDetailPage() {
           )}
         </div>
 
+        {/* Примечания */}
+        {(workOrder.notes || workOrder.result_notes) && (
+          <div className="bg-white rounded-lg shadow p-5">
+            <h2 className="text-lg font-semibold mb-4">Примечания</h2>
+            {workOrder.notes && (
+              <div className="mb-3">
+                <span className="text-gray-500 text-sm">При выдаче:</span>
+                <p className="mt-1">{workOrder.notes}</p>
+              </div>
+            )}
+            {workOrder.result_notes && (
+              <div>
+                <span className="text-gray-500 text-sm">Результат:</span>
+                <p className="mt-1">{workOrder.result_notes}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Материалы */}
         <div className="bg-white rounded-lg shadow p-5">
           <div className="flex justify-between items-center mb-4">
@@ -740,25 +759,6 @@ export default function WorkOrderDetailPage() {
             <p className="text-gray-500 text-sm">Материалы не указаны</p>
           )}
         </div>
-
-          {/* Примечания */}
-          {(workOrder.notes || workOrder.result_notes) && (
-            <div className="bg-white rounded-lg shadow p-5">
-              <h2 className="text-lg font-semibold mb-4">Примечания</h2>
-              {workOrder.notes && (
-                <div className="mb-3">
-                  <span className="text-gray-500 text-sm">При выдаче:</span>
-                  <p className="mt-1">{workOrder.notes}</p>
-                </div>
-              )}
-              {workOrder.result_notes && (
-                <div>
-                  <span className="text-gray-500 text-sm">Результат:</span>
-                  <p className="mt-1">{workOrder.result_notes}</p>
-                </div>
-              )}
-            </div>
-          )}
 
         </div>
 
