@@ -6,6 +6,7 @@ import { WorkOrderStatus } from '@/lib/types'
 interface WorkOrderStatusBarProps {
   currentStatus: WorkOrderStatus
   onStatusChange: (newStatus: WorkOrderStatus) => void
+  onCompleteClick?: () => void // Callback для открытия модалки завершения
   disabled?: boolean
 }
 
@@ -16,17 +17,23 @@ const statuses: Array<{
 }> = [
   { code: 'draft', name: 'Черновик', description: 'Наряд создан, но ещё не выдан' },
   { code: 'assigned', name: 'Выдан', description: 'Наряд выдан исполнителям' },
-  { code: 'in_progress', name: 'В работе', description: 'Исполнители приступили к работе' },
   { code: 'completed', name: 'Выполнен', description: 'Работы завершены' },
 ]
 
 const cancelledStatus = { code: 'cancelled' as WorkOrderStatus, name: 'Отменён', description: 'Наряд отменён' }
 
-export default function WorkOrderStatusBar({ currentStatus, onStatusChange, disabled = false }: WorkOrderStatusBarProps) {
+export default function WorkOrderStatusBar({ currentStatus, onStatusChange, onCompleteClick, disabled = false }: WorkOrderStatusBarProps) {
   const [confirmingStatus, setConfirmingStatus] = useState<WorkOrderStatus | null>(null)
 
   const handleStatusClick = (status: WorkOrderStatus) => {
     if (disabled || status === currentStatus) return
+
+    // Если переходим в "Выполнен" — вызываем callback для модалки отчёта
+    if (status === 'completed' && onCompleteClick) {
+      onCompleteClick()
+      return
+    }
+
     setConfirmingStatus(status)
   }
 
@@ -44,6 +51,7 @@ export default function WorkOrderStatusBar({ currentStatus, onStatusChange, disa
   // Определяем индекс текущего статуса (cancelled обрабатывается отдельно)
   const currentIndex = currentStatus === 'cancelled' ? -1 : statuses.findIndex(s => s.code === currentStatus)
   const isCancelled = currentStatus === 'cancelled'
+  const isCompleted = currentStatus === 'completed'
 
   return (
     <>
@@ -61,13 +69,21 @@ export default function WorkOrderStatusBar({ currentStatus, onStatusChange, disa
               buttonClasses += 'bg-gray-100 text-gray-400 border-gray-200 '
             } else if (isCurrent) {
               // Текущий статус
-              buttonClasses += 'bg-blue-50 text-blue-700 border-blue-500 ring-2 ring-blue-200 '
+              if (status.code === 'completed') {
+                buttonClasses += 'bg-green-50 text-green-700 border-green-500 ring-2 ring-green-200 '
+              } else {
+                buttonClasses += 'bg-blue-50 text-blue-700 border-blue-500 ring-2 ring-blue-200 '
+              }
             } else if (isPassed) {
               // Пройденные статусы
               buttonClasses += 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100 '
             } else {
               // Будущие статусы
-              buttonClasses += 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200 hover:text-gray-600 '
+              if (status.code === 'completed') {
+                buttonClasses += 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-green-50 hover:text-green-600 hover:border-green-300 '
+              } else {
+                buttonClasses += 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200 hover:text-gray-600 '
+              }
             }
 
             if (disabled || isCurrent || isCancelled) {
@@ -99,16 +115,18 @@ export default function WorkOrderStatusBar({ currentStatus, onStatusChange, disa
             )
           })}
 
-          {/* Кнопка отмены - отдельно */}
+          {/* Кнопка отмены - отдельно, недоступна если наряд уже выполнен */}
           <button
             onClick={() => handleStatusClick('cancelled')}
-            disabled={disabled || isCancelled}
+            disabled={disabled || isCancelled || isCompleted}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border-2 ${
               isCancelled
                 ? 'bg-red-50 text-red-700 border-red-500 ring-2 ring-red-200 cursor-default'
-                : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 cursor-pointer'
+                : isCompleted
+                  ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed'
+                  : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 cursor-pointer'
             }`}
-            title={cancelledStatus.description}
+            title={isCompleted ? 'Нельзя отменить выполненный наряд' : cancelledStatus.description}
           >
             <span className="flex items-center gap-1">
               {isCancelled && (
@@ -122,7 +140,7 @@ export default function WorkOrderStatusBar({ currentStatus, onStatusChange, disa
         </div>
       </div>
 
-      {/* Модальное окно подтверждения */}
+      {/* Модальное окно подтверждения (для всех статусов кроме completed) */}
       {confirmingStatus && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
@@ -139,7 +157,7 @@ export default function WorkOrderStatusBar({ currentStatus, onStatusChange, disa
                 <div className="flex-1">
                   <p className="text-sm text-gray-500 mb-1">Текущий статус:</p>
                   <p className="font-semibold text-gray-900">
-                    {currentStatus === 'cancelled' ? cancelledStatus.name : statuses.find(s => s.code === currentStatus)?.name}
+                    {currentStatus === 'cancelled' ? cancelledStatus.name : statuses.find(s => s.code === currentStatus)?.name || currentStatus}
                   </p>
                 </div>
 
