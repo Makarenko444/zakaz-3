@@ -306,8 +306,12 @@ export default function MaterialsPage() {
   }
 
   const handleAddItemToTemplate = async (materialId: string | null, materialName: string, unit: string, quantity: number | null) => {
-    if (!selectedTemplate) return
+    if (!selectedTemplate) {
+      console.error('No template selected')
+      return
+    }
     try {
+      console.log('Adding item:', { materialId, materialName, unit, quantity, templateId: selectedTemplate.id })
       const res = await fetch(`/api/material-templates/${selectedTemplate.id}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,8 +322,12 @@ export default function MaterialsPage() {
           quantity,
         }),
       })
+      const data = await res.json()
+      console.log('Response:', res.status, data)
       if (res.ok) {
         fetchTemplateDetails(selectedTemplate.id)
+      } else {
+        console.error('API error:', data)
       }
     } catch (error) {
       console.error('Error adding item:', error)
@@ -934,6 +942,7 @@ function TemplateEditor({
 
   // Добавить материал
   const addMaterial = (material: Material) => {
+    console.log('addMaterial called:', material.id, material.name)
     onAddItem(material.id, material.name, material.unit, null)
   }
 
