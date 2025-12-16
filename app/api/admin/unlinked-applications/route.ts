@@ -36,45 +36,78 @@ interface ApplicationWithSuggestions {
 
 // Извлекаем улицу и номер дома из строки адреса заявки
 function parseStreetAndHouse(address: string): { street: string, house: string } {
-  const normalized = address
-    .toLowerCase()
+  // ВАЖНО: сначала удаляем префикс ДО замены спецсимволов,
+  // чтобы "пр-т" и "б-р" корректно распознавались
+  const lowerCase = address.toLowerCase().trim()
+
+  // Убираем префиксы улиц (до замены спецсимволов!)
+  // Варианты: улица/ул, проспект/просп/пр/пр-т, переулок/пер, бульвар/б-р/бул, шоссе/ш, набережная/наб, площадь/пл, проезд/пр-д, тракт
+  let withoutPrefix = lowerCase
+    .replace(/^(улица|ул\.?|проспект|просп\.?|пр\.?|пр-т|переулок|пер\.?|бульвар|бул\.?|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д|тракт)\s*/i, '')
+    .trim()
+
+  // Также убираем суффикс "тракт" (для "Иркутский тракт", "Московский тракт")
+  withoutPrefix = withoutPrefix
+    .replace(/\s+тракт$/i, '')
+    .trim()
+
+  // Пытаемся найти номер дома ДО замены спецсимволов (чтобы сохранить формат "15а", "15/1")
+  // Ищем паттерн: улица[,] номер или улица номер
+  const housePatternWithComma = withoutPrefix.match(/^(.+?)[,\s]+(\d+[а-яa-z]?(?:[\s\/\-]*[\dа-яa-z]+)?)$/i)
+  if (housePatternWithComma) {
+    return {
+      street: housePatternWithComma[1].trim(),
+      house: housePatternWithComma[2].replace(/\s+/g, '').trim()
+    }
+  }
+
+  // Заменяем спецсимволы на пробелы и нормализуем
+  const normalized = withoutPrefix
     .replace(/[.,\-\/\\]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 
-  // Убираем префиксы улиц
-  const withoutPrefix = normalized
-    .replace(/^(улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д)\s*/i, '')
-    .trim()
-
   // Ищем номер дома - число (возможно с буквой) в конце
-  const houseMatch = withoutPrefix.match(/^(.+?)\s+(\d+[а-яa-z]?\/?[\dа-яa-z]*)(?:\s|$)/i)
+  // Улучшенный паттерн: захватываем больше вариантов номеров домов
+  const houseMatch = normalized.match(/^(.+?)\s+(\d+\s*[а-яa-z]?(?:\s*\d+[а-яa-z]*)?)$/i)
 
   if (houseMatch) {
     return {
       street: houseMatch[1].trim(),
-      house: houseMatch[2].trim()
+      house: houseMatch[2].replace(/\s+/g, '').trim()
     }
   }
 
   // Если не нашли дом, возвращаем всю строку как улицу
   return {
-    street: withoutPrefix,
+    street: normalized,
     house: ''
   }
 }
 
 // Нормализуем название улицы для сравнения
 function normalizeStreet(street: string): string {
-  return street
+  // ВАЖНО: сначала удаляем префикс ДО замены спецсимволов,
+  // чтобы "пр-т" и "б-р" корректно распознавались
+  // Варианты: улица/ул, проспект/просп/пр/пр-т, переулок/пер, бульвар/б-р/бул, шоссе/ш, набережная/наб, площадь/пл, проезд/пр-д, тракт
+  let withoutPrefix = street
     .toLowerCase()
+    .replace(/^(улица|ул\.?|проспект|просп\.?|пр\.?|пр-т|переулок|пер\.?|бульвар|бул\.?|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д|тракт)\s*/i, '')
+    .trim()
+
+  // Также убираем суффикс "тракт" (для "Иркутский тракт", "Московский тракт")
+  withoutPrefix = withoutPrefix
+    .replace(/\s+тракт$/i, '')
+    .trim()
+
+  // Теперь заменяем спецсимволы
+  return withoutPrefix
     .replace(/[.,\-\/\\]/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/^(улица|ул\.?|проспект|пр\.?|пр-т|переулок|пер\.?|бульвар|б-р|шоссе|ш\.?|набережная|наб\.?|площадь|пл\.?|проезд|пр-д)\s*/i, '')
     .trim()
 }
 
-// Сравниваем названия улиц
+// Сравниваем названия улиц (более гибкий алгоритм)
 function compareStreets(street1: string, street2: string): boolean {
   const norm1 = normalizeStreet(street1)
   const norm2 = normalizeStreet(street2)
@@ -84,7 +117,17 @@ function compareStreets(street1: string, street2: string): boolean {
 
   // Проверяем, начинается ли одно название с другого (для сокращений)
   if (norm1.length >= 3 && norm2.length >= 3) {
-    return norm1.startsWith(norm2) || norm2.startsWith(norm1)
+    if (norm1.startsWith(norm2) || norm2.startsWith(norm1)) {
+      return true
+    }
+  }
+
+  // Проверяем, содержит ли одно название другое (для гибкого поиска)
+  // Например: "красноармейская" и "красноарм" или "арм" в "красноармейская"
+  if (norm1.length >= 3 && norm2.length >= 3) {
+    if (norm1.includes(norm2) || norm2.includes(norm1)) {
+      return true
+    }
   }
 
   return false

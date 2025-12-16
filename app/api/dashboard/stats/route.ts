@@ -18,6 +18,7 @@ interface UserRow {
   id: string
   full_name: string
   role?: string
+  active?: boolean
 }
 
 export async function GET(_request: NextRequest) {
@@ -59,6 +60,7 @@ export async function GET(_request: NextRequest) {
       new: 'Новая',
       thinking: 'Думает',
       estimation: 'Расчёт',
+      estimation_done: 'Расчёт выполнен',
       contract: 'Договор и оплата',
       design: 'Проектирование',
       approval: 'Согласование',
@@ -70,7 +72,7 @@ export async function GET(_request: NextRequest) {
     }
 
     // Порядок статусов по этапам работы
-    const statusOrder = ['new', 'thinking', 'estimation', 'contract', 'design', 'approval', 'queue_install', 'install', 'installed', 'rejected', 'no_tech']
+    const statusOrder = ['new', 'thinking', 'estimation', 'estimation_done', 'contract', 'design', 'approval', 'queue_install', 'install', 'installed', 'rejected', 'no_tech']
 
     const statuses = Array.from(statusStatsMap.entries())
       .map(([status, count]) => ({
@@ -80,48 +82,59 @@ export async function GET(_request: NextRequest) {
       }))
       .sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status))
 
-    // Статистика по менеджерам
-    const managerStatsMap = new Map<string, number>()
-    let unassignedCount = 0
+    // Статистика по менеджерам (всего и активных)
+    const completedStatuses = ['installed', 'rejected', 'no_tech']
+    const managerStatsMap = new Map<string, { total: number; active: number }>()
+    let unassignedTotal = 0
+    let unassignedActive = 0
 
     allApps.forEach(app => {
+      const isActive = !completedStatuses.includes(app.status)
       if (!app.assigned_to) {
-        unassignedCount++
+        unassignedTotal++
+        if (isActive) unassignedActive++
       } else {
-        const count = managerStatsMap.get(app.assigned_to) || 0
-        managerStatsMap.set(app.assigned_to, count + 1)
+        const stats = managerStatsMap.get(app.assigned_to) || { total: 0, active: 0 }
+        stats.total++
+        if (isActive) stats.active++
+        managerStatsMap.set(app.assigned_to, stats)
       }
     })
 
     // Получаем информацию о менеджерах
     const managerIds = Array.from(managerStatsMap.keys())
 
-    let managers: Array<{ id: string; name: string; count: number }> = []
+    let managers: Array<{ id: string; name: string; count: number; activeCount: number; isActive: boolean }> = []
 
     if (managerIds.length > 0) {
       const { data: managersData, error: managersError } = await supabase
         .from('zakaz_users')
-        .select('id, full_name')
+        .select('id, full_name, active')
         .in('id', managerIds)
 
       if (!managersError && managersData) {
         const typedManagersData = managersData as UserRow[]
         managers = managerIds.map(id => {
           const managerInfo = typedManagersData.find(u => u.id === id)
+          const stats = managerStatsMap.get(id) || { total: 0, active: 0 }
           return {
             id,
             name: managerInfo?.full_name || 'Неизвестный менеджер',
-            count: managerStatsMap.get(id) || 0,
+            count: stats.total,
+            activeCount: stats.active,
+            isActive: managerInfo?.active ?? true, // Статус сотрудника (активен/уволен)
           }
         })
       }
     }
 
-    if (unassignedCount > 0) {
+    if (unassignedTotal > 0) {
       managers.push({
         id: 'unassigned',
         name: 'Менеджер не назначен',
-        count: unassignedCount,
+        count: unassignedTotal,
+        activeCount: unassignedActive,
+        isActive: true, // "Не назначен" всегда показываем как активный
       })
     }
 
@@ -142,7 +155,7 @@ export async function GET(_request: NextRequest) {
         id: user.id,
         name: user.full_name,
         role: user.role || 'user',
-        count: managerStatsMap.get(user.id) || 0,
+        count: managerStatsMap.get(user.id)?.total || 0,
       }))
     }
 

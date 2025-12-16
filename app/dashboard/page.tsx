@@ -30,6 +30,8 @@ interface DashboardStats {
     id: string
     name: string
     count: number
+    activeCount: number
+    isActive: boolean
   }>
   users: Array<{
     id: string
@@ -60,6 +62,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showActiveOnly, setShowActiveOnly] = useState(true) // Тумблер Активные/Все для менеджеров
 
   useEffect(() => {
     async function loadData() {
@@ -109,6 +112,7 @@ export default function DashboardPage() {
     new: 'bg-gray-100 text-gray-800 border-gray-300',
     thinking: 'bg-blue-50 text-blue-700 border-blue-200',
     estimation: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    estimation_done: 'bg-sky-50 text-sky-700 border-sky-200',
     waiting_payment: 'bg-amber-50 text-amber-700 border-amber-200',
     contract: 'bg-cyan-50 text-cyan-700 border-cyan-200',
     design: 'bg-teal-50 text-teal-700 border-teal-200',
@@ -259,9 +263,37 @@ export default function DashboardPage() {
           {/* Заявки по менеджерам */}
           {stats && stats.managers && stats.managers.length > 0 && (
             <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-3">Заявки по менеджерам</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-bold text-gray-900">Активные заявки по менеджерам</h2>
+                {/* Тумблер Активные/Все */}
+                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setShowActiveOnly(true)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                      showActiveOnly
+                        ? 'bg-white text-indigo-700 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Активные
+                  </button>
+                  <button
+                    onClick={() => setShowActiveOnly(false)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                      !showActiveOnly
+                        ? 'bg-white text-indigo-700 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Все
+                  </button>
+                </div>
+              </div>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-200 max-h-80 overflow-y-auto">
-                {stats.managers.map((manager) => (
+                {stats.managers
+                  .filter(m => showActiveOnly ? m.isActive : true)
+                  .sort((a, b) => b.activeCount - a.activeCount)
+                  .map((manager) => (
                   <button
                     key={manager.id}
                     onClick={() => {
@@ -284,7 +316,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-gray-900 group-hover:text-indigo-600">
-                        {manager.count}
+                        {manager.activeCount}
                       </span>
                       <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -296,70 +328,98 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Все сотрудники (без менеджеров) */}
-          {stats && stats.users && stats.users.filter(u => u.role !== 'manager').length > 0 && (
+          {/* Все сотрудники - сгруппированные по ролям */}
+          {stats && stats.users && stats.users.length > 0 && (
             <div>
               <h2 className="text-lg font-bold text-gray-900 mb-3">Сотрудники</h2>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 max-h-80 overflow-y-auto">
-                <div className="divide-y divide-gray-200">
-                  {stats.users.filter(u => u.role !== 'manager').map((userItem) => {
-                    const roleLabels: Record<string, string> = {
-                      admin: 'Админ',
-                      manager: 'Менеджер',
-                      engineer: 'Инженер',
-                      installer: 'Монтажник',
-                      supply: 'Снабжение',
-                      director: 'Директор',
-                      accountant: 'Бухгалтер',
-                      support: 'Тех.поддержка',
-                      maintenance: 'Эксплуатация',
-                      approval: 'Согласование',
-                      user: 'Пользователь',
-                    }
+                {(() => {
+                  const roleLabels: Record<string, string> = {
+                    admin: 'Администраторы',
+                    manager: 'Менеджеры',
+                    engineer: 'Инженеры',
+                    installer: 'Монтажники',
+                    supply: 'Снабжение',
+                    director: 'Руководство',
+                    accountant: 'Бухгалтерия',
+                    support: 'Тех.поддержка',
+                    maintenance: 'Эксплуатация',
+                    approval: 'Согласование',
+                    user: 'Пользователи',
+                  }
 
-                    const roleColors: Record<string, string> = {
-                      admin: 'bg-purple-100 text-purple-800',
-                      manager: 'bg-blue-100 text-blue-800',
-                      engineer: 'bg-green-100 text-green-800',
-                      installer: 'bg-orange-100 text-orange-800',
-                      supply: 'bg-cyan-100 text-cyan-800',
-                      director: 'bg-red-100 text-red-800',
-                      accountant: 'bg-amber-100 text-amber-800',
-                      support: 'bg-teal-100 text-teal-800',
-                      maintenance: 'bg-slate-100 text-slate-800',
-                      approval: 'bg-emerald-100 text-emerald-800',
-                      user: 'bg-gray-100 text-gray-800',
-                    }
+                  const roleColors: Record<string, string> = {
+                    admin: 'bg-purple-100 text-purple-800 border-purple-200',
+                    manager: 'bg-blue-100 text-blue-800 border-blue-200',
+                    engineer: 'bg-green-100 text-green-800 border-green-200',
+                    installer: 'bg-orange-100 text-orange-800 border-orange-200',
+                    supply: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+                    director: 'bg-red-100 text-red-800 border-red-200',
+                    accountant: 'bg-amber-100 text-amber-800 border-amber-200',
+                    support: 'bg-teal-100 text-teal-800 border-teal-200',
+                    maintenance: 'bg-slate-100 text-slate-800 border-slate-200',
+                    approval: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                    user: 'bg-gray-100 text-gray-800 border-gray-200',
+                  }
 
-                    return (
-                      <div key={userItem.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                            {userItem.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <span className="text-sm font-medium text-gray-900">{userItem.name}</span>
-                            <span className={`ml-2 px-2 py-0.5 text-xs font-medium rounded-full ${
-                              roleColors[userItem.role] || 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {roleLabels[userItem.role] || userItem.role}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-gray-900">{userItem.count}</span>
-                          {userItem.count > 0 && (
-                            <button
-                              onClick={() => router.push(`/dashboard/applications?assigned_to=${userItem.id}`)}
-                              className="text-indigo-600 hover:text-indigo-900 text-xs">
-                              →
-                            </button>
-                          )}
-                        </div>
+                  // Порядок отображения ролей
+                  const roleOrder = ['director', 'admin', 'manager', 'engineer', 'installer', 'maintenance', 'supply', 'accountant', 'approval', 'support', 'user']
+
+                  // Группируем по ролям
+                  const usersByRole = stats.users.reduce((acc, u) => {
+                    const role = u.role || 'user'
+                    if (!acc[role]) acc[role] = []
+                    acc[role].push(u)
+                    return acc
+                  }, {} as Record<string, typeof stats.users>)
+
+                  // Сортируем роли по порядку
+                  const sortedRoles = Object.keys(usersByRole).sort(
+                    (a, b) => roleOrder.indexOf(a) - roleOrder.indexOf(b)
+                  )
+
+                  return sortedRoles.map(role => (
+                    <div key={role} className="border-b border-gray-100 last:border-b-0">
+                      <div className={`px-4 py-2 text-xs font-semibold ${roleColors[role]?.replace('bg-', 'bg-opacity-50 bg-') || 'bg-gray-50 text-gray-600'}`}>
+                        {roleLabels[role] || role} ({usersByRole[role].length})
                       </div>
-                    )
-                  })}
-                </div>
+                      <div className="divide-y divide-gray-100">
+                        {usersByRole[role].map((userItem) => (
+                          <div key={userItem.id} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs ${
+                                roleColors[userItem.role]?.includes('purple') ? 'bg-purple-500' :
+                                roleColors[userItem.role]?.includes('blue') ? 'bg-blue-500' :
+                                roleColors[userItem.role]?.includes('green') ? 'bg-green-500' :
+                                roleColors[userItem.role]?.includes('orange') ? 'bg-orange-500' :
+                                roleColors[userItem.role]?.includes('cyan') ? 'bg-cyan-500' :
+                                roleColors[userItem.role]?.includes('red') ? 'bg-red-500' :
+                                roleColors[userItem.role]?.includes('amber') ? 'bg-amber-500' :
+                                roleColors[userItem.role]?.includes('teal') ? 'bg-teal-500' :
+                                roleColors[userItem.role]?.includes('slate') ? 'bg-slate-500' :
+                                roleColors[userItem.role]?.includes('emerald') ? 'bg-emerald-500' :
+                                'bg-gray-500'
+                              }`}>
+                                {userItem.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-sm text-gray-900">{userItem.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-gray-700">{userItem.count}</span>
+                              {userItem.count > 0 && (
+                                <button
+                                  onClick={() => router.push(`/dashboard/applications?assigned_to=${userItem.id}`)}
+                                  className="text-indigo-600 hover:text-indigo-900 text-xs">
+                                  →
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                })()}
               </div>
             </div>
           )}

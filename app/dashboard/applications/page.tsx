@@ -775,8 +775,22 @@ function ApplicationsContent() {
               <div
                 key={app.id}
                 onClick={() => router.push(`/dashboard/applications/${app.id}`)}
-                className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition cursor-pointer"
+                className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition cursor-pointer relative group"
               >
+                {/* Кнопка открытия в новом окне */}
+                <a
+                  href={`/dashboard/applications/${app.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute top-2 right-2 p-1.5 bg-white/80 hover:bg-white rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  title="Открыть в новом окне"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+
                 {/* Первая строка: Заголовок, статусы слева, дата справа */}
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-wrap flex-1">
@@ -790,7 +804,7 @@ function ApplicationsContent() {
                       {urgencyLabels[app.urgency]}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mr-8">
                     {/* Иконка скрепочки если есть файлы */}
                     {app.files_count && app.files_count[0]?.count > 0 && (
                       <span className="text-gray-400" title={`Файлов: ${app.files_count[0].count}`}>
@@ -884,6 +898,8 @@ function ApplicationsContent() {
                     <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Срочность
                     </th>
+                    <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -939,6 +955,20 @@ function ApplicationsContent() {
                         <span className={`text-sm font-medium ${urgencyColors[app.urgency]}`}>
                           {urgencyLabels[app.urgency]}
                         </span>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <a
+                          href={`/dashboard/applications/${app.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition inline-block"
+                          title="Открыть в новом окне"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
                       </td>
                     </tr>
                   ))}
