@@ -107,7 +107,7 @@ export default function WorkOrderDetailPage() {
     new_status_label: string
     changed_by: string | null
     comment: string | null
-    created_at: string
+    changed_at: string
     user?: { id: string; full_name: string } | null
   }>>([])
   const [createdInfo, setCreatedInfo] = useState<{
@@ -375,6 +375,7 @@ export default function WorkOrderDetailPage() {
         setCompletionFiles([])
         fetchWorkOrder()
         fetchWorkOrderFiles()
+        fetchHistory()
       } else {
         const data = await res.json()
         alert(data.error || 'Ошибка при завершении наряда')
@@ -534,9 +535,12 @@ export default function WorkOrderDetailPage() {
               const res = await fetch(`/api/work-orders/${id}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus }),
+                body: JSON.stringify({ status: newStatus, user_id: currentUser?.id }),
               })
-              if (res.ok) fetchWorkOrder()
+              if (res.ok) {
+                fetchWorkOrder()
+                fetchHistory()
+              }
             } catch {
               console.error('Error changing status')
             }
@@ -875,7 +879,7 @@ export default function WorkOrderDetailPage() {
                       )}
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      {new Date(item.created_at).toLocaleString('ru-RU', {
+                      {new Date(item.changed_at).toLocaleString('ru-RU', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric',

@@ -13,7 +13,7 @@ interface StatusHistoryRecord {
   new_status: WorkOrderStatus
   changed_by: string | null
   comment: string | null
-  created_at: string
+  changed_at: string
   user?: {
     id: string
     full_name: string
@@ -44,11 +44,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         new_status,
         changed_by,
         comment,
-        created_at,
+        changed_at,
         user:zakaz_users!changed_by(id, full_name)
       `)
       .eq('work_order_id', id)
-      .order('created_at', { ascending: true })
+      .order('changed_at', { ascending: true })
 
     if (historyError) {
       console.error('[WorkOrders History API] Database error:', historyError)
