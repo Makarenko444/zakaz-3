@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { WorkOrderType, WorkOrderStatus } from '@/lib/types'
@@ -293,7 +293,7 @@ export default function SchedulePage() {
   }, [fetchSchedule])
 
   // Расчёт общей загрузки и загрузки по сотрудникам
-  const { totalHours, employeeWorkload, maxHours } = useMemo(() => {
+  const { totalHours, employeeWorkload } = useMemo(() => {
     let total = 0
     const employeeMap = new Map<string, EmployeeWorkload>()
 
@@ -323,9 +323,8 @@ export default function SchedulePage() {
     })
 
     const workload = Array.from(employeeMap.values()).sort((a, b) => b.hours - a.hours)
-    const max = workload.length > 0 ? Math.max(...workload.map(e => e.hours)) : 0
 
-    return { totalHours: total, employeeWorkload: workload, maxHours: max }
+    return { totalHours: total, employeeWorkload: workload }
   }, [workOrders])
 
   // Данные для дневного вида с временной шкалой
@@ -861,7 +860,7 @@ export default function SchedulePage() {
                     '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6'
                   ]
                   let currentAngle = 0
-                  const segments: JSX.Element[] = []
+                  const segments: React.ReactElement[] = []
 
                   employeeWorkload.forEach((emp, index) => {
                     const percentage = totalHours > 0 ? (emp.hours / totalHours) : 0
