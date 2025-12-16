@@ -734,64 +734,12 @@ export default function WorkOrderDetailPage() {
             </div>
           )}
 
-          {/* Файлы наряда */}
-          <div className="bg-white rounded-lg shadow p-5">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Файлы</h2>
-              <label className="text-sm text-indigo-600 hover:text-indigo-800 cursor-pointer">
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleUploadFile(file)
-                    e.target.value = ''
-                  }}
-                  disabled={isUploadingFile}
-                />
-                {isUploadingFile ? 'Загрузка...' : '+ Добавить файл'}
-              </label>
-            </div>
-            {workOrderFiles.length > 0 ? (
-              <div className="space-y-2">
-                {workOrderFiles.map((file) => (
-                  <div key={file.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
-                        {file.mime_type.startsWith('image/') ? '🖼️' :
-                         file.mime_type === 'application/pdf' ? '📄' : '📎'}
-                      </div>
-                      <div>
-                        <a
-                          href={`/api/applications/${workOrder.application_id}/files/${file.id}/download`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-indigo-600 hover:text-indigo-800"
-                        >
-                          {file.original_filename}
-                        </a>
-                        <div className="text-xs text-gray-500">
-                          {formatFileSize(file.file_size)}
-                          {file.description && ` • ${file.description}`}
-                          {file.uploaded_by_user && ` • ${file.uploaded_by_user.full_name}`}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-400">
-                      {new Date(file.uploaded_at).toLocaleDateString('ru-RU')}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">Файлы не прикреплены</p>
-            )}
-          </div>
         </div>
 
-        {/* Правая колонка 1/3 — История исполнения */}
-        <div className="lg:w-1/3">
-          <div className="bg-white rounded-lg shadow p-5 sticky top-6">
+        {/* Правая колонка 1/3 */}
+        <div className="lg:w-1/3 space-y-6">
+          {/* История исполнения */}
+          <div className="bg-white rounded-lg shadow p-5">
         <h2 className="text-lg font-semibold mb-4">История исполнения</h2>
         <div className="relative">
           {/* Вертикальная линия */}
@@ -903,6 +851,60 @@ export default function WorkOrderDetailPage() {
             )}
           </div>
         </div>
+          </div>
+
+          {/* Файлы наряда */}
+          <div className="bg-white rounded-lg shadow p-5">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Файлы</h2>
+              <label className="text-sm text-indigo-600 hover:text-indigo-800 cursor-pointer">
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleUploadFile(file)
+                    e.target.value = ''
+                  }}
+                  disabled={isUploadingFile}
+                />
+                {isUploadingFile ? 'Загрузка...' : '+ Добавить файл'}
+              </label>
+            </div>
+            {workOrderFiles.length > 0 ? (
+              <div className="space-y-2">
+                {workOrderFiles.map((file) => (
+                  <div key={file.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
+                        {file.mime_type.startsWith('image/') ? '🖼️' :
+                         file.mime_type === 'application/pdf' ? '📄' : '📎'}
+                      </div>
+                      <div>
+                        <a
+                          href={`/api/applications/${workOrder.application_id}/files/${file.id}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-indigo-600 hover:text-indigo-800"
+                        >
+                          {file.original_filename}
+                        </a>
+                        <div className="text-xs text-gray-500">
+                          {formatFileSize(file.file_size)}
+                          {file.description && ` • ${file.description}`}
+                          {file.uploaded_by_user && ` • ${file.uploaded_by_user.full_name}`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {new Date(file.uploaded_at).toLocaleDateString('ru-RU')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">Файлы не прикреплены</p>
+            )}
           </div>
         </div>
       </div>
