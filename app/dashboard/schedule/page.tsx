@@ -621,14 +621,18 @@ export default function SchedulePage() {
               return (
                 <div key={employee.id} className={`flex border-b last:border-b-0 transition-opacity ${isDimmedRow ? 'opacity-30' : ''}`}>
                   {/* Имя сотрудника */}
-                  <div className={`w-40 flex-shrink-0 p-3 border-r text-sm font-medium flex items-center ${
+                  <div className={`w-40 flex-shrink-0 p-3 border-r text-sm font-medium ${
                     employee.id === 'unassigned'
                       ? 'bg-red-50 text-red-700'
                       : hasHighlightedEmp
                         ? 'bg-indigo-100 text-indigo-800'
                         : 'bg-gray-50 text-gray-700'
                   }`}>
-                    <span className="truncate">{employee.name}</span>
+                    <div className="flex flex-col gap-0.5">
+                      {employee.name.split(', ').map((name, idx) => (
+                        <span key={idx} className="truncate">{name}</span>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Временная шкала с задачами */}
@@ -846,45 +850,151 @@ export default function SchedulePage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {employeeWorkload.map((emp) => {
-              const isHighlighted = highlightedEmployee === emp.id
-              const isDimmed = highlightedEmployee && highlightedEmployee !== emp.id
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Круговая диаграмма */}
+            <div className="flex-shrink-0 flex flex-col items-center">
+              <svg viewBox="0 0 100 100" className="w-48 h-48">
+                {(() => {
+                  const colors = [
+                    '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899',
+                    '#f43f5e', '#f97316', '#eab308', '#84cc16', '#22c55e',
+                    '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6'
+                  ]
+                  let currentAngle = 0
+                  const segments: JSX.Element[] = []
 
-              return (
-                <div
-                  key={emp.id}
-                  onClick={() => setHighlightedEmployee(isHighlighted ? null : emp.id)}
-                  className={`relative p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                    isHighlighted
-                      ? 'bg-indigo-100 ring-2 ring-indigo-500'
-                      : isDimmed
-                        ? 'bg-gray-50 opacity-40'
-                        : 'bg-gray-50 hover:bg-indigo-50'
-                  }`}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <span className={`text-sm font-medium truncate ${isHighlighted ? 'text-indigo-900' : 'text-gray-700'}`}>
-                      {emp.name}
-                    </span>
-                    <span className={`text-sm font-semibold whitespace-nowrap ml-2 ${isHighlighted ? 'text-indigo-700' : 'text-gray-600'}`}>
-                      {formatHours(emp.hours)} · {emp.count} нар.
-                    </span>
+                  employeeWorkload.forEach((emp, index) => {
+                    const percentage = totalHours > 0 ? (emp.hours / totalHours) : 0
+                    const angle = percentage * 360
+                    const isHighlighted = highlightedEmployee === emp.id
+                    const isDimmed = highlightedEmployee && highlightedEmployee !== emp.id
+
+                    // Координаты для дуги
+                    const startAngle = currentAngle
+                    const endAngle = currentAngle + angle
+                    const startRad = (startAngle - 90) * Math.PI / 180
+                    const endRad = (endAngle - 90) * Math.PI / 180
+
+                    const x1 = 50 + 40 * Math.cos(startRad)
+                    const y1 = 50 + 40 * Math.sin(startRad)
+                    const x2 = 50 + 40 * Math.cos(endRad)
+                    const y2 = 50 + 40 * Math.sin(endRad)
+
+                    const largeArc = angle > 180 ? 1 : 0
+
+                    if (angle > 0.5) { // Минимальный угол для отображения
+                      segments.push(
+                        <path
+                          key={emp.id}
+                          d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                          fill={colors[index % colors.length]}
+                          opacity={isDimmed ? 0.3 : 1}
+                          stroke={isHighlighted ? '#1e1b4b' : '#fff'}
+                          strokeWidth={isHighlighted ? 2 : 0.5}
+                          className="cursor-pointer transition-opacity"
+                          onClick={() => setHighlightedEmployee(isHighlighted ? null : emp.id)}
+                        />
+                      )
+                    }
+
+                    currentAngle += angle
+                  })
+
+                  return segments
+                })()}
+                {/* Центр с общей информацией */}
+                <circle cx="50" cy="50" r="22" fill="white" />
+                <text x="50" y="47" textAnchor="middle" className="text-xs font-bold fill-gray-800">
+                  {formatHours(totalHours)}
+                </text>
+                <text x="50" y="56" textAnchor="middle" className="text-[8px] fill-gray-500">
+                  всего
+                </text>
+              </svg>
+            </div>
+
+            {/* Список сотрудников */}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {employeeWorkload.map((emp, index) => {
+                const isHighlighted = highlightedEmployee === emp.id
+                const isDimmed = highlightedEmployee && highlightedEmployee !== emp.id
+                const WORK_DAY = 8 // 8 часов рабочий день
+                const isOvertime = emp.hours > WORK_DAY
+                const loadPercent = Math.min((emp.hours / WORK_DAY) * 100, 100)
+                const freePercent = isOvertime ? 0 : ((WORK_DAY - emp.hours) / WORK_DAY) * 100
+                const overtimePercent = isOvertime ? ((emp.hours - WORK_DAY) / WORK_DAY) * 100 : 0
+
+                const colors = [
+                  '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899',
+                  '#f43f5e', '#f97316', '#eab308', '#84cc16', '#22c55e',
+                  '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6'
+                ]
+                const empColor = colors[index % colors.length]
+
+                return (
+                  <div
+                    key={emp.id}
+                    onClick={() => setHighlightedEmployee(isHighlighted ? null : emp.id)}
+                    className={`relative p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                      isHighlighted
+                        ? 'bg-indigo-100 ring-2 ring-indigo-500'
+                        : isDimmed
+                          ? 'bg-gray-50 opacity-40'
+                          : 'bg-gray-50 hover:bg-indigo-50'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: empColor }}
+                        />
+                        <span className={`text-sm font-medium truncate ${isHighlighted ? 'text-indigo-900' : 'text-gray-700'}`}>
+                          {emp.name}
+                        </span>
+                      </div>
+                      <span className={`text-sm font-semibold whitespace-nowrap ml-2 ${
+                        isOvertime ? 'text-red-600' : isHighlighted ? 'text-indigo-700' : 'text-gray-600'
+                      }`}>
+                        {formatHours(emp.hours)} · {emp.count} нар.
+                      </span>
+                    </div>
+                    {/* Полоса загрузки относительно 8 часов */}
+                    <div className="h-3 bg-gray-200 rounded-full overflow-hidden flex">
+                      {/* Загрузка */}
+                      <div
+                        className="h-full transition-all duration-300"
+                        style={{
+                          width: `${loadPercent}%`,
+                          backgroundColor: empColor
+                        }}
+                      />
+                      {/* Свободное время (зелёное) */}
+                      {freePercent > 0 && (
+                        <div
+                          className="h-full bg-green-400 transition-all duration-300"
+                          style={{ width: `${freePercent}%` }}
+                        />
+                      )}
+                    </div>
+                    {/* Красная полоса переработки */}
+                    {isOvertime && (
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden mt-1">
+                        <div
+                          className="h-full bg-red-500 transition-all duration-300"
+                          style={{ width: `${Math.min(overtimePercent, 100)}%` }}
+                        />
+                      </div>
+                    )}
+                    {/* Подпись к шкале */}
+                    <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                      <span>0ч</span>
+                      <span>8ч{isOvertime && ` (+${formatHours(emp.hours - WORK_DAY)})`}</span>
+                    </div>
                   </div>
-                  {/* Полоса загрузки */}
-                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        isHighlighted
-                          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700'
-                          : 'bg-gradient-to-r from-indigo-400 to-indigo-500'
-                      }`}
-                      style={{ width: maxHours > 0 ? `${Math.max((emp.hours / maxHours) * 100, 5)}%` : '5%' }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
