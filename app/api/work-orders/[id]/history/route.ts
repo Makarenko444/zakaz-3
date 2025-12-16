@@ -61,18 +61,23 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     // Получаем информацию о создании наряда
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: workOrder, error: woError } = await (supabase.from as any)('zakaz_work_orders')
-      .select(`
-        id,
-        work_order_number,
-        created_at,
-        created_by,
-        created_by_user:zakaz_users!created_by(id, full_name)
-      `)
+      .select('id, work_order_number, created_at, created_by')
       .eq('id', id)
       .single()
 
     if (woError) {
       console.error('[WorkOrders History API] Work order fetch error:', woError)
+    }
+
+    // Получаем информацию о создателе отдельным запросом
+    let createdByUser = null
+    if (workOrder?.created_by) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: userData } = await (supabase.from as any)('zakaz_users')
+        .select('id, full_name')
+        .eq('id', workOrder.created_by)
+        .single()
+      createdByUser = userData
     }
 
     // Формируем результат
@@ -87,7 +92,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       created: workOrder ? {
         created_at: workOrder.created_at,
         created_by: workOrder.created_by,
-        created_by_user: workOrder.created_by_user,
+        created_by_user: createdByUser,
       } : null,
     })
   } catch (error) {
