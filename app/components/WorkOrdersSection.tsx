@@ -49,6 +49,8 @@ export default function WorkOrdersSection({ applicationId }: Props) {
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [users, setUsers] = useState<User[]>([])
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [popularExecutorIds, setPopularExecutorIds] = useState<string[]>([])
 
   const fetchWorkOrders = useCallback(async () => {
     try {
@@ -70,9 +72,32 @@ export default function WorkOrdersSection({ applicationId }: Props) {
     if (res.ok) setUsers(data.users || [])
   }
 
+  const fetchCurrentUser = async () => {
+    const res = await fetch('/api/auth/session')
+    const data = await res.json()
+    if (res.ok && data.user) {
+      setCurrentUser(data.user)
+      // Сразу загружаем популярных исполнителей
+      fetchPopularExecutors(data.user.id)
+    }
+  }
+
+  const fetchPopularExecutors = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/users/${userId}/popular-executors`)
+      const data = await res.json()
+      if (res.ok) {
+        setPopularExecutorIds(data.popular_executor_ids || [])
+      }
+    } catch {
+      console.error('Error fetching popular executors')
+    }
+  }
+
   useEffect(() => {
     fetchWorkOrders()
     fetchUsers()
+    fetchCurrentUser()
   }, [fetchWorkOrders])
 
   const handleCreateWorkOrder = async (data: {
@@ -174,6 +199,8 @@ export default function WorkOrdersSection({ applicationId }: Props) {
       {showCreateModal && (
         <CreateWorkOrderModal
           users={users}
+          currentUserId={currentUser?.id}
+          popularExecutorIds={popularExecutorIds}
           onSubmit={handleCreateWorkOrder}
           onClose={() => setShowCreateModal(false)}
         />
@@ -185,10 +212,14 @@ export default function WorkOrdersSection({ applicationId }: Props) {
 // Модалка создания наряда
 function CreateWorkOrderModal({
   users,
+  currentUserId,
+  popularExecutorIds,
   onSubmit,
   onClose,
 }: {
   users: User[]
+  currentUserId?: string
+  popularExecutorIds: string[]
   onSubmit: (data: {
     type: WorkOrderType
     scheduled_date?: string
@@ -205,6 +236,34 @@ function CreateWorkOrderModal({
   const [estimatedDuration, setEstimatedDuration] = useState('')
   const [notes, setNotes] = useState('')
   const [selectedExecutors, setSelectedExecutors] = useState<Array<{ user_id: string; is_lead: boolean }>>([])
+  const [executorSearch, setExecutorSearch] = useState('')
+
+  // Фильтрация и сортировка пользователей
+  const searchLower = executorSearch.toLowerCase().trim()
+  const filteredUsers = searchLower
+    ? users.filter(u => u.full_name.toLowerCase().includes(searchLower))
+    : users
+
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    // Текущий пользователь (автор) всегда первый
+    const isAuthorA = a.id === currentUserId
+    const isAuthorB = b.id === currentUserId
+    if (isAuthorA && !isAuthorB) return -1
+    if (!isAuthorA && isAuthorB) return 1
+
+    // Популярные исполнители следующие
+    const popIndexA = popularExecutorIds.indexOf(a.id)
+    const popIndexB = popularExecutorIds.indexOf(b.id)
+    const isPopularA = popIndexA !== -1
+    const isPopularB = popIndexB !== -1
+
+    if (isPopularA && !isPopularB) return -1
+    if (!isPopularA && isPopularB) return 1
+    if (isPopularA && isPopularB) return popIndexA - popIndexB
+
+    // Остальные по алфавиту
+    return a.full_name.localeCompare(b.full_name, 'ru')
+  })
 
   const handleAddExecutor = (userId: string, isLead: boolean) => {
     if (selectedExecutors.find(e => e.user_id === userId)) return
@@ -299,19 +358,34 @@ function CreateWorkOrderModal({
             Исполнители *
           </label>
 
+          {/* Поле поиска */}
+          <div className="mb-2">
+            <input
+              type="text"
+              value={executorSearch}
+              onChange={(e) => setExecutorSearch(e.target.value)}
+              placeholder="Поиск по имени..."
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+          </div>
+
           <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
-            {users.length === 0 ? (
-              <p className="p-3 text-gray-500 text-sm">Нет доступных пользователей</p>
+            {sortedUsers.length === 0 ? (
+              <p className="p-3 text-gray-500 text-sm">
+                {executorSearch ? 'Никого не найдено' : 'Нет доступных пользователей'}
+              </p>
             ) : (
-              users.map((user) => {
+              sortedUsers.map((user) => {
                 const isSelected = selectedExecutors.some(e => e.user_id === user.id)
                 const isLead = selectedExecutors.find(e => e.user_id === user.id)?.is_lead
+                const isAuthor = user.id === currentUserId
+                const isPopular = popularExecutorIds.includes(user.id)
 
                 return (
                   <div
                     key={user.id}
                     className={`flex items-center justify-between p-3 transition-colors ${
-                      isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50'
+                      isSelected ? 'bg-indigo-50' : isAuthor ? 'bg-blue-50' : isPopular ? 'bg-gray-50' : 'hover:bg-gray-50'
                     }`}
                   >
                     <label className="flex items-center gap-3 cursor-pointer flex-1">
@@ -327,9 +401,14 @@ function CreateWorkOrderModal({
                         }}
                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       />
-                      <div>
+                      <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-900">{user.full_name}</span>
-                        <span className="text-xs text-gray-500 ml-2">({user.role})</span>
+                        {isAuthor && (
+                          <span className="text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">вы</span>
+                        )}
+                        {!isAuthor && isPopular && (
+                          <span className="text-xs text-gray-500">часто</span>
+                        )}
                       </div>
                     </label>
 
