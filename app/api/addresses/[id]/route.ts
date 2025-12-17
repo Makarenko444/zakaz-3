@@ -46,6 +46,24 @@ export async function PUT(
       )
     }
 
+    // Проверяем, не создаст ли обновление дубликат адреса
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingAddress } = await (supabase.from('zakaz_addresses') as any)
+      .select('id')
+      .eq('city', city)
+      .eq('street', street || '')
+      .eq('house', house || '')
+      .eq('building', building || '')
+      .neq('id', id)
+      .maybeSingle()
+
+    if (existingAddress) {
+      return NextResponse.json(
+        { error: `Адрес "${city}, ${street}${house ? ', ' + house : ''}${building ? ', ' + building : ''}" уже существует в базе данных` },
+        { status: 409 }
+      )
+    }
+
     // Обновляем адрес
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase.from('zakaz_addresses') as any)
@@ -64,6 +82,13 @@ export async function PUT(
 
     if (error || !data) {
       console.error('Error updating address:', error)
+      // Обрабатываем ошибку дубликата на случай гонки
+      if (error?.code === '23505' || error?.message?.includes('duplicate key')) {
+        return NextResponse.json(
+          { error: 'Адрес с такими параметрами уже существует в базе данных' },
+          { status: 409 }
+        )
+      }
       return NextResponse.json(
         { error: error?.message || 'Failed to update address' },
         { status: 500 }

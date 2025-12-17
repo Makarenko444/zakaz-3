@@ -213,8 +213,8 @@ export async function POST(request: NextRequest) {
 
     if (existingAddress) {
       return NextResponse.json(
-        { error: 'Address already exists' },
-        { status: 400 }
+        { error: `Адрес "${city}, ${street}${house ? ', ' + house : ''}${building ? ', ' + building : ''}" уже существует в базе данных` },
+        { status: 409 }
       )
     }
 
@@ -234,6 +234,13 @@ export async function POST(request: NextRequest) {
 
     if (error || !data) {
       console.error('Error creating address:', error)
+      // Обрабатываем ошибку дубликата на случай гонки
+      if (error?.code === '23505' || error?.message?.includes('duplicate key')) {
+        return NextResponse.json(
+          { error: 'Адрес с такими параметрами уже существует в базе данных' },
+          { status: 409 }
+        )
+      }
       return NextResponse.json(
         { error: error?.message || 'Failed to create address' },
         { status: 500 }
