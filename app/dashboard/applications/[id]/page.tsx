@@ -76,6 +76,9 @@ const serviceTypeLabels: Record<ServiceType, string> = {
   office: 'Подключение офиса',
   scs: 'Строительство СКС',
   emergency: 'Аварийная заявка',
+  access_control: 'СКУД',
+  node_construction: 'Строительство Узла',
+  trunk_construction: 'Строительство магистрали',
 }
 
 export default function ApplicationDetailPage() {

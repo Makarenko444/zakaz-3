@@ -9,12 +9,11 @@ import { getCurrentUser } from '@/lib/auth-client'
 
 // Схема валидации
 const applicationSchema = z.object({
-  work_type: z.enum(['access_control', 'node_construction', 'trunk_construction']).nullable().optional(),
+  service_type: z.enum(['apartment', 'office', 'scs', 'emergency', 'access_control', 'node_construction', 'trunk_construction']),
   city: z.string().min(1, 'Укажите город'),
   street_and_house: z.string().min(3, 'Укажите улицу и номер дома'),
   address_details: z.string().optional(),
   customer_type: z.enum(['individual', 'business']),
-  service_type: z.enum(['apartment', 'office', 'scs', 'emergency']),
   customer_fullname: z.string().min(2, 'Введите ФИО/название компании'),
   customer_phone: z.string().min(5, 'Введите контактные данные'),
   contact_person: z.string().optional(),
@@ -54,7 +53,6 @@ export default function NewApplicationPage() {
   } = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
-      work_type: null,
       city: 'Томск',
       customer_type: 'individual',
       service_type: 'apartment',
@@ -99,7 +97,6 @@ export default function NewApplicationPage() {
         },
         body: JSON.stringify({
           ...data,
-          work_type: data.work_type || null,
           created_by: currentUserId,
         }),
       })
@@ -161,23 +158,29 @@ export default function NewApplicationPage() {
           <FormSection title="Тип работ">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Тип работ
+                Тип работ <span className="text-red-500">*</span>
               </label>
               <select
-                {...register('work_type')}
+                {...register('service_type')}
                 className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
-                <option value="">Не указан</option>
-                <option value="access_control">СКУД</option>
-                <option value="node_construction">Строительство Узла</option>
-                <option value="trunk_construction">Строительство магистрали</option>
+                <optgroup label="Подключение">
+                  <option value="apartment">Подключение квартиры</option>
+                  <option value="office">Подключение офиса</option>
+                </optgroup>
+                <optgroup label="Строительство">
+                  <option value="scs">Строительство СКС</option>
+                  <option value="node_construction">Строительство Узла</option>
+                  <option value="trunk_construction">Строительство магистрали</option>
+                </optgroup>
+                <optgroup label="Прочее">
+                  <option value="access_control">СКУД</option>
+                  <option value="emergency">Аварийная заявка</option>
+                </optgroup>
               </select>
-              {errors.work_type && (
-                <p className="mt-1 text-sm text-red-600">{errors.work_type.message}</p>
+              {errors.service_type && (
+                <p className="mt-1 text-sm text-red-600">{errors.service_type.message}</p>
               )}
-              <p className="mt-1 text-xs text-gray-500">
-                Выберите тип работ, если это применимо к данной заявке
-              </p>
             </div>
           </FormSection>
 
@@ -326,26 +329,8 @@ export default function NewApplicationPage() {
             )}
           </FormSection>
 
-          {/* Блок 4: Параметры заявки */}
-          <FormSection title="Параметры заявки">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Тип услуги <span className="text-red-500">*</span>
-              </label>
-              <select
-                {...register('service_type')}
-                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="apartment">Подключение квартиры</option>
-                <option value="office">Подключение офиса</option>
-                <option value="scs">Строительство СКС</option>
-                <option value="emergency">Аварийная заявка</option>
-              </select>
-              {errors.service_type && (
-                <p className="mt-1 text-sm text-red-600">{errors.service_type.message}</p>
-              )}
-            </div>
-
+          {/* Блок 4: Дополнительно */}
+          <FormSection title="Дополнительно">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Срочность <span className="text-red-500">*</span>

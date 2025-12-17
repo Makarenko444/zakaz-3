@@ -18,9 +18,7 @@ export type Urgency = 'low' | 'normal' | 'high' | 'critical'
 
 export type CustomerType = 'individual' | 'business'
 
-export type ServiceType = 'apartment' | 'office' | 'scs' | 'emergency'
-
-export type WorkType = 'access_control' | 'node_construction' | 'trunk_construction'
+export type ServiceType = 'apartment' | 'office' | 'scs' | 'emergency' | 'access_control' | 'node_construction' | 'trunk_construction'
 
 export type NodeStatus = 'existing' | 'planned' | 'not_present'
 
@@ -73,7 +71,6 @@ export interface Application {
   updated_by: string | null
   updated_at: string
   service_type: ServiceType
-  work_type: WorkType | null
   application_number: number
   assigned_to: string | null
   technical_curator_id: string | null
