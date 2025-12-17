@@ -232,55 +232,76 @@ export async function POST(
     const newMaterials = uniqueMaterials.filter(m => !materialsByCode.has(m.code))
     const existingMaterialsToUpdate = uniqueMaterials.filter(m => materialsByCode.has(m.code))
 
+    console.log('[Stock Import] Stats:', {
+      uniqueMaterials: uniqueMaterials.length,
+      newMaterials: newMaterials.length,
+      existingMaterialsToUpdate: existingMaterialsToUpdate.length,
+      materialsByCodeSize: materialsByCode.size,
+    })
+
     let insertedMaterials = 0
     let updatedMaterials = 0
     const batchSize = 100
 
     // Вставляем новые материалы (со всеми полями)
-    for (let i = 0; i < newMaterials.length; i += batchSize) {
-      const batch = newMaterials.slice(i, i + batchSize)
+    if (newMaterials.length > 0) {
+      console.log('[Stock Import] Inserting new materials:', newMaterials.length)
+      for (let i = 0; i < newMaterials.length; i += batchSize) {
+        const batch = newMaterials.slice(i, i + batchSize)
 
-      const { data: insertedData, error: insertError } = await (supabase.from as any)('zakaz_materials')
-        .insert(batch)
-        .select('id, code')
+        const { data: insertedData, error: insertError } = await (supabase.from as any)('zakaz_materials')
+          .insert(batch)
+          .select('id, code')
 
-      if (insertError) {
-        console.error('[Stock Import] Material insert error:', insertError)
-        errors.push({ row: 0, error: `Ошибка добавления материалов: ${insertError.message}` })
-      } else if (insertedData) {
-        for (const mat of insertedData) {
-          materialsByCode.set(mat.code, { id: mat.id, name: '' })
-          insertedMaterials++
+        if (insertError) {
+          console.error('[Stock Import] Material insert error:', insertError)
+          errors.push({ row: 0, error: `Ошибка добавления материалов: ${insertError.message}` })
+        } else if (insertedData) {
+          console.log('[Stock Import] Inserted batch:', insertedData.length)
+          for (const mat of insertedData) {
+            materialsByCode.set(mat.code, { id: mat.id, name: '' })
+            insertedMaterials++
+          }
         }
       }
     }
 
-    // Обновляем существующие материалы
-    for (const mat of existingMaterialsToUpdate) {
-      const existing = materialsByCode.get(mat.code)
-      if (!existing) continue
+    // Обновляем существующие материалы батчами через upsert
+    if (existingMaterialsToUpdate.length > 0) {
+      console.log('[Stock Import] Updating existing materials:', existingMaterialsToUpdate.length, 'updateNames:', options.updateNames)
 
-      // Формируем данные для обновления
-      const updateData: Record<string, unknown> = {
-        unit: mat.unit,
-        price: mat.price,
-        last_import_at: mat.last_import_at,
-      }
+      for (let i = 0; i < existingMaterialsToUpdate.length; i += batchSize) {
+        const batch = existingMaterialsToUpdate.slice(i, i + batchSize)
 
-      // Обновляем название только если опция включена
-      if (options.updateNames) {
-        updateData.name = mat.name
-      }
+        // Формируем данные для обновления
+        const updateBatch = batch.map(mat => {
+          const existing = materialsByCode.get(mat.code)
+          const data: Record<string, unknown> = {
+            id: existing?.id,
+            code: mat.code,
+            unit: mat.unit,
+            price: mat.price,
+            last_import_at: mat.last_import_at,
+          }
+          if (options.updateNames) {
+            data.name = mat.name
+          }
+          return data
+        }).filter(d => d.id) // Убираем записи без id
 
-      const { error: updateError } = await (supabase.from as any)('zakaz_materials')
-        .update(updateData)
-        .eq('id', existing.id)
+        if (updateBatch.length > 0) {
+          const { error: updateError, data: updateData } = await (supabase.from as any)('zakaz_materials')
+            .upsert(updateBatch, { onConflict: 'code' })
+            .select('id, code')
 
-      if (updateError) {
-        console.error('[Stock Import] Material update error:', updateError)
-        errors.push({ row: 0, error: `Ошибка обновления материала ${mat.code}: ${updateError.message}` })
-      } else {
-        updatedMaterials++
+          if (updateError) {
+            console.error('[Stock Import] Material update error:', updateError)
+            errors.push({ row: 0, error: `Ошибка обновления материалов: ${updateError.message}` })
+          } else {
+            updatedMaterials += updateData?.length || updateBatch.length
+            console.log('[Stock Import] Updated batch:', updateData?.length || updateBatch.length)
+          }
+        }
       }
     }
 
@@ -292,6 +313,7 @@ export async function POST(
       last_import_at: string
     }> = []
 
+    let materialsNotFound = 0
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i]
       const rowNumber = noHeaders ? i + 1 : i + 2
@@ -306,7 +328,10 @@ export async function POST(
         const material = materialsByCode.get(codeStr)
 
         if (!material) {
-          // Материал не был создан (ошибка?)
+          materialsNotFound++
+          if (materialsNotFound <= 3) {
+            console.log('[Stock Import] Material not found for code:', codeStr, 'Available keys sample:', Array.from(materialsByCode.keys()).slice(0, 5))
+          }
           continue
         }
 
@@ -321,6 +346,8 @@ export async function POST(
       }
     }
 
+    console.log('[Stock Import] Stocks to upsert:', stocksToUpsert.length, 'Materials not found:', materialsNotFound)
+
     // Удаляем дубликаты остатков (оставляем последний)
     const uniqueStocksMap = new Map<string, typeof stocksToUpsert[0]>()
     for (const stock of stocksToUpsert) {
@@ -331,20 +358,25 @@ export async function POST(
     // Upsert остатков
     let processedStocks = 0
 
-    for (let i = 0; i < uniqueStocks.length; i += batchSize) {
-      const batch = uniqueStocks.slice(i, i + batchSize)
+    if (uniqueStocks.length > 0) {
+      console.log('[Stock Import] Upserting stocks:', uniqueStocks.length)
+      for (let i = 0; i < uniqueStocks.length; i += batchSize) {
+        const batch = uniqueStocks.slice(i, i + batchSize)
 
-      const { error: stockError } = await (supabase.from as any)('zakaz_warehouse_stocks')
-        .upsert(batch, {
-          onConflict: 'warehouse_id,material_id',
-          ignoreDuplicates: false,
-        })
+        const { error: stockError, data: stockData } = await (supabase.from as any)('zakaz_warehouse_stocks')
+          .upsert(batch, {
+            onConflict: 'warehouse_id,material_id',
+            ignoreDuplicates: false,
+          })
+          .select('id')
 
-      if (stockError) {
-        console.error('[Stock Import] Stock upsert error:', stockError)
-        errors.push({ row: 0, error: `Ошибка сохранения остатков: ${stockError.message}` })
-      } else {
-        processedStocks += batch.length
+        if (stockError) {
+          console.error('[Stock Import] Stock upsert error:', stockError)
+          errors.push({ row: 0, error: `Ошибка сохранения остатков: ${stockError.message}` })
+        } else {
+          processedStocks += stockData?.length || batch.length
+          console.log('[Stock Import] Stock batch upserted:', stockData?.length || batch.length)
+        }
       }
     }
 
