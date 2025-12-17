@@ -359,6 +359,7 @@ export default function EditApplicationPage() {
                 {...register('customer_phone')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
+              <p className="mt-1 text-xs text-gray-400">Формат: +7-9XX-XXX-XX-XX</p>
               {errors.customer_phone && (
                 <p className="mt-1 text-sm text-red-600">{errors.customer_phone.message}</p>
               )}
@@ -390,6 +391,7 @@ export default function EditApplicationPage() {
                     {...register('contact_phone')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
+                  <p className="mt-1 text-xs text-gray-400">Формат: +7-9XX-XXX-XX-XX</p>
                   {errors.contact_phone && (
                     <p className="mt-1 text-sm text-red-600">{errors.contact_phone.message}</p>
                   )}

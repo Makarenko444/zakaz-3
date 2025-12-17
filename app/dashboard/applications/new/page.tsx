@@ -395,15 +395,18 @@ export default function NewApplicationPage() {
                   <p className="text-xs text-red-600">{errors.customer_fullname.message}</p>
                 )}
 
-                <input
-                  type="text"
-                  {...register('customer_phone')}
-                  placeholder="Телефон, email"
-                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                />
-                {errors.customer_phone && (
-                  <p className="text-xs text-red-600">{errors.customer_phone.message}</p>
-                )}
+                <div>
+                  <input
+                    type="text"
+                    {...register('customer_phone')}
+                    placeholder="Телефон, email"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Формат: +7-9XX-XXX-XX-XX</p>
+                  {errors.customer_phone && (
+                    <p className="text-xs text-red-600">{errors.customer_phone.message}</p>
+                  )}
+                </div>
 
                 {/* Контактное лицо (для юр.лиц) */}
                 {customerType === 'business' && (
@@ -414,12 +417,15 @@ export default function NewApplicationPage() {
                       placeholder="Контактное лицо"
                       className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                     />
-                    <input
-                      type="tel"
-                      {...register('contact_phone')}
-                      placeholder="Телефон контакта"
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                    />
+                    <div>
+                      <input
+                        type="tel"
+                        {...register('contact_phone')}
+                        placeholder="Телефон контакта"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Формат: +7-9XX-XXX-XX-XX</p>
+                    </div>
                   </div>
                 )}
               </FormSection>
