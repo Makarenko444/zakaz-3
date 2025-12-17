@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const nodeId = searchParams.get('node_id')
     const addressId = searchParams.get('address_id')
     const assignedTo = searchParams.get('assigned_to')
+    const technicalCurator = searchParams.get('technical_curator')
     const search = searchParams.get('search')
     const applicationNumber = searchParams.get('application_number')
     const dateFrom = searchParams.get('date_from')
@@ -92,6 +93,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Фильтр по техническому куратору
+    if (technicalCurator) {
+      if (technicalCurator === 'unassigned') {
+        // Заявки без технического куратора
+        query = query.is('technical_curator_id', null)
+      } else {
+        // Заявки с конкретным куратором
+        query = query.eq('technical_curator_id', technicalCurator)
+      }
+    }
+
     // Поиск по ФИО, телефону и адресу
     if (search) {
       // Экранируем специальные символы для LIKE
@@ -157,6 +169,7 @@ export async function GET(request: NextRequest) {
       customerType,
       nodeId,
       assignedTo,
+      technicalCurator,
       search,
       applicationNumber,
       dateFrom,

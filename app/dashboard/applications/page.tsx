@@ -172,14 +172,17 @@ function ApplicationsContent() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
   const [addressInfo, setAddressInfo] = useState<string | null>(null)
   const [selectedAssignedTo, setSelectedAssignedTo] = useState<string>('')
+  const [selectedTechnicalCurator, setSelectedTechnicalCurator] = useState<string>('')
 
   // Фильтры по дате
   const [datePreset, setDatePreset] = useState<string>('')
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
 
-  // Список пользователей для фильтра
+  // Список пользователей для фильтра менеджеров
   const [users, setUsers] = useState<{ id: string; full_name: string; role: string }[]>([])
+  // Список пользователей для фильтра кураторов (инженеры, менеджеры, админы)
+  const [curators, setCurators] = useState<{ id: string; full_name: string; role: string }[]>([])
 
   const loadApplications = useCallback(async () => {
     setIsLoading(true)
@@ -221,6 +224,10 @@ function ApplicationsContent() {
         params.append('assigned_to', selectedAssignedTo)
       }
 
+      if (selectedTechnicalCurator) {
+        params.append('technical_curator', selectedTechnicalCurator)
+      }
+
       if (dateFrom) {
         params.append('date_from', dateFrom)
       }
@@ -249,7 +256,7 @@ function ApplicationsContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, itemsPerPage, selectedStatuses, searchQuery, applicationNumberSearch, selectedUrgency, selectedServiceType, selectedNodeId, selectedAddressId, selectedAssignedTo, dateFrom, dateTo, sortField, sortDirection])
+  }, [page, itemsPerPage, selectedStatuses, searchQuery, applicationNumberSearch, selectedUrgency, selectedServiceType, selectedNodeId, selectedAddressId, selectedAssignedTo, selectedTechnicalCurator, dateFrom, dateTo, sortField, sortDirection])
 
   // Инициализация фильтров из URL при монтировании
   useEffect(() => {
@@ -259,6 +266,7 @@ function ApplicationsContent() {
     const addressId = searchParams.get('address_id')
     const address = searchParams.get('address')
     const assignedTo = searchParams.get('assigned_to')
+    const technicalCurator = searchParams.get('technical_curator')
     const status = searchParams.get('status')
     const search = searchParams.get('search')
 
@@ -278,6 +286,10 @@ function ApplicationsContent() {
 
     if (assignedTo) {
       setSelectedAssignedTo(assignedTo)
+    }
+
+    if (technicalCurator) {
+      setSelectedTechnicalCurator(technicalCurator)
     }
 
     if (status) {
@@ -348,6 +360,12 @@ function ApplicationsContent() {
         ['admin', 'manager'].includes(user.role)
       )
       setUsers(managers)
+
+      // Кураторами могут быть инженеры, менеджеры и админы
+      const curatorsList = data.users.filter((user: { role: string }) =>
+        ['admin', 'manager', 'engineer'].includes(user.role)
+      )
+      setCurators(curatorsList)
     } catch (error) {
       console.error('Error loading users:', error)
     }
@@ -544,7 +562,7 @@ function ApplicationsContent() {
             >
               Найти
             </button>
-            {(searchQuery || applicationNumberSearch || selectedStatuses.length > 0 || selectedUrgency || selectedServiceType || selectedAssignedTo || datePreset || dateFrom || dateTo) && (
+            {(searchQuery || applicationNumberSearch || selectedStatuses.length > 0 || selectedUrgency || selectedServiceType || selectedAssignedTo || selectedTechnicalCurator || datePreset || dateFrom || dateTo) && (
               <button
                 type="button"
                 onClick={() => {
@@ -554,6 +572,7 @@ function ApplicationsContent() {
                   setSelectedUrgency('')
                   setSelectedServiceType('')
                   setSelectedAssignedTo('')
+                  setSelectedTechnicalCurator('')
                   setDatePreset('')
                   setDateFrom('')
                   setDateTo('')
@@ -629,7 +648,7 @@ function ApplicationsContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Назначено:</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Менеджер:</label>
               <select
                 value={selectedAssignedTo}
                 onChange={(e) => {
@@ -643,6 +662,26 @@ function ApplicationsContent() {
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Куратор:</label>
+              <select
+                value={selectedTechnicalCurator}
+                onChange={(e) => {
+                  setSelectedTechnicalCurator(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              >
+                <option value="">Все</option>
+                <option value="unassigned">Без куратора</option>
+                {curators.map((curator) => (
+                  <option key={curator.id} value={curator.id}>
+                    {curator.full_name}
                   </option>
                 ))}
               </select>
