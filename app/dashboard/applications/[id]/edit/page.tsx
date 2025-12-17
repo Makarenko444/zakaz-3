@@ -39,6 +39,7 @@ interface Application {
   contact_phone: string | null
   urgency: Urgency
   client_comment: string | null
+  assigned_to: string | null
 }
 
 export default function EditApplicationPage() {
@@ -51,6 +52,7 @@ export default function EditApplicationPage() {
   const [error, setError] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [nodeId, setNodeId] = useState<string | null>(null)
+  const [assignedTo, setAssignedTo] = useState<string | null>(null)
 
   const {
     register,
@@ -82,8 +84,9 @@ export default function EditApplicationPage() {
       const data = await response.json()
       const app: Application = data.application
 
-      // Сохраняем node_id для отправки при обновлении
+      // Сохраняем node_id и assigned_to для отправки при обновлении
       setNodeId(app.node_id)
+      setAssignedTo(app.assigned_to)
 
       // Заполняем форму данными заявки
       reset({
@@ -136,6 +139,7 @@ export default function EditApplicationPage() {
         body: JSON.stringify({
           ...data,
           node_id: nodeId,
+          assigned_to: assignedTo,
           updated_by: currentUserId,
         }),
       })
