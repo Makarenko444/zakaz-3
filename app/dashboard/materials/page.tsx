@@ -615,10 +615,24 @@ export default function MaterialsPage() {
     }
   }
 
-  // Сохранение материала
-  const handleSaveMaterial = async (data: { name: string; code: string; unit: string; price: number; category: string; activity_level: number }) => {
+  // Сохранение материала (создание или редактирование)
+  const handleSaveMaterial = async (data: { name: string; code: string; unit: string; price: number; category: string; activity_level: number }, isNew?: boolean) => {
     try {
-      if (editingMaterial) {
+      if (isNew) {
+        // Создание нового материала
+        const res = await fetch('/api/materials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...data, is_manual: true }),
+        })
+        if (res.ok) {
+          fetchMaterials()
+          fetchAllMaterials()
+          setShowMaterialModal(false)
+          setEditingMaterial(null)
+        }
+      } else if (editingMaterial) {
+        // Редактирование существующего
         const res = await fetch('/api/materials', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -634,6 +648,11 @@ export default function MaterialsPage() {
     } catch (error) {
       console.error('Error saving material:', error)
     }
+  }
+
+  // Проверка, является ли материал созданным вручную
+  const isManualMaterial = (code: string | null | undefined): boolean => {
+    return code?.startsWith('99999') || false
   }
 
   // Компонент заголовка с сортировкой
@@ -718,6 +737,24 @@ export default function MaterialsPage() {
       {/* Контент табов */}
       {activeTab === 'materials' && (
         <div className="bg-white rounded-lg shadow">
+          {/* Заголовок с кнопкой создания */}
+          <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+            <div className="text-sm text-gray-500">
+              Материалы с кодом <code className="bg-orange-100 text-orange-700 px-1 rounded">99999...</code> добавлены вручную
+            </div>
+            {currentUser?.role === 'admin' && (
+              <button
+                onClick={() => { setEditingMaterial(null); setShowMaterialModal(true) }}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Добавить материал
+              </button>
+            )}
+          </div>
+
           {/* Фильтры */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex flex-wrap gap-4">
@@ -799,7 +836,18 @@ export default function MaterialsPage() {
                     const actLevel = getActivityLevel(m.activity_level || 2)
                     return (
                       <tr key={m.id} className={`hover:bg-gray-50 ${m.activity_level === 4 ? 'opacity-50' : ''}`}>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{m.code || '—'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm">
+                          {m.code ? (
+                            isManualMaterial(m.code) ? (
+                              <span className="inline-flex items-center gap-1">
+                                <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-mono">{m.code}</span>
+                                <span className="text-orange-500" title="Добавлен вручную">*</span>
+                              </span>
+                            ) : (
+                              <span className="text-gray-500">{m.code}</span>
+                            )
+                          ) : '—'}
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-900">{m.name}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{m.category || '—'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
@@ -1125,8 +1173,8 @@ export default function MaterialsPage() {
         </div>
       )}
 
-      {/* Модалка редактирования материала */}
-      {showMaterialModal && editingMaterial && (
+      {/* Модалка создания/редактирования материала */}
+      {showMaterialModal && (
         <MaterialModal
           material={editingMaterial}
           categories={categories}
@@ -1702,17 +1750,18 @@ function MaterialModal({
   onSave,
   onClose,
 }: {
-  material: Material
+  material: Material | null
   categories: string[]
-  onSave: (data: { name: string; code: string; unit: string; price: number; category: string; activity_level: number }) => void
+  onSave: (data: { name: string; code: string; unit: string; price: number; category: string; activity_level: number }, isNew?: boolean) => void
   onClose: () => void
 }) {
-  const [name, setName] = useState(material.name)
-  const [code, setCode] = useState(material.code || '')
-  const [unit, setUnit] = useState(material.unit)
-  const [price, setPrice] = useState(material.price?.toString() || '')
-  const [category, setCategory] = useState(material.category || '')
-  const [activityLevel, setActivityLevel] = useState(material.activity_level || 2)
+  const isNew = !material
+  const [name, setName] = useState(material?.name || '')
+  const [code, setCode] = useState(material?.code || '')
+  const [unit, setUnit] = useState(material?.unit || 'шт')
+  const [price, setPrice] = useState(material?.price?.toString() || '')
+  const [category, setCategory] = useState(material?.category || '')
+  const [activityLevel, setActivityLevel] = useState(material?.activity_level || 2)
 
   const handleSubmit = () => {
     onSave({
@@ -1722,13 +1771,29 @@ function MaterialModal({
       price: parseFloat(price.replace(',', '.')) || 0,
       category,
       activity_level: activityLevel,
-    })
+    }, isNew)
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-        <h3 className="text-lg font-semibold mb-4">Редактирование материала</h3>
+        <h3 className="text-lg font-semibold mb-4">
+          {isNew ? 'Добавить материал' : 'Редактирование материала'}
+        </h3>
+
+        {isNew && (
+          <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                Материалу будет автоматически присвоен уникальный код <code className="bg-orange-100 px-1 rounded">99999...</code>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
@@ -1738,24 +1803,29 @@ function MaterialModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg"
+                placeholder="Например: Кабель UTP Cat5e"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Код</label>
-              <input
-                type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
-            <div>
+            {!isNew && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Код</label>
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg bg-gray-50"
+                  readOnly={code?.startsWith('99999')}
+                />
+              </div>
+            )}
+            <div className={isNew ? '' : ''}>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ед. изм. *</label>
               <input
                 type="text"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg"
+                placeholder="шт, м, кг..."
               />
             </div>
             <div>
@@ -1776,6 +1846,7 @@ function MaterialModal({
                 onChange={(e) => setCategory(e.target.value)}
                 list="categories-list"
                 className="w-full px-3 py-2 border rounded-lg"
+                placeholder="Кабели, Коннекторы..."
               />
               <datalist id="categories-list">
                 {categories.map((c) => (
@@ -1818,7 +1889,7 @@ function MaterialModal({
             disabled={!name.trim() || !unit.trim()}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
           >
-            Сохранить
+            {isNew ? 'Добавить' : 'Сохранить'}
           </button>
         </div>
       </div>
