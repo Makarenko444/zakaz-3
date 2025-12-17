@@ -172,6 +172,7 @@ export interface Material {
   category: string | null
   price: number // Цена за единицу
   stock_quantity: number // Общий остаток (сумма по всем складам)
+  stocks_by_warehouse?: Array<{ warehouse_id: string; warehouse_name: string; quantity: number }> // Остатки по складам
   activity_level: number // 1=популярный, 2=иногда, 3=редко, 4=архив
   is_active: boolean
   sort_order: number
