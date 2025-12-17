@@ -53,6 +53,22 @@ interface ColumnMapping {
   quantity: string
 }
 
+interface WarehouseStock {
+  id: string
+  warehouse_id: string
+  material_id: string
+  quantity: number
+  material?: {
+    id: string
+    code: string | null
+    name: string
+    unit: string
+    category: string | null
+    activity_level: number
+    price: number
+  }
+}
+
 type SortColumn = 'code' | 'name' | 'category' | 'price' | 'stock_quantity' | 'activity_level'
 type SortDirection = 'asc' | 'desc'
 
@@ -88,11 +104,7 @@ export default function MaterialsPage() {
   const [showWarehouseModal, setShowWarehouseModal] = useState(false)
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null)
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null)
-  const [warehouseStocks, setWarehouseStocks] = useState<Array<{
-    id: string
-    material: { id: string; code: string | null; name: string; unit: string; category: string | null; activity_level: number }
-    quantity: number
-  }>>([])
+  const [warehouseStocks, setWarehouseStocks] = useState<WarehouseStock[]>([])
   const [isLoadingStocks, setIsLoadingStocks] = useState(false)
 
   // Импорт остатков склада
@@ -118,6 +130,10 @@ export default function MaterialsPage() {
     newName: string
   }> | null>(null)
   const [updateNamesOnImport, setUpdateNamesOnImport] = useState(true)
+
+  // Редактирование остатков
+  const [editingStockId, setEditingStockId] = useState<string | null>(null)
+  const [editingStockQuantity, setEditingStockQuantity] = useState('')
 
   const fetchCurrentUser = useCallback(async () => {
     const user = await getCurrentUser()
@@ -196,6 +212,47 @@ export default function MaterialsPage() {
     setSelectedWarehouse(warehouse)
     fetchWarehouseStocks(warehouse.id)
     setStockImportResult(null)
+    setEditingStockId(null)
+  }
+
+  // Начать редактирование остатка
+  const handleStartEditStock = (stockId: string, currentQuantity: number) => {
+    setEditingStockId(stockId)
+    setEditingStockQuantity(currentQuantity.toString())
+  }
+
+  // Сохранить изменение остатка
+  const handleSaveStockQuantity = async (stockId: string) => {
+    if (!selectedWarehouse) return
+
+    const quantity = parseFloat(editingStockQuantity.replace(',', '.'))
+    if (isNaN(quantity) || quantity < 0) {
+      setEditingStockId(null)
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/warehouses/${selectedWarehouse.id}/stock`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock_id: stockId, quantity }),
+      })
+
+      if (res.ok) {
+        fetchWarehouseStocks(selectedWarehouse.id)
+        fetchMaterials() // Обновить общие остатки
+      }
+    } catch (error) {
+      console.error('Error updating stock:', error)
+    } finally {
+      setEditingStockId(null)
+    }
+  }
+
+  // Отмена редактирования
+  const handleCancelEditStock = () => {
+    setEditingStockId(null)
+    setEditingStockQuantity('')
   }
 
   const handleSaveWarehouse = async (name: string, code: string, address: string) => {
@@ -1132,7 +1189,7 @@ export default function MaterialsPage() {
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Код</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Наименование</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Категория</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Цена</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Остаток</th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Активность</th>
                       </tr>
@@ -1140,13 +1197,65 @@ export default function MaterialsPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {warehouseStocks.map((stock) => {
                         const actLevel = getActivityLevel(stock.material?.activity_level || 2)
+                        const isEditing = editingStockId === stock.id
                         return (
                           <tr key={stock.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{stock.material?.code || '—'}</td>
                             <td className="px-4 py-3 text-sm text-gray-900">{stock.material?.name}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{stock.material?.category || '—'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
-                              {formatQuantity(stock.quantity, stock.material?.unit || '')}
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 text-right">
+                              {(stock.material?.price || 0) > 0 ? formatPrice(stock.material?.price || 0) : '—'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
+                              {isEditing ? (
+                                <div className="flex items-center justify-end gap-1">
+                                  <input
+                                    type="text"
+                                    value={editingStockQuantity}
+                                    onChange={(e) => setEditingStockQuantity(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveStockQuantity(stock.id)
+                                      if (e.key === 'Escape') handleCancelEditStock()
+                                    }}
+                                    autoFocus
+                                    className="w-20 px-2 py-1 text-sm text-right border rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  />
+                                  <button
+                                    onClick={() => handleSaveStockQuantity(stock.id)}
+                                    className="p-1 text-green-600 hover:text-green-700"
+                                    title="Сохранить"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEditStock}
+                                    className="p-1 text-gray-400 hover:text-gray-600"
+                                    title="Отмена"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-2 group">
+                                  <span className="font-medium text-gray-900">
+                                    {formatQuantity(stock.quantity, stock.material?.unit || '')}
+                                  </span>
+                                  {currentUser?.role === 'admin' && (
+                                    <button
+                                      onClick={() => handleStartEditStock(stock.id, stock.quantity)}
+                                      className="p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      title="Изменить количество"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-center">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${actLevel.color}`}>
@@ -1657,7 +1766,15 @@ function TemplateEditor({
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <p className="text-sm truncate">{material.name}</p>
-                    <p className="text-xs text-gray-400">{material.unit}</p>
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      <span>{material.unit}</span>
+                      {material.price > 0 && (
+                        <span className="text-gray-500">{material.price.toLocaleString('ru-RU')} ₽</span>
+                      )}
+                      {material.stock_quantity > 0 && (
+                        <span className="text-green-600">в наличии: {material.stock_quantity}</span>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => addMaterial(material)}
