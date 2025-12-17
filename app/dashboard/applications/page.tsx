@@ -539,22 +539,23 @@ function ApplicationsContent() {
           </div>
         )}
 
-        {/* Поиск */}
-        <div className="mb-3">
-          <form onSubmit={handleSearch} className="flex flex-wrap gap-2">
+        {/* Поиск и фильтры */}
+        <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
+          {/* Строка поиска */}
+          <form onSubmit={handleSearch} className="flex flex-wrap gap-2 mb-3">
             <input
               type="text"
-              placeholder="№ заявки"
+              placeholder="№"
               value={applicationNumberSearch}
               onChange={(e) => setApplicationNumberSearch(e.target.value)}
-              className="w-28 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-16 px-2 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center"
             />
             <input
               type="text"
-              placeholder="Поиск по ФИО, телефону или адресу..."
+              placeholder="Поиск по ФИО, телефону, адресу..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 min-w-48 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="flex-1 min-w-40 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             <button
               type="submit"
@@ -562,9 +563,134 @@ function ApplicationsContent() {
             >
               Найти
             </button>
+          </form>
+
+          {/* Быстрые фильтры в одну строку */}
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Статусы */}
+            <div className="flex flex-wrap gap-1">
+              {(Object.keys(statusLabels) as ApplicationStatus[]).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => toggleStatus(status)}
+                  className={`px-2 py-0.5 text-xs font-medium rounded-full transition ${
+                    selectedStatuses.includes(status)
+                      ? statusColors[status] + ' ring-2 ring-offset-1 ring-indigo-500'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {statusLabels[status]}
+                </button>
+              ))}
+            </div>
+
+            <div className="h-4 w-px bg-gray-300 hidden sm:block" />
+
+            {/* Компактные селекты */}
+            <select
+              value={selectedUrgency}
+              onChange={(e) => { setSelectedUrgency(e.target.value as Urgency | ''); setPage(1) }}
+              className={`px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-indigo-500 ${selectedUrgency ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-300 text-gray-600'}`}
+            >
+              <option value="">Срочность</option>
+              {(Object.keys(urgencyLabels) as Urgency[]).map((u) => (
+                <option key={u} value={u}>{urgencyLabels[u]}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedServiceType}
+              onChange={(e) => { setSelectedServiceType(e.target.value as ServiceType | ''); setPage(1) }}
+              className={`px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-indigo-500 ${selectedServiceType ? 'bg-cyan-50 border-cyan-300 text-cyan-700' : 'bg-white border-gray-300 text-gray-600'}`}
+            >
+              <option value="">Услуга</option>
+              {(Object.keys(serviceTypeLabels) as ServiceType[]).map((t) => (
+                <option key={t} value={t}>{serviceTypeLabels[t]}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedAssignedTo}
+              onChange={(e) => { setSelectedAssignedTo(e.target.value); setPage(1) }}
+              className={`px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-indigo-500 max-w-32 ${selectedAssignedTo ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-gray-300 text-gray-600'}`}
+            >
+              <option value="">Менеджер</option>
+              <option value="unassigned">— Без менеджера</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>{user.full_name}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedTechnicalCurator}
+              onChange={(e) => { setSelectedTechnicalCurator(e.target.value); setPage(1) }}
+              className={`px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-teal-500 max-w-32 ${selectedTechnicalCurator ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-600'}`}
+            >
+              <option value="">Куратор</option>
+              <option value="unassigned">— Без куратора</option>
+              {curators.map((c) => (
+                <option key={c.id} value={c.id}>{c.full_name}</option>
+              ))}
+            </select>
+
+            <div className="h-4 w-px bg-gray-300 hidden sm:block" />
+
+            {/* Даты компактно */}
+            <div className="flex items-center gap-1">
+              {[
+                { label: 'Сегодня', value: 'today' },
+                { label: 'Неделя', value: 'week' },
+                { label: 'Месяц', value: 'month' },
+              ].map((preset) => (
+                <button
+                  key={preset.value}
+                  onClick={() => {
+                    const today = new Date()
+                    let from = new Date()
+                    const to = new Date()
+                    switch (preset.value) {
+                      case 'today':
+                        from = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                        break
+                      case 'week':
+                        from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)
+                        break
+                      case 'month':
+                        from = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate())
+                        break
+                    }
+                    setDatePreset(preset.value)
+                    setDateFrom(from.toISOString().split('T')[0])
+                    setDateTo(to.toISOString().split('T')[0])
+                    setPage(1)
+                  }}
+                  className={`px-2 py-0.5 text-xs font-medium rounded transition ${
+                    datePreset === preset.value
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); setDatePreset(''); setPage(1) }}
+                className="px-1 py-0.5 text-xs bg-white border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 w-28"
+              />
+              <span className="text-gray-400">—</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); setDatePreset(''); setPage(1) }}
+                className="px-1 py-0.5 text-xs bg-white border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 w-28"
+              />
+            </div>
+
+            {/* Сброс всех фильтров */}
             {(searchQuery || applicationNumberSearch || selectedStatuses.length > 0 || selectedUrgency || selectedServiceType || selectedAssignedTo || selectedTechnicalCurator || datePreset || dateFrom || dateTo) && (
               <button
-                type="button"
                 onClick={() => {
                   setSearchQuery('')
                   setApplicationNumberSearch('')
@@ -578,206 +704,55 @@ function ApplicationsContent() {
                   setDateTo('')
                   setPage(1)
                 }}
-                className="px-4 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
+                className="px-2 py-0.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition"
               >
-                Сбросить всё
-              </button>
-            )}
-          </form>
-        </div>
-
-        {/* Фильтры по статусам */}
-        <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
-          <h3 className="text-xs font-medium text-gray-700 mb-2">Фильтр по статусам:</h3>
-          <div className="flex flex-wrap gap-1.5">
-            {(Object.keys(statusLabels) as ApplicationStatus[]).map((status) => (
-              <button
-                key={status}
-                onClick={() => toggleStatus(status)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-full transition ${
-                  selectedStatuses.includes(status)
-                    ? statusColors[status] + ' ring-2 ring-indigo-500'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {statusLabels[status]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Дополнительные фильтры */}
-        <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Срочность:</label>
-              <select
-                value={selectedUrgency}
-                onChange={(e) => {
-                  setSelectedUrgency(e.target.value as Urgency | '')
-                  setPage(1)
-                }}
-                className="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="">Все</option>
-                {(Object.keys(urgencyLabels) as Urgency[]).map((urgency) => (
-                  <option key={urgency} value={urgency}>
-                    {urgencyLabels[urgency]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Тип услуги:</label>
-              <select
-                value={selectedServiceType}
-                onChange={(e) => {
-                  setSelectedServiceType(e.target.value as ServiceType | '')
-                  setPage(1)
-                }}
-                className="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="">Все</option>
-                {(Object.keys(serviceTypeLabels) as ServiceType[]).map((type) => (
-                  <option key={type} value={type}>
-                    {serviceTypeLabels[type]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Менеджер:</label>
-              <select
-                value={selectedAssignedTo}
-                onChange={(e) => {
-                  setSelectedAssignedTo(e.target.value)
-                  setPage(1)
-                }}
-                className="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="">Все</option>
-                <option value="unassigned">Без менеджера</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Куратор:</label>
-              <select
-                value={selectedTechnicalCurator}
-                onChange={(e) => {
-                  setSelectedTechnicalCurator(e.target.value)
-                  setPage(1)
-                }}
-                className="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-              >
-                <option value="">Все</option>
-                <option value="unassigned">Без куратора</option>
-                {curators.map((curator) => (
-                  <option key={curator.id} value={curator.id}>
-                    {curator.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Фильтр по дате */}
-        <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
-          <h3 className="text-xs font-medium text-gray-700 mb-2">Фильтр по дате создания:</h3>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {[
-              { label: 'Сегодня', value: 'today' },
-              { label: 'Вчера', value: 'yesterday' },
-              { label: 'Неделя', value: 'week' },
-              { label: 'Месяц', value: 'month' },
-              { label: 'Год', value: 'year' },
-            ].map((preset) => (
-              <button
-                key={preset.value}
-                onClick={() => {
-                  const today = new Date()
-                  let from = new Date()
-                  const to = new Date()
-
-                  switch (preset.value) {
-                    case 'today':
-                      from = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-                      break
-                    case 'yesterday':
-                      from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
-                      to.setDate(today.getDate() - 1)
-                      break
-                    case 'week':
-                      from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)
-                      break
-                    case 'month':
-                      from = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate())
-                      break
-                    case 'year':
-                      from = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate())
-                      break
-                  }
-
-                  setDatePreset(preset.value)
-                  setDateFrom(from.toISOString().split('T')[0])
-                  setDateTo(to.toISOString().split('T')[0])
-                  setPage(1)
-                }}
-                className={`px-3 py-1 text-xs font-medium rounded-full transition ${
-                  datePreset === preset.value
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-            {(datePreset || dateFrom || dateTo) && (
-              <button
-                onClick={() => {
-                  setDatePreset('')
-                  setDateFrom('')
-                  setDateTo('')
-                  setPage(1)
-                }}
-                className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition"
-              >
-                Сбросить
+                ✕ Сбросить
               </button>
             )}
           </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-gray-500">Период:</span>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value)
-                setDatePreset('')
-                setPage(1)
-              }}
-              className="px-2 py-1 text-sm bg-white border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            <span className="text-xs text-gray-500">—</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => {
-                setDateTo(e.target.value)
-                setDatePreset('')
-                setPage(1)
-              }}
-              className="px-2 py-1 text-sm bg-white border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
+
+          {/* Активные фильтры как теги */}
+          {(selectedStatuses.length > 0 || selectedUrgency || selectedServiceType || selectedAssignedTo || selectedTechnicalCurator || dateFrom) && (
+            <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-gray-100">
+              <span className="text-xs text-gray-500">Фильтры:</span>
+              {selectedStatuses.map(s => (
+                <span key={s} className={`px-2 py-0.5 text-xs rounded-full ${statusColors[s]} flex items-center gap-1`}>
+                  {statusLabels[s]}
+                  <button onClick={() => toggleStatus(s)} className="hover:text-red-600">×</button>
+                </span>
+              ))}
+              {selectedUrgency && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 flex items-center gap-1">
+                  {urgencyLabels[selectedUrgency]}
+                  <button onClick={() => { setSelectedUrgency(''); setPage(1) }} className="hover:text-red-600">×</button>
+                </span>
+              )}
+              {selectedServiceType && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-cyan-100 text-cyan-700 flex items-center gap-1">
+                  {serviceTypeLabels[selectedServiceType]}
+                  <button onClick={() => { setSelectedServiceType(''); setPage(1) }} className="hover:text-red-600">×</button>
+                </span>
+              )}
+              {selectedAssignedTo && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-700 flex items-center gap-1">
+                  {selectedAssignedTo === 'unassigned' ? 'Без менеджера' : users.find(u => u.id === selectedAssignedTo)?.full_name}
+                  <button onClick={() => { setSelectedAssignedTo(''); setPage(1) }} className="hover:text-red-600">×</button>
+                </span>
+              )}
+              {selectedTechnicalCurator && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-teal-100 text-teal-700 flex items-center gap-1">
+                  {selectedTechnicalCurator === 'unassigned' ? 'Без куратора' : curators.find(c => c.id === selectedTechnicalCurator)?.full_name}
+                  <button onClick={() => { setSelectedTechnicalCurator(''); setPage(1) }} className="hover:text-red-600">×</button>
+                </span>
+              )}
+              {dateFrom && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700 flex items-center gap-1">
+                  {dateFrom}{dateTo && dateTo !== dateFrom ? ` — ${dateTo}` : ''}
+                  <button onClick={() => { setDateFrom(''); setDateTo(''); setDatePreset(''); setPage(1) }} className="hover:text-red-600">×</button>
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Пагинация сверху */}
