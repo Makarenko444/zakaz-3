@@ -171,12 +171,38 @@ export interface Material {
   unit: string
   category: string | null
   price: number // Цена за единицу
-  stock_quantity: number // Остаток на складе
+  stock_quantity: number // Общий остаток (сумма по всем складам)
+  activity_level: number // 1=популярный, 2=иногда, 3=редко, 4=архив
   is_active: boolean
   sort_order: number
   last_import_at: string | null // Дата последнего импорта
   created_at: string
   updated_at: string
+}
+
+// Склад
+export interface Warehouse {
+  id: string
+  name: string
+  code: string | null
+  address: string | null
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// Остаток материала на складе
+export interface WarehouseStock {
+  id: string
+  warehouse_id: string
+  material_id: string
+  quantity: number
+  last_import_at: string | null
+  created_at: string
+  updated_at: string
+  warehouse?: Warehouse
+  material?: Material
 }
 
 // Шаблон материалов

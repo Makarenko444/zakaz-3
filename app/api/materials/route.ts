@@ -15,15 +15,26 @@ export async function GET(request: NextRequest) {
     const activeOnly = searchParams.get('active_only') !== 'false' // по умолчанию только активные
     const search = searchParams.get('search')
 
+    const activityLevel = searchParams.get('activity_level')
+    const maxActivityLevel = searchParams.get('max_activity_level')
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabase.from as any)('zakaz_materials')
       .select('*')
-      .order('sort_order', { ascending: true })
+      .order('activity_level', { ascending: true }) // Сначала популярные (1), потом архивные (4)
       .order('name', { ascending: true })
 
-    // Фильтр по активности
+    // Фильтр по уровню активности
+    if (activityLevel) {
+      query = query.eq('activity_level', parseInt(activityLevel))
+    } else if (maxActivityLevel) {
+      // Показывать материалы до определённого уровня (например, 1-3 без архивных)
+      query = query.lte('activity_level', parseInt(maxActivityLevel))
+    }
+
+    // Фильтр по активности (для обратной совместимости)
     if (activeOnly) {
-      query = query.eq('is_active', true)
+      query = query.lte('activity_level', 3) // Не показывать архивные (4)
     }
 
     // Фильтр по категории
@@ -140,7 +151,7 @@ export async function PATCH(request: NextRequest) {
     const supabase = createDirectClient()
     const body = await request.json()
 
-    const { id, name, unit, category, sort_order, is_active } = body
+    const { id, name, unit, category, sort_order, is_active, activity_level } = body
 
     if (!id) {
       return NextResponse.json(
@@ -170,6 +181,7 @@ export async function PATCH(request: NextRequest) {
     if (category !== undefined) updateData.category = category
     if (sort_order !== undefined) updateData.sort_order = sort_order
     if (is_active !== undefined) updateData.is_active = is_active
+    if (activity_level !== undefined) updateData.activity_level = activity_level
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

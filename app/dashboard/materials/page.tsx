@@ -1,10 +1,22 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Material, MaterialTemplate, User } from '@/lib/types'
+import { Material, MaterialTemplate, User, Warehouse } from '@/lib/types'
 import { getCurrentUser } from '@/lib/auth-client'
 
-type TabType = 'materials' | 'templates'
+type TabType = 'materials' | 'templates' | 'warehouses'
+
+// Уровни активности материалов
+const ACTIVITY_LEVELS = [
+  { value: 1, label: 'Популярный', color: 'bg-green-100 text-green-800' },
+  { value: 2, label: 'Иногда', color: 'bg-blue-100 text-blue-800' },
+  { value: 3, label: 'Редко', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 4, label: 'Архив', color: 'bg-gray-100 text-gray-500' },
+]
+
+function getActivityLevel(level: number) {
+  return ACTIVITY_LEVELS.find(l => l.value === level) || ACTIVITY_LEVELS[3]
+}
 
 interface ImportResult {
   success: boolean
@@ -46,6 +58,7 @@ export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([])
   const [allMaterials, setAllMaterials] = useState<Material[]>([]) // Все материалы для шаблонов
   const [templates, setTemplates] = useState<MaterialTemplate[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
 
@@ -72,12 +85,38 @@ export default function MaterialsPage() {
   // Поиск и фильтры
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [selectedActivityLevel, setSelectedActivityLevel] = useState<string>('')
   const [categories, setCategories] = useState<string[]>([])
 
   // Модальные окна
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<MaterialTemplate | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<MaterialTemplate | null>(null)
+
+  // Склады
+  const [showWarehouseModal, setShowWarehouseModal] = useState(false)
+  const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null)
+  const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null)
+  const [warehouseStocks, setWarehouseStocks] = useState<Array<{
+    id: string
+    material: { id: string; code: string | null; name: string; unit: string; category: string | null; activity_level: number }
+    quantity: number
+  }>>([])
+  const [isLoadingStocks, setIsLoadingStocks] = useState(false)
+
+  // Импорт остатков склада
+  const [stockFileInputRef] = useState<React.RefObject<HTMLInputElement | null>>({ current: null })
+  const [stockFile, setStockFile] = useState<File | null>(null)
+  const [stockPreviewData, setStockPreviewData] = useState<PreviewData | null>(null)
+  const [showStockPreviewModal, setShowStockPreviewModal] = useState(false)
+  const [stockColumnMapping, setStockColumnMapping] = useState<{ code: string; quantity: string }>({ code: '', quantity: '' })
+  const [isImportingStock, setIsImportingStock] = useState(false)
+  const [stockImportResult, setStockImportResult] = useState<{
+    success: boolean
+    message: string
+    stats: { total: number; processed: number; skipped: number; errors: number }
+    details?: { skipped?: Array<{ row: number; reason: string }> }
+  } | null>(null)
 
   const fetchCurrentUser = useCallback(async () => {
     const user = await getCurrentUser()
@@ -90,6 +129,7 @@ export default function MaterialsPage() {
       params.set('active_only', 'false')
       if (searchQuery) params.set('search', searchQuery)
       if (selectedCategory) params.set('category', selectedCategory)
+      if (selectedActivityLevel) params.set('activity_level', selectedActivityLevel)
 
       const res = await fetch(`/api/materials?${params}`)
       const data = await res.json()
@@ -100,7 +140,7 @@ export default function MaterialsPage() {
     } catch (error) {
       console.error('Error fetching materials:', error)
     }
-  }, [searchQuery, selectedCategory])
+  }, [searchQuery, selectedCategory, selectedActivityLevel])
 
   // Загрузка всех материалов (для шаблонов, без фильтров)
   const fetchAllMaterials = useCallback(async () => {
@@ -128,6 +168,164 @@ export default function MaterialsPage() {
     }
   }, [])
 
+  const fetchWarehouses = useCallback(async () => {
+    try {
+      const res = await fetch('/api/warehouses?active_only=false')
+      const data = await res.json()
+      if (res.ok) setWarehouses(data.warehouses || [])
+    } catch (error) {
+      console.error('Error fetching warehouses:', error)
+    }
+  }, [])
+
+  const fetchWarehouseStocks = async (warehouseId: string) => {
+    setIsLoadingStocks(true)
+    try {
+      const res = await fetch(`/api/warehouses/${warehouseId}/stock`)
+      const data = await res.json()
+      if (res.ok) setWarehouseStocks(data.stocks || [])
+    } catch (error) {
+      console.error('Error fetching stocks:', error)
+    } finally {
+      setIsLoadingStocks(false)
+    }
+  }
+
+  const handleSelectWarehouse = (warehouse: Warehouse) => {
+    setSelectedWarehouse(warehouse)
+    fetchWarehouseStocks(warehouse.id)
+    setStockImportResult(null)
+  }
+
+  const handleSaveWarehouse = async (name: string, code: string, address: string) => {
+    try {
+      if (editingWarehouse) {
+        const res = await fetch('/api/warehouses', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingWarehouse.id, name, code, address }),
+        })
+        if (res.ok) {
+          fetchWarehouses()
+          setShowWarehouseModal(false)
+          setEditingWarehouse(null)
+        }
+      } else {
+        const res = await fetch('/api/warehouses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, code, address }),
+        })
+        if (res.ok) {
+          fetchWarehouses()
+          setShowWarehouseModal(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error saving warehouse:', error)
+    }
+  }
+
+  const handleDeleteWarehouse = async (id: string) => {
+    if (!confirm('Удалить склад? Все остатки будут удалены.')) return
+    try {
+      const res = await fetch(`/api/warehouses?id=${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        fetchWarehouses()
+        if (selectedWarehouse?.id === id) {
+          setSelectedWarehouse(null)
+          setWarehouseStocks([])
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting warehouse:', error)
+    }
+  }
+
+  const handleToggleWarehouseActive = async (warehouse: Warehouse) => {
+    try {
+      const res = await fetch('/api/warehouses', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: warehouse.id, is_active: !warehouse.is_active }),
+      })
+      if (res.ok) fetchWarehouses()
+    } catch (error) {
+      console.error('Error toggling warehouse:', error)
+    }
+  }
+
+  // Импорт остатков склада
+  const handleStockFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !selectedWarehouse) return
+
+    setStockFile(file)
+    setStockImportResult(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('noHeaders', 'false')
+
+      const response = await fetch('/api/materials/import/preview', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error)
+
+      setStockPreviewData(result)
+      // Автодетект колонок для остатков
+      const codePatterns = ['код', 'code', 'артикул', 'id', 'номер']
+      const qtyPatterns = ['остаток', 'количество', 'qty', 'stock', 'кол-во', 'кол.']
+      const mapping = { code: '', quantity: '' }
+      for (const header of result.headers) {
+        const lowerHeader = header.toLowerCase()
+        if (!mapping.code && codePatterns.some(p => lowerHeader.includes(p))) mapping.code = header
+        if (!mapping.quantity && qtyPatterns.some(p => lowerHeader.includes(p))) mapping.quantity = header
+      }
+      setStockColumnMapping(mapping)
+      setShowStockPreviewModal(true)
+    } catch (error) {
+      console.error('Error previewing stock file:', error)
+      setImportError(String(error))
+    }
+
+    if (event.target) event.target.value = ''
+  }
+
+  const handleImportStock = async () => {
+    if (!stockFile || !selectedWarehouse || !stockColumnMapping.code || !stockColumnMapping.quantity) return
+
+    setIsImportingStock(true)
+    setShowStockPreviewModal(false)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', stockFile)
+      formData.append('columnMapping', JSON.stringify(stockColumnMapping))
+
+      const response = await fetch(`/api/warehouses/${selectedWarehouse.id}/stock/import`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error)
+
+      setStockImportResult(result)
+      fetchWarehouseStocks(selectedWarehouse.id)
+    } catch (error) {
+      console.error('Error importing stock:', error)
+      setImportError(String(error))
+    } finally {
+      setIsImportingStock(false)
+      setStockFile(null)
+    }
+  }
+
   const fetchTemplateDetails = async (id: string) => {
     try {
       const res = await fetch(`/api/material-templates/${id}`)
@@ -143,7 +341,8 @@ export default function MaterialsPage() {
     fetchMaterials()
     fetchAllMaterials()
     fetchTemplates()
-  }, [fetchCurrentUser, fetchMaterials, fetchAllMaterials, fetchTemplates])
+    fetchWarehouses()
+  }, [fetchCurrentUser, fetchMaterials, fetchAllMaterials, fetchTemplates, fetchWarehouses])
 
   // Автоматическое определение колонок по названиям
   function autoDetectColumns(headers: string[]): ColumnMapping {
@@ -548,6 +747,16 @@ export default function MaterialsPage() {
           >
             Шаблоны наборов
           </button>
+          <button
+            onClick={() => setActiveTab('warehouses')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'warehouses'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Склады ({warehouses.length})
+          </button>
         </nav>
       </div>
 
@@ -578,17 +787,30 @@ export default function MaterialsPage() {
                   ))}
                 </select>
               </div>
+              <div className="w-40">
+                <select
+                  value={selectedActivityLevel}
+                  onChange={(e) => setSelectedActivityLevel(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="">Все уровни</option>
+                  {ACTIVITY_LEVELS.map((level) => (
+                    <option key={level.value} value={level.value}>{level.label}</option>
+                  ))}
+                </select>
+              </div>
               <button
                 onClick={() => fetchMaterials()}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
               >
                 Поиск
               </button>
-              {(searchQuery || selectedCategory) && (
+              {(searchQuery || selectedCategory || selectedActivityLevel) && (
                 <button
                   onClick={() => {
                     setSearchQuery('')
                     setSelectedCategory('')
+                    setSelectedActivityLevel('')
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
                 >
@@ -609,30 +831,31 @@ export default function MaterialsPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Категория</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Цена</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Остаток</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Активность</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {materials.map((m) => (
-                    <tr key={m.id} className={`hover:bg-gray-50 ${!m.is_active ? 'opacity-50' : ''}`}>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{m.code || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{m.name}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{m.category || '—'}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
-                        {m.price > 0 ? formatPrice(m.price) : '—'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
-                        {m.stock_quantity > 0 ? formatQuantity(m.stock_quantity, m.unit) : '0'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          m.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {m.is_active ? 'Активен' : 'Неактивен'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {materials.map((m) => {
+                    const actLevel = getActivityLevel(m.activity_level || 2)
+                    return (
+                      <tr key={m.id} className={`hover:bg-gray-50 ${m.activity_level === 4 ? 'opacity-50' : ''}`}>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{m.code || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{m.name}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{m.category || '—'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
+                          {m.price > 0 ? formatPrice(m.price) : '—'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
+                          {m.stock_quantity > 0 ? formatQuantity(m.stock_quantity, m.unit) : '0'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${actLevel.color}`}>
+                            {actLevel.label}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             ) : (
@@ -714,6 +937,197 @@ export default function MaterialsPage() {
           ) : (
             <div className="lg:col-span-2 bg-white rounded-lg shadow p-6 flex items-center justify-center text-gray-500">
               Выберите шаблон слева для редактирования
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'warehouses' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Левая колонка - список складов */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Склады</h2>
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={() => { setEditingWarehouse(null); setShowWarehouseModal(true) }}
+                  className="text-sm text-indigo-600 hover:text-indigo-800"
+                >
+                  + Добавить
+                </button>
+              )}
+            </div>
+            {warehouses.length > 0 ? (
+              <div className="space-y-2">
+                {warehouses.map((w) => (
+                  <div
+                    key={w.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition ${
+                      selectedWarehouse?.id === w.id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
+                    } ${!w.is_active ? 'opacity-50' : ''}`}
+                    onClick={() => handleSelectWarehouse(w)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium">{w.name}</p>
+                        {w.code && <p className="text-xs text-gray-400">Код: {w.code}</p>}
+                        {w.address && <p className="text-sm text-gray-500">{w.address}</p>}
+                      </div>
+                      {currentUser?.role === 'admin' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditingWarehouse(w); setShowWarehouseModal(true) }}
+                            className="text-gray-400 hover:text-indigo-600"
+                            title="Редактировать"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleWarehouseActive(w) }}
+                            className={`${w.is_active ? 'text-gray-400 hover:text-orange-600' : 'text-orange-400 hover:text-green-600'}`}
+                            title={w.is_active ? 'Деактивировать' : 'Активировать'}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              {w.is_active ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                              ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              )}
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteWarehouse(w.id) }}
+                            className="text-gray-400 hover:text-red-600"
+                            title="Удалить"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">Склады не созданы</p>
+            )}
+          </div>
+
+          {/* Правая часть - остатки склада */}
+          {selectedWarehouse ? (
+            <div className="lg:col-span-2 bg-white rounded-lg shadow">
+              <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-semibold">{selectedWarehouse.name}</h2>
+                  <p className="text-sm text-gray-500">Остатки материалов</p>
+                </div>
+                {currentUser?.role === 'admin' && (
+                  <div>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleStockFileSelect}
+                      className="hidden"
+                      id="stock-file-input"
+                    />
+                    <label
+                      htmlFor="stock-file-input"
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+                    >
+                      {isImportingStock ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Импорт...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          Импорт остатков
+                        </>
+                      )}
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Результат импорта остатков */}
+              {stockImportResult && (
+                <div className="mx-4 mt-4 bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-start">
+                    <svg className="w-5 h-5 text-green-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="ml-3 flex-1">
+                      <p className="text-sm text-green-800">{stockImportResult.message}</p>
+                      <p className="text-xs text-green-700 mt-1">
+                        Всего: {stockImportResult.stats.total}, Обработано: {stockImportResult.stats.processed}, Пропущено: {stockImportResult.stats.skipped}
+                        {stockImportResult.stats.errors > 0 && <span className="text-red-600">, Ошибок: {stockImportResult.stats.errors}</span>}
+                      </p>
+                    </div>
+                    <button onClick={() => setStockImportResult(null)} className="text-green-400 hover:text-green-500">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Таблица остатков */}
+              <div className="overflow-x-auto">
+                {isLoadingStocks ? (
+                  <div className="p-8 text-center text-gray-500">Загрузка...</div>
+                ) : warehouseStocks.length > 0 ? (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Код</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Наименование</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Категория</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Остаток</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Активность</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {warehouseStocks.map((stock) => {
+                        const actLevel = getActivityLevel(stock.material?.activity_level || 2)
+                        return (
+                          <tr key={stock.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{stock.material?.code || '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-900">{stock.material?.name}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{stock.material?.category || '—'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+                              {formatQuantity(stock.quantity, stock.material?.unit || '')}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${actLevel.color}`}>
+                                {actLevel.label}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-8 text-center text-gray-500">
+                    Нет остатков. Импортируйте данные из Excel.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="lg:col-span-2 bg-white rounded-lg shadow p-6 flex items-center justify-center text-gray-500">
+              Выберите склад слева для просмотра остатков
             </div>
           )}
         </div>
@@ -904,6 +1318,129 @@ export default function MaterialsPage() {
           onSave={handleSaveTemplate}
           onClose={() => { setShowTemplateModal(false); setEditingTemplate(null) }}
         />
+      )}
+
+      {/* Модалка создания/редактирования склада */}
+      {showWarehouseModal && (
+        <WarehouseModal
+          warehouse={editingWarehouse}
+          onSave={handleSaveWarehouse}
+          onClose={() => { setShowWarehouseModal(false); setEditingWarehouse(null) }}
+        />
+      )}
+
+      {/* Модалка предпросмотра импорта остатков */}
+      {showStockPreviewModal && stockPreviewData && selectedWarehouse && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold">Импорт остатков: {selectedWarehouse.name}</h3>
+                <p className="text-sm text-gray-500">Файл: {stockPreviewData.filename} | Строк: {stockPreviewData.totalRows}</p>
+              </div>
+              <button onClick={() => { setShowStockPreviewModal(false); setStockFile(null) }} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Маппинг колонок для остатков */}
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Сопоставление колонок:</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Код материала *</label>
+                  <select
+                    value={stockColumnMapping.code}
+                    onChange={(e) => setStockColumnMapping({ ...stockColumnMapping, code: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {stockPreviewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Количество *</label>
+                  <select
+                    value={stockColumnMapping.quantity}
+                    onChange={(e) => setStockColumnMapping({ ...stockColumnMapping, quantity: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {stockPreviewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Материалы сопоставляются по коду. Материалы без совпадения будут пропущены.
+              </p>
+            </div>
+
+            {/* Таблица предпросмотра */}
+            <div className="flex-1 overflow-auto p-4">
+              <table className="min-w-full text-sm border">
+                <thead className="bg-gray-100 sticky top-0">
+                  <tr>
+                    <th className="px-2 py-2 border text-left text-xs font-medium text-gray-500">#</th>
+                    {stockPreviewData.headers.map((header) => (
+                      <th
+                        key={header}
+                        className={`px-2 py-2 border text-left text-xs font-medium ${
+                          header === stockColumnMapping.code ? 'bg-blue-100 text-blue-800' :
+                          header === stockColumnMapping.quantity ? 'bg-orange-100 text-orange-800' :
+                          'text-gray-500'
+                        }`}
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockPreviewData.preview.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-2 py-1 border text-gray-400">{row.__rowNumber as number}</td>
+                      {stockPreviewData.headers.map((header) => (
+                        <td
+                          key={header}
+                          className={`px-2 py-1 border ${
+                            header === stockColumnMapping.code ? 'bg-blue-50' :
+                            header === stockColumnMapping.quantity ? 'bg-orange-50' :
+                            ''
+                          }`}
+                        >
+                          {row[header] !== undefined && row[header] !== null ? String(row[header]) : ''}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Кнопки */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => { setShowStockPreviewModal(false); setStockFile(null) }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleImportStock}
+                disabled={!stockColumnMapping.code || !stockColumnMapping.quantity || isImportingStock}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {isImportingStock ? 'Импортирую...' : `Импортировать ${stockPreviewData.totalRows} строк`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
@@ -1126,6 +1663,69 @@ function TemplateEditor({
               {searchQuery ? 'Ничего не найдено' : 'Все материалы уже добавлены'}
             </p>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WarehouseModal({
+  warehouse,
+  onSave,
+  onClose,
+}: {
+  warehouse: Warehouse | null
+  onSave: (name: string, code: string, address: string) => void
+  onClose: () => void
+}) {
+  const [name, setName] = useState(warehouse?.name || '')
+  const [code, setCode] = useState(warehouse?.code || '')
+  const [address, setAddress] = useState(warehouse?.address || '')
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 className="text-lg font-semibold mb-4">{warehouse ? 'Редактировать склад' : 'Новый склад'}</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg"
+              placeholder="Например: Основной склад"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Код</label>
+            <input
+              type="text"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg"
+              placeholder="Уникальный код склада"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Адрес</label>
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg h-20"
+              placeholder="Адрес склада (необязательно)"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg">Отмена</button>
+          <button
+            onClick={() => onSave(name, code, address)}
+            disabled={!name.trim()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
+          >
+            Сохранить
+          </button>
         </div>
       </div>
     </div>
