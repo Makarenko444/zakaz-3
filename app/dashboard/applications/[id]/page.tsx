@@ -32,6 +32,12 @@ interface ApplicationWithAddress extends Application {
     email: string
     role: string
   } | null
+  technical_curator_user?: {
+    id: string
+    full_name: string
+    email: string
+    role: string
+  } | null
   created_by_user?: {
     id: string
     full_name: string
@@ -114,6 +120,8 @@ export default function ApplicationDetailPage() {
   const [currentUserRole, setCurrentUserRole] = useState<string>('')
   const [showAuditLogModal, setShowAuditLogModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
+  const [showTechnicalCuratorModal, setShowTechnicalCuratorModal] = useState(false)
+  const [isAssigningTechnicalCurator, setIsAssigningTechnicalCurator] = useState(false)
   const [showAddressWizard, setShowAddressWizard] = useState(false)
   const [showUserInfoModal, setShowUserInfoModal] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -274,6 +282,34 @@ export default function ApplicationDetailPage() {
       alert('Не удалось назначить исполнителя')
     } finally {
       setIsAssigning(false)
+    }
+  }
+
+  async function handleAssignTechnicalCurator(userId: string) {
+    setIsAssigningTechnicalCurator(true)
+    try {
+      const response = await fetch(`/api/applications/${id}/technical-curator`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          technical_curator_id: userId,
+          changed_by: currentUserId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to assign technical curator')
+      }
+
+      const data = await response.json()
+      setApplication(data.application)
+    } catch (error) {
+      console.error('Error assigning technical curator:', error)
+      alert('Не удалось назначить технического куратора')
+    } finally {
+      setIsAssigningTechnicalCurator(false)
     }
   }
 
@@ -669,6 +705,39 @@ export default function ApplicationDetailPage() {
                       </button>
                     )}
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">Тех. куратор:</span>{' '}
+                    {application.technical_curator_user ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setSelectedUserId(application.technical_curator_user!.id)
+                            setSelectedUserName(application.technical_curator_user!.full_name)
+                            setShowUserInfoModal(true)
+                          }}
+                          className="font-medium text-teal-600 hover:text-teal-800 hover:underline transition"
+                        >
+                          {application.technical_curator_user.full_name}
+                        </button>
+                        <button
+                          onClick={() => setShowTechnicalCuratorModal(true)}
+                          className="text-gray-600 hover:text-teal-600 transition"
+                          title="Изменить технического куратора"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setShowTechnicalCuratorModal(true)}
+                        className="font-medium text-teal-600 hover:text-teal-800 hover:underline transition"
+                      >
+                        Не назначен
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -937,6 +1006,67 @@ export default function ApplicationDetailPage() {
               <button
                 onClick={() => setShowAssignModal(false)}
                 disabled={isAssigning}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно назначения технического куратора */}
+      {showTechnicalCuratorModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Назначить технического куратора</h3>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              <div className="space-y-2">
+                {/* Опция "Не назначен" */}
+                <button
+                  onClick={() => {
+                    handleAssignTechnicalCurator('')
+                    setShowTechnicalCuratorModal(false)
+                  }}
+                  disabled={isAssigningTechnicalCurator}
+                  className={`w-full text-left px-4 py-3 rounded-lg border transition ${
+                    !application.technical_curator_id
+                      ? 'border-teal-500 bg-teal-50 text-teal-900'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <span className="font-medium">Не назначен</span>
+                </button>
+
+                {/* Список инженеров и админов */}
+                {users.filter(user => user.role === 'engineer' || user.role === 'admin' || user.role === 'manager').map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => {
+                      handleAssignTechnicalCurator(user.id)
+                      setShowTechnicalCuratorModal(false)
+                    }}
+                    disabled={isAssigningTechnicalCurator}
+                    className={`w-full text-left px-4 py-3 rounded-lg border transition ${
+                      application.technical_curator_id === user.id
+                        ? 'border-teal-500 bg-teal-50 text-teal-900'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <div className="font-medium">{user.full_name}</div>
+                    <div className="text-sm text-gray-500">{user.role} • {user.email}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+              <button
+                onClick={() => setShowTechnicalCuratorModal(false)}
+                disabled={isAssigningTechnicalCurator}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Отмена

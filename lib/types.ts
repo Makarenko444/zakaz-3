@@ -73,6 +73,7 @@ export interface Application {
   service_type: ServiceType
   application_number: number
   assigned_to: string | null
+  technical_curator_id: string | null
   // Legacy-поля для импорта из старой системы
   legacy_id: number | null
   legacy_stage: string | null
