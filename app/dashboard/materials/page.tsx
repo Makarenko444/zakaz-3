@@ -105,7 +105,6 @@ export default function MaterialsPage() {
   const [isLoadingStocks, setIsLoadingStocks] = useState(false)
 
   // Импорт остатков склада
-  const [stockFileInputRef] = useState<React.RefObject<HTMLInputElement | null>>({ current: null })
   const [stockFile, setStockFile] = useState<File | null>(null)
   const [stockPreviewData, setStockPreviewData] = useState<PreviewData | null>(null)
   const [showStockPreviewModal, setShowStockPreviewModal] = useState(false)

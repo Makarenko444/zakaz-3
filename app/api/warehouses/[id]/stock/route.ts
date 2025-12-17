@@ -15,7 +15,7 @@ export async function GET(
     const search = searchParams.get('search')
 
     // Получаем остатки с информацией о материале
-    let query = (supabase.from as any)('zakaz_warehouse_stocks')
+    const query = (supabase.from as any)('zakaz_warehouse_stocks')
       .select(`
         *,
         material:zakaz_materials(id, code, name, unit, category, activity_level)
