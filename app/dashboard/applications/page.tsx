@@ -63,12 +63,15 @@ const customerTypeLabels: Record<CustomerType, string> = {
   business: 'Юр. лицо',
 }
 
-// Типы услуг
+// Типы работ
 const serviceTypeLabels: Record<ServiceType, string> = {
   apartment: 'Квартира',
   office: 'Офис',
   scs: 'СКС',
   emergency: 'Авария',
+  access_control: 'СКУД',
+  node_construction: 'Узел',
+  trunk_construction: 'Магистраль',
 }
 
 const DEFAULT_ITEMS_PER_PAGE = 20
