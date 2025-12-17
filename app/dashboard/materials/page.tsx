@@ -53,6 +53,9 @@ interface ColumnMapping {
   quantity: string
 }
 
+type SortColumn = 'code' | 'name' | 'category' | 'price' | 'stock_quantity' | 'activity_level'
+type SortDirection = 'asc' | 'desc'
+
 export default function MaterialsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('materials')
   const [materials, setMaterials] = useState<Material[]>([])
@@ -67,6 +70,14 @@ export default function MaterialsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [selectedActivityLevel, setSelectedActivityLevel] = useState<string>('')
   const [categories, setCategories] = useState<string[]>([])
+
+  // Сортировка
+  const [sortColumn, setSortColumn] = useState<SortColumn>('name')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+
+  // Редактирование материала
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null)
+  const [showMaterialModal, setShowMaterialModal] = useState(false)
 
   // Модальные окна
   const [showTemplateModal, setShowTemplateModal] = useState(false)
@@ -541,6 +552,109 @@ export default function MaterialsPage() {
     return `${formatted} ${unit}`
   }
 
+  // Сортировка материалов
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortedMaterials = [...materials].sort((a, b) => {
+    let aVal: string | number = ''
+    let bVal: string | number = ''
+
+    switch (sortColumn) {
+      case 'code':
+        aVal = a.code || ''
+        bVal = b.code || ''
+        break
+      case 'name':
+        aVal = a.name.toLowerCase()
+        bVal = b.name.toLowerCase()
+        break
+      case 'category':
+        aVal = a.category || ''
+        bVal = b.category || ''
+        break
+      case 'price':
+        aVal = a.price || 0
+        bVal = b.price || 0
+        break
+      case 'stock_quantity':
+        aVal = a.stock_quantity || 0
+        bVal = b.stock_quantity || 0
+        break
+      case 'activity_level':
+        aVal = a.activity_level || 2
+        bVal = b.activity_level || 2
+        break
+    }
+
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+    return 0
+  })
+
+  // Быстрое изменение уровня активности
+  const handleActivityLevelChange = async (material: Material, newLevel: number) => {
+    try {
+      const res = await fetch('/api/materials', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: material.id, activity_level: newLevel }),
+      })
+      if (res.ok) {
+        fetchMaterials()
+        fetchAllMaterials()
+      }
+    } catch (error) {
+      console.error('Error updating activity level:', error)
+    }
+  }
+
+  // Сохранение материала
+  const handleSaveMaterial = async (data: { name: string; code: string; unit: string; price: number; category: string; activity_level: number }) => {
+    try {
+      if (editingMaterial) {
+        const res = await fetch('/api/materials', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingMaterial.id, ...data }),
+        })
+        if (res.ok) {
+          fetchMaterials()
+          fetchAllMaterials()
+          setShowMaterialModal(false)
+          setEditingMaterial(null)
+        }
+      }
+    } catch (error) {
+      console.error('Error saving material:', error)
+    }
+  }
+
+  // Компонент заголовка с сортировкой
+  const SortableHeader = ({ column, label, align = 'left' }: { column: SortColumn; label: string; align?: 'left' | 'right' | 'center' }) => (
+    <th
+      onClick={() => handleSort(column)}
+      className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none ${
+        align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
+      }`}
+    >
+      <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : ''}`}>
+        {label}
+        {sortColumn === column && (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sortDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
+          </svg>
+        )}
+      </div>
+    </th>
+  )
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Материалы</h1>
@@ -663,20 +777,25 @@ export default function MaterialsPage() {
 
           {/* Таблица материалов */}
           <div className="overflow-x-auto">
-            {materials.length > 0 ? (
+            {sortedMaterials.length > 0 ? (
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Код</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Наименование</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Категория</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Цена</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Остаток</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Активность</th>
+                    <SortableHeader column="code" label="Код" />
+                    <SortableHeader column="name" label="Наименование" />
+                    <SortableHeader column="category" label="Категория" />
+                    <SortableHeader column="price" label="Цена" align="right" />
+                    <SortableHeader column="stock_quantity" label="Остаток" align="right" />
+                    <SortableHeader column="activity_level" label="Активность" align="center" />
+                    {currentUser?.role === 'admin' && (
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                        Действия
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {materials.map((m) => {
+                  {sortedMaterials.map((m) => {
                     const actLevel = getActivityLevel(m.activity_level || 2)
                     return (
                       <tr key={m.id} className={`hover:bg-gray-50 ${m.activity_level === 4 ? 'opacity-50' : ''}`}>
@@ -690,10 +809,42 @@ export default function MaterialsPage() {
                           {m.stock_quantity > 0 ? formatQuantity(m.stock_quantity, m.unit) : '0'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${actLevel.color}`}>
-                            {actLevel.label}
-                          </span>
+                          {currentUser?.role === 'admin' ? (
+                            <div className="inline-flex items-center gap-1">
+                              {ACTIVITY_LEVELS.map((level) => (
+                                <button
+                                  key={level.value}
+                                  onClick={() => handleActivityLevelChange(m, level.value)}
+                                  title={level.label}
+                                  className={`w-6 h-6 rounded text-xs font-bold transition-all ${
+                                    m.activity_level === level.value
+                                      ? level.color + ' ring-2 ring-offset-1 ring-indigo-400'
+                                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {level.value}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${actLevel.color}`}>
+                              {actLevel.label}
+                            </span>
+                          )}
                         </td>
+                        {currentUser?.role === 'admin' && (
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <button
+                              onClick={() => { setEditingMaterial(m); setShowMaterialModal(true) }}
+                              className="text-gray-400 hover:text-indigo-600"
+                              title="Редактировать"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     )
                   })}
@@ -972,6 +1123,16 @@ export default function MaterialsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Модалка редактирования материала */}
+      {showMaterialModal && editingMaterial && (
+        <MaterialModal
+          material={editingMaterial}
+          categories={categories}
+          onSave={handleSaveMaterial}
+          onClose={() => { setShowMaterialModal(false); setEditingMaterial(null) }}
+        />
       )}
 
       {/* Модалка создания/редактирования шаблона */}
@@ -1525,6 +1686,136 @@ function WarehouseModal({
           <button
             onClick={() => onSave(name, code, address)}
             disabled={!name.trim()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
+          >
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MaterialModal({
+  material,
+  categories,
+  onSave,
+  onClose,
+}: {
+  material: Material
+  categories: string[]
+  onSave: (data: { name: string; code: string; unit: string; price: number; category: string; activity_level: number }) => void
+  onClose: () => void
+}) {
+  const [name, setName] = useState(material.name)
+  const [code, setCode] = useState(material.code || '')
+  const [unit, setUnit] = useState(material.unit)
+  const [price, setPrice] = useState(material.price?.toString() || '')
+  const [category, setCategory] = useState(material.category || '')
+  const [activityLevel, setActivityLevel] = useState(material.activity_level || 2)
+
+  const handleSubmit = () => {
+    onSave({
+      name,
+      code,
+      unit,
+      price: parseFloat(price.replace(',', '.')) || 0,
+      category,
+      activity_level: activityLevel,
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+        <h3 className="text-lg font-semibold mb-4">Редактирование материала</h3>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Наименование *</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Код</label>
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ед. изм. *</label>
+              <input
+                type="text"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Цена</label>
+              <input
+                type="text"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Категория</label>
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                list="categories-list"
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+              <datalist id="categories-list">
+                {categories.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Уровень активности</label>
+            <div className="flex gap-2">
+              {[
+                { value: 1, label: 'Популярный', color: 'bg-green-100 text-green-800 border-green-300' },
+                { value: 2, label: 'Иногда', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+                { value: 3, label: 'Редко', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+                { value: 4, label: 'Архив', color: 'bg-gray-100 text-gray-500 border-gray-300' },
+              ].map((level) => (
+                <button
+                  key={level.value}
+                  type="button"
+                  onClick={() => setActivityLevel(level.value)}
+                  className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                    activityLevel === level.value
+                      ? level.color + ' ring-2 ring-indigo-400'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {level.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg">Отмена</button>
+          <button
+            onClick={handleSubmit}
+            disabled={!name.trim() || !unit.trim()}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
           >
             Сохранить
