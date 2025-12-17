@@ -75,6 +75,7 @@ const DEFAULT_ITEMS_PER_PAGE = 20
 const STORAGE_KEY_VIEW_MODE = 'applications_view_mode'
 const STORAGE_KEY_ITEMS_PER_PAGE = 'applications_items_per_page'
 const STORAGE_KEY_SORT = 'applications_sort'
+const STORAGE_KEY_FILTERS = 'applications_filters'
 
 // Тип для режима отображения
 type ViewMode = 'cards' | 'table'
@@ -135,8 +136,30 @@ function ApplicationsContent() {
       } catch { /* ignore */ }
     }
 
+    // Загружаем фильтры (только если нет URL параметров)
+    const hasUrlParams = searchParams.get('status') || searchParams.get('assigned_to') ||
+                         searchParams.get('technical_curator') || searchParams.get('node_id') ||
+                         searchParams.get('address_id') || searchParams.get('search')
+
+    if (!hasUrlParams) {
+      const savedFilters = localStorage.getItem(STORAGE_KEY_FILTERS)
+      if (savedFilters) {
+        try {
+          const filters = JSON.parse(savedFilters)
+          if (filters.statuses?.length) setSelectedStatuses(filters.statuses)
+          if (filters.urgency) setSelectedUrgency(filters.urgency)
+          if (filters.serviceType) setSelectedServiceType(filters.serviceType)
+          if (filters.assignedTo) setSelectedAssignedTo(filters.assignedTo)
+          if (filters.technicalCurator) setSelectedTechnicalCurator(filters.technicalCurator)
+          if (filters.datePreset) setDatePreset(filters.datePreset)
+          if (filters.dateFrom) setDateFrom(filters.dateFrom)
+          if (filters.dateTo) setDateTo(filters.dateTo)
+        } catch { /* ignore */ }
+      }
+    }
+
     setSettingsLoaded(true)
-  }, [])
+  }, [searchParams])
 
   // Сохраняем настройки в localStorage (только после загрузки)
   useEffect(() => {
@@ -156,6 +179,23 @@ function ApplicationsContent() {
       localStorage.setItem(STORAGE_KEY_SORT, JSON.stringify({ field: sortField, direction: sortDirection }))
     }
   }, [sortField, sortDirection, settingsLoaded])
+
+  // Сохраняем фильтры в localStorage
+  useEffect(() => {
+    if (settingsLoaded) {
+      const filters = {
+        statuses: selectedStatuses,
+        urgency: selectedUrgency,
+        serviceType: selectedServiceType,
+        assignedTo: selectedAssignedTo,
+        technicalCurator: selectedTechnicalCurator,
+        datePreset,
+        dateFrom,
+        dateTo,
+      }
+      localStorage.setItem(STORAGE_KEY_FILTERS, JSON.stringify(filters))
+    }
+  }, [settingsLoaded, selectedStatuses, selectedUrgency, selectedServiceType, selectedAssignedTo, selectedTechnicalCurator, datePreset, dateFrom, dateTo])
 
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
