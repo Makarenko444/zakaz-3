@@ -514,14 +514,28 @@ export default function AddressesPage() {
                     <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">№</th>
                     <th
                       className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
-                      onClick={() => handleSort('address')}
+                      onClick={() => handleSort('street')}
                     >
                       <div className="flex items-center gap-1">
-                        Адрес
-                        {sortField === 'address' && (
+                        Улица
+                        {sortField === 'street' && (
                           <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
                         )}
                       </div>
+                    </th>
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition w-24"
+                      onClick={() => handleSort('house')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Дом
+                        {sortField === 'house' && (
+                          <span className="text-indigo-600">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                      Корпус
                     </th>
                     <th
                       className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition"
@@ -580,10 +594,16 @@ export default function AddressesPage() {
                         {(pagination.page - 1) * pagination.limit + index + 1}
                       </td>
                       <td className="px-3 py-3">
-                        <div className="text-sm text-gray-900">{address.address}</div>
+                        <div className="text-sm text-gray-900">{address.street}</div>
                         {address.comment && (
                           <div className="text-xs text-gray-500 mt-1">{address.comment}</div>
                         )}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{address.house || '—'}</div>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{address.building || '—'}</div>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-center">
                         {address.node_count > 0 ? (
