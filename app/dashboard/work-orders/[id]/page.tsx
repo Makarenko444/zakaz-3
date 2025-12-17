@@ -302,6 +302,20 @@ export default function WorkOrderDetailPage() {
     }
   }
 
+  const handleUpdateMaterialQty = async (materialRecordId: string, quantity: number) => {
+    try {
+      const res = await fetch(`/api/work-orders/${id}/materials`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ material_record_id: materialRecordId, quantity }),
+      })
+
+      if (res.ok) fetchWorkOrder()
+    } catch {
+      console.error('Error updating material quantity')
+    }
+  }
+
   const handleApplyTemplate = async (templateId: string) => {
     try {
       // Получаем шаблон с позициями
@@ -741,17 +755,41 @@ export default function WorkOrderDetailPage() {
           {workOrder.materials && workOrder.materials.length > 0 ? (
             <div className="space-y-2">
               {workOrder.materials.map((m) => (
-                <div key={m.id} className="flex justify-between items-center py-2 border-b last:border-0">
-                  <div>
-                    <div className="text-sm">{m.material_name}</div>
-                    <div className="text-xs text-gray-500">{m.quantity} {m.unit}</div>
+                <div key={m.id} className="flex justify-between items-center py-2 border-b last:border-0 gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm truncate">{m.material_name}</div>
                   </div>
-                  <button
-                    onClick={() => handleRemoveMaterial(m.id)}
-                    className="text-xs text-red-500 hover:text-red-700"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleUpdateMaterialQty(m.id, Math.max(0, m.quantity - 1))}
+                      className="w-7 h-7 flex items-center justify-center border rounded hover:bg-gray-100 text-gray-600"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      value={m.quantity}
+                      onChange={(e) => handleUpdateMaterialQty(m.id, Math.max(0, Number(e.target.value)))}
+                      min={0}
+                      step={0.1}
+                      className="w-16 px-2 py-1 border rounded text-center text-sm"
+                    />
+                    <button
+                      onClick={() => handleUpdateMaterialQty(m.id, m.quantity + 1)}
+                      className="w-7 h-7 flex items-center justify-center border rounded hover:bg-gray-100 text-gray-600"
+                    >
+                      +
+                    </button>
+                    <span className="text-xs text-gray-500 w-8">{m.unit}</span>
+                    <button
+                      onClick={() => handleRemoveMaterial(m.id)}
+                      className="text-red-400 hover:text-red-600 ml-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1216,7 +1254,7 @@ function MaterialModal({
 
   // Изменить количество в корзине
   const updateCartQty = (materialId: string | null, quantity: number) => {
-    if (quantity <= 0) {
+    if (quantity < 0) {
       setCart(prev => prev.filter(item => item.materialId !== materialId))
     } else {
       setCart(prev => prev.map(item =>
@@ -1411,7 +1449,7 @@ function MaterialModal({
                       type="number"
                       value={customQty}
                       onChange={(e) => setCustomQty(Number(e.target.value))}
-                      min={0.1}
+                      min={0}
                       step={0.1}
                       className="w-20 px-3 py-2 border rounded-lg text-sm"
                     />
@@ -1486,7 +1524,7 @@ function MaterialModal({
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => updateCartQty(item.materialId, item.quantity - 1)}
+                          onClick={() => updateCartQty(item.materialId, Math.max(0, item.quantity - 1))}
                           className="w-8 h-8 flex items-center justify-center border rounded hover:bg-gray-100"
                         >
                           −
@@ -1494,8 +1532,8 @@ function MaterialModal({
                         <input
                           type="number"
                           value={item.quantity}
-                          onChange={(e) => updateCartQty(item.materialId, Number(e.target.value))}
-                          min={0.1}
+                          onChange={(e) => updateCartQty(item.materialId, Math.max(0, Number(e.target.value)))}
+                          min={0}
                           step={0.1}
                           className="w-16 px-2 py-1 border rounded text-center text-sm"
                         />

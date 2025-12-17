@@ -575,7 +575,7 @@ export default function WorkOrderPrintPage() {
                     <tr key={m.id}>
                       <td style={styles.tdMaterial}>{idx + 1}</td>
                       <td style={styles.tdMaterial}>{m.material_name}</td>
-                      <td style={styles.tdMaterialCenter}>{m.quantity}</td>
+                      <td style={styles.tdMaterialCenter}>{m.quantity > 0 ? m.quantity : ''}</td>
                       <td style={styles.tdMaterialCenter}>{m.unit}</td>
                       <td style={styles.tdMaterialCenter}></td>
                       <td style={styles.tdMaterialCenter}></td>
