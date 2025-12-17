@@ -20,6 +20,8 @@ export type CustomerType = 'individual' | 'business'
 
 export type ServiceType = 'apartment' | 'office' | 'scs' | 'emergency'
 
+export type WorkType = 'access_control' | 'node_construction' | 'trunk_construction'
+
 export type NodeStatus = 'existing' | 'planned' | 'not_present'
 
 export type NodeType = 'prp' | 'ao' | 'sk' | 'other'
@@ -71,6 +73,7 @@ export interface Application {
   updated_by: string | null
   updated_at: string
   service_type: ServiceType
+  work_type: WorkType | null
   application_number: number
   assigned_to: string | null
   technical_curator_id: string | null
