@@ -180,23 +180,6 @@ function ApplicationsContent() {
     }
   }, [sortField, sortDirection, settingsLoaded])
 
-  // Сохраняем фильтры в localStorage
-  useEffect(() => {
-    if (settingsLoaded) {
-      const filters = {
-        statuses: selectedStatuses,
-        urgency: selectedUrgency,
-        serviceType: selectedServiceType,
-        assignedTo: selectedAssignedTo,
-        technicalCurator: selectedTechnicalCurator,
-        datePreset,
-        dateFrom,
-        dateTo,
-      }
-      localStorage.setItem(STORAGE_KEY_FILTERS, JSON.stringify(filters))
-    }
-  }, [settingsLoaded, selectedStatuses, selectedUrgency, selectedServiceType, selectedAssignedTo, selectedTechnicalCurator, datePreset, dateFrom, dateTo])
-
   // Статусы из БД
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
   const [statusesLoaded, setStatusesLoaded] = useState(false)
@@ -223,6 +206,23 @@ function ApplicationsContent() {
   const [users, setUsers] = useState<{ id: string; full_name: string; role: string }[]>([])
   // Список пользователей для фильтра кураторов (инженеры, менеджеры, админы)
   const [curators, setCurators] = useState<{ id: string; full_name: string; role: string }[]>([])
+
+  // Сохраняем фильтры в localStorage
+  useEffect(() => {
+    if (settingsLoaded) {
+      const filters = {
+        statuses: selectedStatuses,
+        urgency: selectedUrgency,
+        serviceType: selectedServiceType,
+        assignedTo: selectedAssignedTo,
+        technicalCurator: selectedTechnicalCurator,
+        datePreset,
+        dateFrom,
+        dateTo,
+      }
+      localStorage.setItem(STORAGE_KEY_FILTERS, JSON.stringify(filters))
+    }
+  }, [settingsLoaded, selectedStatuses, selectedUrgency, selectedServiceType, selectedAssignedTo, selectedTechnicalCurator, datePreset, dateFrom, dateTo])
 
   const loadApplications = useCallback(async () => {
     setIsLoading(true)
