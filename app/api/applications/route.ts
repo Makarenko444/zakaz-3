@@ -226,6 +226,7 @@ export async function POST(request: NextRequest) {
       address_details: body.address_details || null,
       customer_type: body.customer_type,
       service_type: body.service_type,
+      work_type: body.work_type || null,
       customer_fullname: body.customer_fullname,
       customer_phone: body.customer_phone,
       contact_person: body.contact_person || null,

@@ -5,11 +5,12 @@ import { useRouter, useParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CustomerType, ServiceType, Urgency } from '@/lib/types'
+import { CustomerType, ServiceType, Urgency, WorkType } from '@/lib/types'
 import { getCurrentUser } from '@/lib/auth-client'
 
 // Схема валидации
 const applicationSchema = z.object({
+  work_type: z.enum(['access_control', 'node_construction', 'trunk_construction']).nullable().optional(),
   city: z.string().min(1, 'Укажите город'),
   street_and_house: z.string().min(3, 'Укажите улицу и номер дома'),
   address_details: z.string().optional(),
@@ -33,6 +34,7 @@ interface Application {
   address_details: string | null
   customer_type: CustomerType
   service_type: ServiceType
+  work_type: WorkType | null
   customer_fullname: string
   customer_phone: string
   contact_person: string | null
@@ -40,6 +42,20 @@ interface Application {
   urgency: Urgency
   client_comment: string | null
   assigned_to: string | null
+}
+
+// Компонент блока формы
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-8">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+        {title}
+      </h3>
+      <div className="space-y-4">
+        {children}
+      </div>
+    </div>
+  )
 }
 
 export default function EditApplicationPage() {
@@ -63,6 +79,7 @@ export default function EditApplicationPage() {
   } = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
+      work_type: null,
       city: 'Томск',
       customer_type: 'individual',
       service_type: 'apartment',
@@ -90,6 +107,7 @@ export default function EditApplicationPage() {
 
       // Заполняем форму данными заявки
       reset({
+        work_type: app.work_type || null,
         city: app.city || 'Томск',
         street_and_house: app.street_and_house || '',
         address_details: app.address_details || '',
@@ -138,6 +156,7 @@ export default function EditApplicationPage() {
         },
         body: JSON.stringify({
           ...data,
+          work_type: data.work_type || null,
           node_id: nodeId,
           assigned_to: assignedTo,
           updated_by: currentUserId,
@@ -207,202 +226,229 @@ export default function EditApplicationPage() {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg border border-gray-200 p-6">
-          {/* Адрес подключения */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Город <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              {...register('city')}
-              placeholder="Томск"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            {errors.city && (
-              <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
-            )}
-          </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Улица и номер дома <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              {...register('street_and_house')}
-              placeholder="Например: пр. Кирова, д.22"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            {errors.street_and_house && (
-              <p className="mt-1 text-sm text-red-600">{errors.street_and_house.message}</p>
-            )}
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Подъезд, этаж, квартира/офис
-            </label>
-            <input
-              type="text"
-              {...register('address_details')}
-              placeholder="Например: подъезд 2, этаж 5, кв. 42"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            {errors.address_details && (
-              <p className="mt-1 text-sm text-red-600">{errors.address_details.message}</p>
-            )}
-            <p className="mt-1 text-xs text-gray-500">
-              Привязать адрес к узлу можно на странице просмотра заявки
-            </p>
-          </div>
-
-          {/* Тип клиента */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Тип клиента <span className="text-red-500">*</span>
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  {...register('customer_type')}
-                  value="individual"
-                  className="mr-2"
-                />
-                <span className="text-sm text-gray-700">Физическое лицо</span>
+          {/* Блок 1: Тип работ */}
+          <FormSection title="Тип работ">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Тип работ
               </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  {...register('customer_type')}
-                  value="business"
-                  className="mr-2"
-                />
-                <span className="text-sm text-gray-700">Юридическое лицо</span>
-              </label>
+              <select
+                {...register('work_type')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="">Не указан</option>
+                <option value="access_control">СКУД</option>
+                <option value="node_construction">Строительство Узла</option>
+                <option value="trunk_construction">Строительство магистрали</option>
+              </select>
+              {errors.work_type && (
+                <p className="mt-1 text-sm text-red-600">{errors.work_type.message}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                Выберите тип работ, если это применимо к данной заявке
+              </p>
             </div>
-            {errors.customer_type && (
-              <p className="mt-1 text-sm text-red-600">{errors.customer_type.message}</p>
-            )}
-          </div>
+          </FormSection>
 
-          {/* ФИО / Название компании */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {customerType === 'business' ? 'Название компании' : 'ФИО клиента'}{' '}
-              <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              {...register('customer_fullname')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            {errors.customer_fullname && (
-              <p className="mt-1 text-sm text-red-600">{errors.customer_fullname.message}</p>
-            )}
-          </div>
+          {/* Блок 2: Адрес подключения */}
+          <FormSection title="Адрес подключения">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Город <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                {...register('city')}
+                placeholder="Томск"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              {errors.city && (
+                <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
+              )}
+            </div>
 
-          {/* Контакты заказчика */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Контакты заказчика (телефон, email) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              {...register('customer_phone')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            {errors.customer_phone && (
-              <p className="mt-1 text-sm text-red-600">{errors.customer_phone.message}</p>
-            )}
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Улица и номер дома <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                {...register('street_and_house')}
+                placeholder="Например: пр. Кирова, д.22"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              {errors.street_and_house && (
+                <p className="mt-1 text-sm text-red-600">{errors.street_and_house.message}</p>
+              )}
+            </div>
 
-          {/* Контактное лицо (для юр.лиц) */}
-          {customerType === 'business' && (
-            <>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Контактное лицо
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Подъезд, этаж, квартира/офис
+              </label>
+              <input
+                type="text"
+                {...register('address_details')}
+                placeholder="Например: подъезд 2, этаж 5, кв. 42"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              {errors.address_details && (
+                <p className="mt-1 text-sm text-red-600">{errors.address_details.message}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                Привязать адрес к узлу можно на странице просмотра заявки
+              </p>
+            </div>
+          </FormSection>
+
+          {/* Блок 3: Данные клиента */}
+          <FormSection title="Данные клиента">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Тип клиента <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    {...register('customer_type')}
+                    value="individual"
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700">Физическое лицо</span>
                 </label>
-                <input
-                  type="text"
-                  {...register('contact_person')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-                {errors.contact_person && (
-                  <p className="mt-1 text-sm text-red-600">{errors.contact_person.message}</p>
-                )}
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Телефон контактного лица
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    {...register('customer_type')}
+                    value="business"
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700">Юридическое лицо</span>
                 </label>
-                <input
-                  type="tel"
-                  {...register('contact_phone')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-                {errors.contact_phone && (
-                  <p className="mt-1 text-sm text-red-600">{errors.contact_phone.message}</p>
-                )}
               </div>
-            </>
-          )}
+              {errors.customer_type && (
+                <p className="mt-1 text-sm text-red-600">{errors.customer_type.message}</p>
+              )}
+            </div>
 
-          {/* Тип услуги */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Тип услуги <span className="text-red-500">*</span>
-            </label>
-            <select
-              {...register('service_type')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            >
-              <option value="apartment">Подключение квартиры</option>
-              <option value="office">Подключение офиса</option>
-              <option value="scs">Строительство СКС</option>
-              <option value="emergency">Аварийная заявка</option>
-            </select>
-            {errors.service_type && (
-              <p className="mt-1 text-sm text-red-600">{errors.service_type.message}</p>
-            )}
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {customerType === 'business' ? 'Название компании' : 'ФИО клиента'}{' '}
+                <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                {...register('customer_fullname')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              {errors.customer_fullname && (
+                <p className="mt-1 text-sm text-red-600">{errors.customer_fullname.message}</p>
+              )}
+            </div>
 
-          {/* Срочность */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Срочность <span className="text-red-500">*</span>
-            </label>
-            <select
-              {...register('urgency')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            >
-              <option value="low">Низкая</option>
-              <option value="normal">Обычная</option>
-              <option value="high">Высокая</option>
-              <option value="critical">Критическая</option>
-            </select>
-            {errors.urgency && (
-              <p className="mt-1 text-sm text-red-600">{errors.urgency.message}</p>
-            )}
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Контакты заказчика (телефон, email) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                {...register('customer_phone')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              {errors.customer_phone && (
+                <p className="mt-1 text-sm text-red-600">{errors.customer_phone.message}</p>
+              )}
+            </div>
 
-          {/* Комментарий клиента */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Комментарий клиента
-            </label>
-            <textarea
-              {...register('client_comment')}
-              rows={4}
-              placeholder="Дополнительная информация от клиента..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-            />
-            {errors.client_comment && (
-              <p className="mt-1 text-sm text-red-600">{errors.client_comment.message}</p>
+            {/* Контактное лицо (для юр.лиц) */}
+            {customerType === 'business' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Контактное лицо
+                  </label>
+                  <input
+                    type="text"
+                    {...register('contact_person')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  {errors.contact_person && (
+                    <p className="mt-1 text-sm text-red-600">{errors.contact_person.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Телефон контактного лица
+                  </label>
+                  <input
+                    type="tel"
+                    {...register('contact_phone')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  {errors.contact_phone && (
+                    <p className="mt-1 text-sm text-red-600">{errors.contact_phone.message}</p>
+                  )}
+                </div>
+              </>
             )}
-          </div>
+          </FormSection>
+
+          {/* Блок 4: Параметры заявки */}
+          <FormSection title="Параметры заявки">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Тип услуги <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register('service_type')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="apartment">Подключение квартиры</option>
+                <option value="office">Подключение офиса</option>
+                <option value="scs">Строительство СКС</option>
+                <option value="emergency">Аварийная заявка</option>
+              </select>
+              {errors.service_type && (
+                <p className="mt-1 text-sm text-red-600">{errors.service_type.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Срочность <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register('urgency')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="low">Низкая</option>
+                <option value="normal">Обычная</option>
+                <option value="high">Высокая</option>
+                <option value="critical">Критическая</option>
+              </select>
+              {errors.urgency && (
+                <p className="mt-1 text-sm text-red-600">{errors.urgency.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Комментарий клиента
+              </label>
+              <textarea
+                {...register('client_comment')}
+                rows={4}
+                placeholder="Дополнительная информация от клиента..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              />
+              {errors.client_comment && (
+                <p className="mt-1 text-sm text-red-600">{errors.client_comment.message}</p>
+              )}
+            </div>
+          </FormSection>
 
           {/* Кнопки */}
           <div className="flex gap-4 justify-end pt-4 border-t border-gray-200">
