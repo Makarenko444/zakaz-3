@@ -2,19 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-type AddressSource = 'local' | 'external_osm'
+type AddressSource = 'local'
 
 type SearchStats = {
   local: number
-  external: number
   total: number
-  openstreet: number
-}
-
-type OsmValidation = {
-  status: 'match' | 'suggestions' | 'no_match'
-  suggestion?: string
-  suggestions?: string[]
 }
 
 interface Address {
@@ -59,7 +51,6 @@ export default function AddressLinkWizard({
   const [error, setError] = useState('')
   const [usedFallback, setUsedFallback] = useState(false)
   const [_searchStats, _setSearchStats] = useState<SearchStats | null>(null)
-  const [_osmValidation, _setOsmValidation] = useState<OsmValidation | null>(null)
 
   // State for creating new address
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -79,21 +70,6 @@ export default function AddressLinkWizard({
   const [showStreetSuggestions, setShowStreetSuggestions] = useState(false)
   const [isLoadingStreets, setIsLoadingStreets] = useState(false)
 
-  const validateAddressWithOSM = useCallback(async (address: string) => {
-    try {
-      const response = await fetch(`/api/addresses/validate-osm?address=${encodeURIComponent(address)}`)
-      if (!response.ok) {
-        _setOsmValidation({ status: 'no_match' })
-        return
-      }
-      const data = await response.json()
-      _setOsmValidation(data)
-    } catch (error) {
-      console.error('Error validating address with OSM:', error)
-      _setOsmValidation({ status: 'no_match' })
-    }
-  }, [])
-
   const searchAddresses = useCallback(async (query: string) => {
     if (!query.trim()) {
       setAddresses([])
@@ -102,10 +78,9 @@ export default function AddressLinkWizard({
 
     setIsSearching(true)
     setError('')
-    _setOsmValidation(null)
 
     try {
-      const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}`)
+      const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}&mode=addresses`)
       if (!response.ok) throw new Error('Failed to search addresses')
       const data = await response.json()
       setAddresses(data.addresses || [])
@@ -141,10 +116,8 @@ export default function AddressLinkWizard({
     // При открытии мастера сразу ищем по адресу из заявки
     if (streetAndHouse && streetAndHouse.trim()) {
       searchAddresses(streetAndHouse)
-      // OSM validation temporarily disabled
-      // validateAddressWithOSM(streetAndHouse)
     }
-  }, [streetAndHouse, searchAddresses, validateAddressWithOSM])
+  }, [streetAndHouse, searchAddresses])
 
   useEffect(() => {
     // Debounce поиска при изменении запроса
@@ -204,7 +177,7 @@ export default function AddressLinkWizard({
     setIsLoadingStreets(true)
 
     try {
-      const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}`)
+      const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}&mode=addresses`)
       if (!response.ok) {
         setStreetSuggestions([])
         return

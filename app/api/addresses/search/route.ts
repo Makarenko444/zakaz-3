@@ -1,136 +1,33 @@
 import { NextResponse } from 'next/server'
 import { createDirectClient } from '@/lib/supabase-direct'
 
-interface NodeSearchResult {
+interface StreetResult {
+  street: string
+}
+
+interface AddressResult {
   id: string
   street: string | null
   house: string | null
   building?: string | null
   comment: string | null
-  presence_type?: string
-  code?: string
-  created_at?: string
-  updated_at?: string
-}
-
-type AddressSource = 'local' | 'external_osm'
-
-interface SearchResult extends NodeSearchResult {
-  similarity: number
-  full_address: string
-  source: AddressSource // Источник: локальная БД или внешний API
-}
-
-interface OpenStreetSearchResult {
-  place_id: string
-  display_name: string
-  address?: {
-    road?: string
-    pedestrian?: string
-    residential?: string
-    house_number?: string
-    city?: string
-    town?: string
-  }
-}
-
-async function searchOpenStreetMap(query: string): Promise<SearchResult[]> {
-  /**
-   * Поиск адресов через OpenStreetMap (Nominatim)
-   * Используется для проверки написания адреса и подсказок при привязке
-   */
-  const results: SearchResult[] = []
-
-  try {
-    const searchQuery = query.includes('Томск') ? query : `Томск ${query}`
-
-    const url = new URL('https://nominatim.openstreetmap.org/search')
-    url.searchParams.set('format', 'jsonv2')
-    url.searchParams.set('addressdetails', '1')
-    url.searchParams.set('limit', '5')
-    url.searchParams.set('q', searchQuery)
-    url.searchParams.set('countrycodes', 'ru')
-    url.searchParams.set('dedupe', '1')
-
-    // Таймаут 5 секунд для внешнего API
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-    let response: Response
-    try {
-      response = await fetch(url.toString(), {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'zakaz-app/1.0 (support@zakaz.local)',
-          'Accept-Language': 'ru',
-        },
-        next: { revalidate: 3600 }
-      })
-    } finally {
-      clearTimeout(timeoutId)
-    }
-
-    if (!response.ok) {
-      console.error('OpenStreetMap API error:', response.status, await response.text())
-      return results
-    }
-
-    const data = await response.json() as OpenStreetSearchResult[]
-
-    for (const item of data) {
-      const address = item.address || {}
-      const street = address.road || address.pedestrian || address.residential
-      const house = address.house_number
-
-      if (!street || !house) continue
-
-      results.push({
-        id: `external_osm_${item.place_id}`,
-        street,
-        house,
-        comment: item.display_name,
-        similarity: 0.72,
-        full_address: item.display_name,
-        source: 'external_osm'
-      })
-    }
-
-    console.log(`OpenStreetMap API returned ${results.length} results for query: ${searchQuery}`)
-    return results
-  } catch (error) {
-    console.error('Error fetching from OpenStreetMap API:', error)
-    return results
-  }
 }
 
 /**
  * Нормализует название улицы для поиска
  * Удаляет типы улиц (проспект, улица, тракт и т.д.) для более гибкого поиска
- * Работает как с типом в начале, так и в конце названия
- *
- * Примеры:
- * - "проспект Ленина" -> "Ленина" (тип в начале)
- * - "пр. Ленина" -> "Ленина" (сокращение в начале)
- * - "Иркутский тракт" -> "Иркутский" (тип в конце)
- * - "ул. Кирова" -> "Кирова"
- * - "Кирова" -> "Кирова" (без изменений)
  */
 function normalizeStreetName(street: string): string {
   let result = street.trim()
 
-  // Типы улиц для удаления из НАЧАЛА (с пробелом после)
   const prefixes = [
-    // Полные формы
     'проспект ', 'улица ', 'переулок ', 'площадь ', 'бульвар ',
     'шоссе ', 'тракт ', 'аллея ', 'набережная ', 'микрорайон ', 'проезд ', 'тупик ',
-    // Сокращённые формы с точкой
     'пр-т. ', 'пр-т ', 'пр. ', 'ул. ', 'пер. ', 'пл. ', 'б-р. ', 'б-р ',
     'ш. ', 'наб. ', 'мкр. ', 'пр-д. ', 'пр-д ',
-    // Короткие сокращения
     'пр ', 'ул ',
   ]
 
-  // Типы улиц для удаления из КОНЦА (с пробелом перед)
   const suffixes = [
     ' проспект', ' улица', ' переулок', ' площадь', ' бульвар',
     ' шоссе', ' тракт', ' аллея', ' набережная', ' микрорайон', ' проезд', ' тупик',
@@ -139,7 +36,6 @@ function normalizeStreetName(street: string): string {
 
   const lowerResult = result.toLowerCase()
 
-  // Удаляем тип из начала
   for (const prefix of prefixes) {
     if (lowerResult.startsWith(prefix)) {
       result = result.substring(prefix.length).trim()
@@ -147,7 +43,6 @@ function normalizeStreetName(street: string): string {
     }
   }
 
-  // Удаляем тип из конца
   const lowerResultAfterPrefix = result.toLowerCase()
   for (const suffix of suffixes) {
     if (lowerResultAfterPrefix.endsWith(suffix)) {
@@ -163,6 +58,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('query')
+    const mode = searchParams.get('mode') || 'streets' // 'streets' или 'addresses'
 
     if (!query || query.trim().length === 0) {
       return NextResponse.json(
@@ -172,142 +68,104 @@ export async function GET(request: Request) {
     }
 
     const supabase = createDirectClient()
-
-    // Шаг 1: Поиск в zakaz_addresses через fuzzy search
-    // Пытаемся определить, ищет ли пользователь "улица + дом"
     const trimmedQuery = query.trim()
+    const normalizedQuery = normalizeStreetName(trimmedQuery)
 
-    // Попробуем разделить запрос на улицу и номер дома
-    // Ищем паттерны вида "Кирова 555", "Кирова, 555", "Кирова,555", "Иркутский тракт, 193а, 244"
-    // Важно: берём ПЕРВЫЙ номер дома (без $ в конце), чтобы "193а, 244" дало "193а", а не "244"
-    const streetHousePattern = /^(.+?)[\s,]+(\d+[а-яА-Яa-zA-Z]*)/
-    const match = trimmedQuery.match(streetHousePattern)
+    // Режим поиска полных адресов (для AddressLinkWizard)
+    if (mode === 'addresses') {
+      // Попробуем разделить запрос на улицу и номер дома
+      const streetHousePattern = /^(.+?)[\s,]+(\d+[а-яА-Яa-zA-Z]*)/
+      const match = trimmedQuery.match(streetHousePattern)
 
-    let nodes: NodeSearchResult[] = []
-    let searchError = null
+      let data: AddressResult[] = []
+      let error = null
 
-    if (match) {
-      // Запрос содержит и улицу и номер дома
-      const streetPartRaw = match[1].trim()
-      const housePart = match[2].trim()
+      if (match) {
+        const streetPartNormalized = normalizeStreetName(match[1].trim())
+        const housePart = match[2].trim()
 
-      // Нормализуем название улицы - удаляем тип улицы для более гибкого поиска
-      // "проспект Ленина" -> "Ленина", "ул. Кирова" -> "Кирова"
-      const streetPartNormalized = normalizeStreetName(streetPartRaw)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await (supabase.from('zakaz_addresses') as any)
+          .select('id, street, house, building, comment')
+          .ilike('street', `%${streetPartNormalized}%`)
+          .ilike('house', `%${housePart}%`)
+          .order('street', { ascending: true })
+          .order('house', { ascending: true })
+          .limit(20)
 
-      // Ищем по двум условиям: улица содержит название И дом содержит номер
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('zakaz_addresses') as any)
-        .select('id, city, street, house, building, address, comment, created_at, updated_at')
-        .ilike('street', `%${streetPartNormalized}%`)
-        .ilike('house', `%${housePart}%`)
-        .order('street', { ascending: true })
-        .order('house', { ascending: true })
-        .limit(20)
+        data = result.data || []
+        error = result.error
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await (supabase.from('zakaz_addresses') as any)
+          .select('id, street, house, building, comment')
+          .ilike('street', `%${normalizedQuery}%`)
+          .order('street', { ascending: true })
+          .order('house', { ascending: true })
+          .limit(20)
 
-      nodes = data || []
-      searchError = error
+        data = result.data || []
+        error = result.error
+      }
 
-      console.log(`Search with split query: street="${streetPartRaw}" (normalized: "${streetPartNormalized}") AND house="${housePart}" -> ${nodes.length} results`)
-    } else {
-      // Обычный поиск по всем полям
-      // Нормализуем запрос - удаляем тип улицы для более гибкого поиска
-      const normalizedQuery = normalizeStreetName(trimmedQuery)
+      if (error) {
+        console.error('Database error:', error)
+        return NextResponse.json(
+          { error: 'Failed to search addresses', details: error.message },
+          { status: 500 }
+        )
+      }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('zakaz_addresses') as any)
-        .select('id, city, street, house, building, address, comment, created_at, updated_at')
-        .or(`city.ilike.%${normalizedQuery}%,street.ilike.%${normalizedQuery}%,house.ilike.%${normalizedQuery}%,address.ilike.%${normalizedQuery}%`)
-        .order('street', { ascending: true })
-        .order('house', { ascending: true })
-        .limit(20)
+      const addresses = (data || [])
+        .filter(addr => addr.street && addr.house)
+        .map(addr => ({
+          ...addr,
+          full_address: `${addr.street}, ${addr.house}`,
+          source: 'local' as const
+        }))
 
-      nodes = data || []
-      searchError = error
-
-      console.log(`Search with simple query: "${trimmedQuery}" (normalized: "${normalizedQuery}") -> ${nodes.length} results`)
+      return NextResponse.json({
+        addresses,
+        stats: {
+          local: addresses.length,
+          total: addresses.length
+        }
+      })
     }
 
-    let localResults: SearchResult[] = []
+    // Режим по умолчанию: поиск уникальных улиц (для формы создания заявки)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from('zakaz_addresses') as any)
+      .select('street')
+      .ilike('street', `%${normalizedQuery}%`)
+      .not('street', 'is', null)
+      .order('street', { ascending: true })
+      .limit(100)
 
-    if (searchError) {
-      console.error('Database error:', searchError)
+    if (error) {
+      console.error('Database error:', error)
       return NextResponse.json(
-        { error: 'Failed to search addresses', details: searchError.message },
+        { error: 'Failed to search addresses', details: error.message },
         { status: 500 }
       )
     }
 
-    // Форматируем результаты и находим узлы для каждого адреса
-    const addressesWithNodes = await Promise.all(
-      (nodes || [])
-        .filter(node => node.street && node.house) // Только адреса с заполненными street и house
-        .map(async (address) => {
-          // Для каждого адреса находим первый узел (если есть)
-          const { data: nodeData } = await supabase
-            .from('zakaz_nodes')
-            .select('id')
-            .eq('address_id', address.id)
-            .limit(1)
+    // Получаем уникальные улицы
+    const uniqueStreets = [...new Set((data as StreetResult[]).map(item => item.street))]
+      .filter(Boolean)
+      .slice(0, 15)
 
-          // nodeData будет массивом или null
-          const firstNode = (nodeData && Array.isArray(nodeData) && nodeData.length > 0 ? nodeData[0] : null) as { id: string } | null
+    const streets = uniqueStreets.map(street => ({
+      id: `street_${street}`,
+      street: street,
+    }))
 
-          return {
-            ...address,
-            node_id: firstNode ? firstNode.id : null, // ID узла, если он существует
-            similarity: 0.5,
-            full_address: `${address.street}, ${address.house}`,
-            source: 'local' as const
-          }
-        })
-    )
-
-    localResults = addressesWithNodes
-
-    // Шаг 2: Запрашиваем внешний API если мало локальных результатов
-    let externalResults: SearchResult[] = []
-    const MIN_LOCAL_RESULTS = 3
-
-    // Проверяем есть ли точное совпадение среди локальных результатов
-    const hasExactMatch = localResults.some(node => {
-      if (!node.street || !node.house) return false
-      const fullAddress = `${node.street}, ${node.house}`.toLowerCase()
-      const normalizedQuery = query.trim().toLowerCase()
-
-      // Проверяем точное совпадение или совпадение без запятой
-      return fullAddress === normalizedQuery ||
-             fullAddress.replace(/,\s*/g, ' ') === normalizedQuery ||
-             `${node.street} ${node.house}`.toLowerCase() === normalizedQuery
-    })
-
-    const triggeredExternalSearch = localResults.length < MIN_LOCAL_RESULTS || !hasExactMatch
-
-    if (triggeredExternalSearch) {
-      const reason = localResults.length < MIN_LOCAL_RESULTS
-        ? `only ${localResults.length} local results`
-        : 'no exact match found'
-      console.log(`Fetching from OpenStreetMap (${reason})...`)
-      externalResults = await searchOpenStreetMap(query.trim())
-    }
-
-    // Объединяем результаты: сначала локальные, потом внешние
-    const allResults = [...localResults, ...externalResults]
-    const osmCount = externalResults.filter(result => result.source === 'external_osm').length
+    console.log(`Street search for "${trimmedQuery}" -> ${streets.length} unique streets`)
 
     return NextResponse.json({
-      addresses: allResults,
+      streets,
       stats: {
-        local: localResults.length,
-        external: externalResults.length,
-        total: allResults.length,
-        openstreet: osmCount
-      },
-      fallback: triggeredExternalSearch,
-      debug: {
-        query: query.trim(),
-        hasExactMatch,
-        triggeredExternalSearch
+        total: streets.length
       }
     })
   } catch (error) {
