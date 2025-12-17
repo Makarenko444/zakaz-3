@@ -108,14 +108,15 @@ export default function MaterialsPage() {
   const [stockFile, setStockFile] = useState<File | null>(null)
   const [stockPreviewData, setStockPreviewData] = useState<PreviewData | null>(null)
   const [showStockPreviewModal, setShowStockPreviewModal] = useState(false)
-  const [stockColumnMapping, setStockColumnMapping] = useState<{ code: string; quantity: string }>({ code: '', quantity: '' })
+  const [stockColumnMapping, setStockColumnMapping] = useState<ColumnMapping>({
+    code: '',
+    name: '',
+    unit: '',
+    price: '',
+    quantity: '',
+  })
   const [isImportingStock, setIsImportingStock] = useState(false)
-  const [stockImportResult, setStockImportResult] = useState<{
-    success: boolean
-    message: string
-    stats: { total: number; processed: number; skipped: number; errors: number }
-    details?: { skipped?: Array<{ row: number; reason: string }> }
-  } | null>(null)
+  const [stockImportResult, setStockImportResult] = useState<ImportResult | null>(null)
 
   const fetchCurrentUser = useCallback(async () => {
     const user = await getCurrentUser()
@@ -276,16 +277,8 @@ export default function MaterialsPage() {
       if (!response.ok) throw new Error(result.error)
 
       setStockPreviewData(result)
-      // Автодетект колонок для остатков
-      const codePatterns = ['код', 'code', 'артикул', 'id', 'номер']
-      const qtyPatterns = ['остаток', 'количество', 'qty', 'stock', 'кол-во', 'кол.']
-      const mapping = { code: '', quantity: '' }
-      for (const header of result.headers) {
-        const lowerHeader = header.toLowerCase()
-        if (!mapping.code && codePatterns.some(p => lowerHeader.includes(p))) mapping.code = header
-        if (!mapping.quantity && qtyPatterns.some(p => lowerHeader.includes(p))) mapping.quantity = header
-      }
-      setStockColumnMapping(mapping)
+      // Используем общий автодетект колонок
+      setStockColumnMapping(autoDetectColumns(result.headers))
       setShowStockPreviewModal(true)
     } catch (error) {
       console.error('Error previewing stock file:', error)
@@ -316,6 +309,9 @@ export default function MaterialsPage() {
 
       setStockImportResult(result)
       fetchWarehouseStocks(selectedWarehouse.id)
+      // Обновляем справочник материалов, т.к. могли быть созданы новые
+      fetchMaterials()
+      fetchAllMaterials()
     } catch (error) {
       console.error('Error importing stock:', error)
       setImportError(String(error))
@@ -1331,7 +1327,7 @@ export default function MaterialsPage() {
       {/* Модалка предпросмотра импорта остатков */}
       {showStockPreviewModal && stockPreviewData && selectedWarehouse && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <div>
                 <h3 className="text-lg font-semibold">Импорт остатков: {selectedWarehouse.name}</h3>
@@ -1347,9 +1343,9 @@ export default function MaterialsPage() {
             {/* Маппинг колонок для остатков */}
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
               <h4 className="text-sm font-medium text-gray-700 mb-3">Сопоставление колонок:</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Код материала *</label>
+                  <label className="block text-xs text-gray-500 mb-1">Код *</label>
                   <select
                     value={stockColumnMapping.code}
                     onChange={(e) => setStockColumnMapping({ ...stockColumnMapping, code: e.target.value })}
@@ -1362,7 +1358,46 @@ export default function MaterialsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Количество *</label>
+                  <label className="block text-xs text-gray-500 mb-1">Наименование *</label>
+                  <select
+                    value={stockColumnMapping.name}
+                    onChange={(e) => setStockColumnMapping({ ...stockColumnMapping, name: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {stockPreviewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Ед. изм.</label>
+                  <select
+                    value={stockColumnMapping.unit}
+                    onChange={(e) => setStockColumnMapping({ ...stockColumnMapping, unit: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {stockPreviewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Цена</label>
+                  <select
+                    value={stockColumnMapping.price}
+                    onChange={(e) => setStockColumnMapping({ ...stockColumnMapping, price: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="">— не выбрано —</option>
+                    {stockPreviewData.headers.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Остаток *</label>
                   <select
                     value={stockColumnMapping.quantity}
                     onChange={(e) => setStockColumnMapping({ ...stockColumnMapping, quantity: e.target.value })}
@@ -1376,7 +1411,7 @@ export default function MaterialsPage() {
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Материалы сопоставляются по коду. Материалы без совпадения будут пропущены.
+                Новые материалы будут созданы в справочнике. Существующие обновятся по коду.
               </p>
             </div>
 
@@ -1390,7 +1425,10 @@ export default function MaterialsPage() {
                       <th
                         key={header}
                         className={`px-2 py-2 border text-left text-xs font-medium ${
+                          header === stockColumnMapping.name ? 'bg-green-100 text-green-800' :
                           header === stockColumnMapping.code ? 'bg-blue-100 text-blue-800' :
+                          header === stockColumnMapping.unit ? 'bg-purple-100 text-purple-800' :
+                          header === stockColumnMapping.price ? 'bg-yellow-100 text-yellow-800' :
                           header === stockColumnMapping.quantity ? 'bg-orange-100 text-orange-800' :
                           'text-gray-500'
                         }`}
@@ -1408,7 +1446,10 @@ export default function MaterialsPage() {
                         <td
                           key={header}
                           className={`px-2 py-1 border ${
+                            header === stockColumnMapping.name ? 'bg-green-50' :
                             header === stockColumnMapping.code ? 'bg-blue-50' :
+                            header === stockColumnMapping.unit ? 'bg-purple-50' :
+                            header === stockColumnMapping.price ? 'bg-yellow-50' :
                             header === stockColumnMapping.quantity ? 'bg-orange-50' :
                             ''
                           }`}
@@ -1432,7 +1473,7 @@ export default function MaterialsPage() {
               </button>
               <button
                 onClick={handleImportStock}
-                disabled={!stockColumnMapping.code || !stockColumnMapping.quantity || isImportingStock}
+                disabled={!stockColumnMapping.code || !stockColumnMapping.name || !stockColumnMapping.quantity || isImportingStock}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
               >
                 {isImportingStock ? 'Импортирую...' : `Импортировать ${stockPreviewData.totalRows} строк`}

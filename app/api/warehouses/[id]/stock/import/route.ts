@@ -6,8 +6,11 @@ import * as XLSX from 'xlsx'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface ColumnMapping {
-  code: string // Код материала - обязательный для сопоставления
-  quantity: string // Количество
+  code: string      // Код материала - обязательный
+  name: string      // Наименование - обязательный
+  unit: string      // Единица измерения
+  price: string     // Цена
+  quantity: string  // Количество/остаток - обязательный
 }
 
 interface ExcelRow {
@@ -41,7 +44,7 @@ function parseNumber(value: unknown): number {
   return isNaN(parsed) ? 0 : parsed
 }
 
-// POST /api/warehouses/[id]/stock/import - импорт остатков для склада
+// POST /api/warehouses/[id]/stock/import - импорт материалов и остатков для склада
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -95,9 +98,9 @@ export async function POST(
       }
     }
 
-    if (!columnMapping?.code) {
+    if (!columnMapping?.code || !columnMapping?.name || !columnMapping?.quantity) {
       return NextResponse.json(
-        { error: 'Необходимо указать колонку с кодом материала' },
+        { error: 'Необходимо указать колонки: код, наименование и количество' },
         { status: 400 }
       )
     }
@@ -128,23 +131,32 @@ export async function POST(
       )
     }
 
-    // Получаем все материалы с кодами для сопоставления
-    const { data: materials } = await (supabase.from as any)('zakaz_materials')
+    // Получаем все существующие материалы по кодам
+    const { data: existingMaterials } = await (supabase.from as any)('zakaz_materials')
       .select('id, code, name')
       .not('code', 'is', null)
 
     const materialsByCode = new Map<string, { id: string; name: string }>()
-    for (const m of materials || []) {
+    for (const m of existingMaterials || []) {
       if (m.code) {
         materialsByCode.set(m.code.trim(), { id: m.id, name: m.name })
       }
     }
 
-    // Обрабатываем строки
-    const stocksToUpsert = []
-    const skipped = []
-    const errors = []
+    // Обрабатываем строки - собираем материалы для upsert
+    const materialsToUpsert: Array<{
+      code: string
+      name: string
+      unit: string
+      price: number
+      last_import_at: string
+    }> = []
+    const skipped: Array<{ row: number; reason: string }> = []
+    const errors: Array<{ row: number; error: string }> = []
     const now = new Date().toISOString()
+
+    // Для отслеживания дубликатов кодов в файле
+    const seenCodes = new Map<string, number>()
 
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i]
@@ -152,18 +164,110 @@ export async function POST(
 
       try {
         const code = row[columnMapping.code]
-        const quantity = columnMapping.quantity ? row[columnMapping.quantity] : 0
+        const name = row[columnMapping.name]
+        const unit = columnMapping.unit ? row[columnMapping.unit] : null
+        const price = columnMapping.price ? row[columnMapping.price] : null
+        const quantity = row[columnMapping.quantity]
 
+        // Валидация обязательных полей
         if (!code) {
           skipped.push({ row: rowNumber, reason: 'Отсутствует код материала' })
           continue
         }
 
+        if (!name) {
+          skipped.push({ row: rowNumber, reason: 'Отсутствует наименование' })
+          continue
+        }
+
+        const codeStr = String(code).trim()
+        const nameStr = String(name).trim()
+
+        if (!codeStr || !nameStr) {
+          skipped.push({ row: rowNumber, reason: 'Пустой код или наименование' })
+          continue
+        }
+
+        // Проверяем дубликаты кодов в файле
+        if (seenCodes.has(codeStr)) {
+          // Обновляем данные последней строкой с этим кодом
+        }
+        seenCodes.set(codeStr, rowNumber)
+
+        materialsToUpsert.push({
+          code: codeStr,
+          name: nameStr,
+          unit: unit ? String(unit).trim() : 'шт',
+          price: parseNumber(price),
+          last_import_at: now,
+        })
+      } catch (error) {
+        errors.push({ row: rowNumber, error: String(error) })
+      }
+    }
+
+    // Удаляем дубликаты кодов (оставляем последние)
+    const uniqueMaterialsMap = new Map<string, typeof materialsToUpsert[0]>()
+    for (const mat of materialsToUpsert) {
+      uniqueMaterialsMap.set(mat.code, mat)
+    }
+    const uniqueMaterials = Array.from(uniqueMaterialsMap.values())
+
+    // Upsert материалов в справочник
+    let insertedMaterials = 0
+    let updatedMaterials = 0
+    const batchSize = 100
+
+    for (let i = 0; i < uniqueMaterials.length; i += batchSize) {
+      const batch = uniqueMaterials.slice(i, i + batchSize)
+
+      const { data: upsertedData, error: upsertError } = await (supabase.from as any)('zakaz_materials')
+        .upsert(batch, {
+          onConflict: 'code',
+          ignoreDuplicates: false,
+        })
+        .select('id, code')
+
+      if (upsertError) {
+        console.error('[Stock Import] Material upsert error:', upsertError)
+        errors.push({ row: 0, error: `Ошибка сохранения материалов: ${upsertError.message}` })
+      } else if (upsertedData) {
+        // Обновляем карту материалов
+        for (const mat of upsertedData) {
+          const existed = materialsByCode.has(mat.code)
+          if (existed) {
+            updatedMaterials++
+          } else {
+            insertedMaterials++
+          }
+          materialsByCode.set(mat.code, { id: mat.id, name: '' })
+        }
+      }
+    }
+
+    // Теперь создаем записи остатков
+    const stocksToUpsert: Array<{
+      warehouse_id: string
+      material_id: string
+      quantity: number
+      last_import_at: string
+    }> = []
+
+    for (let i = 0; i < rawData.length; i++) {
+      const row = rawData[i]
+      const rowNumber = noHeaders ? i + 1 : i + 2
+
+      try {
+        const code = row[columnMapping.code]
+        const quantity = row[columnMapping.quantity]
+
+        if (!code) continue
+
         const codeStr = String(code).trim()
         const material = materialsByCode.get(codeStr)
 
         if (!material) {
-          skipped.push({ row: rowNumber, reason: `Материал с кодом "${codeStr}" не найден в справочнике` })
+          // Материал не был создан (ошибка?)
           continue
         }
 
@@ -172,47 +276,48 @@ export async function POST(
           material_id: material.id,
           quantity: parseNumber(quantity),
           last_import_at: now,
-          updated_at: now,
         })
       } catch (error) {
         errors.push({ row: rowNumber, error: String(error) })
       }
     }
 
-    // Удаляем дубликаты (оставляем последний)
-    const uniqueStocksMap = new Map()
+    // Удаляем дубликаты остатков (оставляем последний)
+    const uniqueStocksMap = new Map<string, typeof stocksToUpsert[0]>()
     for (const stock of stocksToUpsert) {
       uniqueStocksMap.set(stock.material_id, stock)
     }
     const uniqueStocks = Array.from(uniqueStocksMap.values())
 
-    // Вставляем/обновляем остатки
-    let processedCount = 0
-    const batchSize = 100
+    // Upsert остатков
+    let processedStocks = 0
 
     for (let i = 0; i < uniqueStocks.length; i += batchSize) {
       const batch = uniqueStocks.slice(i, i + batchSize)
 
-      const { error: upsertError } = await (supabase.from as any)('zakaz_warehouse_stocks')
+      const { error: stockError } = await (supabase.from as any)('zakaz_warehouse_stocks')
         .upsert(batch, {
           onConflict: 'warehouse_id,material_id',
           ignoreDuplicates: false,
         })
 
-      if (upsertError) {
-        console.error('[Stock Import] Upsert error:', upsertError)
-        errors.push({ row: 0, error: upsertError.message })
+      if (stockError) {
+        console.error('[Stock Import] Stock upsert error:', stockError)
+        errors.push({ row: 0, error: `Ошибка сохранения остатков: ${stockError.message}` })
       } else {
-        processedCount += batch.length
+        processedStocks += batch.length
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Импорт завершён: обновлено ${processedCount} позиций`,
+      message: `Импорт завершён: добавлено ${insertedMaterials} новых материалов, обновлено ${updatedMaterials}, остатков: ${processedStocks}`,
       stats: {
         total: rawData.length,
-        processed: processedCount,
+        processed: uniqueMaterials.length,
+        inserted: insertedMaterials,
+        updated: updatedMaterials,
+        duplicates: materialsToUpsert.length - uniqueMaterials.length,
         skipped: skipped.length,
         errors: errors.length,
       },
