@@ -1157,7 +1157,17 @@ export default function WorkOrderDetailPage() {
   )
 }
 
-// Компонент модалки материала
+// Элемент корзины материалов
+interface CartItem {
+  materialId: string | null
+  name: string
+  unit: string
+  quantity: number
+  price: number
+  stock: number
+}
+
+// Компонент модалки материала - улучшенная версия
 function MaterialModal({
   materials,
   onAdd,
@@ -1167,95 +1177,353 @@ function MaterialModal({
   onAdd: (materialId: string | null, name: string, unit: string, quantity: number) => void
   onClose: () => void
 }) {
-  const [selectedMaterialId, setSelectedMaterialId] = useState<string>('')
+  const [search, setSearch] = useState('')
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [showCustomForm, setShowCustomForm] = useState(false)
   const [customName, setCustomName] = useState('')
   const [customUnit, setCustomUnit] = useState('шт')
-  const [quantity, setQuantity] = useState(1)
-  const [useCustom, setUseCustom] = useState(false)
+  const [customQty, setCustomQty] = useState(1)
+  const [isSaving, setIsSaving] = useState(false)
 
-  const selectedMaterial = materials.find(m => m.id === selectedMaterialId)
+  // Фильтрация материалов по поиску
+  const filteredMaterials = materials.filter(m => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return m.name.toLowerCase().includes(q) || m.code?.toLowerCase().includes(q)
+  })
 
-  const handleSubmit = () => {
-    if (useCustom) {
-      if (!customName) return
-      onAdd(null, customName, customUnit, quantity)
+  // Добавить материал в корзину
+  const addToCart = (material: Material) => {
+    setCart(prev => {
+      const existing = prev.find(item => item.materialId === material.id)
+      if (existing) {
+        return prev.map(item =>
+          item.materialId === material.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        )
+      }
+      return [...prev, {
+        materialId: material.id,
+        name: material.name,
+        unit: material.unit,
+        quantity: 1,
+        price: material.price || 0,
+        stock: material.stock_quantity || 0,
+      }]
+    })
+  }
+
+  // Изменить количество в корзине
+  const updateCartQty = (materialId: string | null, quantity: number) => {
+    if (quantity <= 0) {
+      setCart(prev => prev.filter(item => item.materialId !== materialId))
     } else {
-      if (!selectedMaterial) return
-      onAdd(selectedMaterial.id, selectedMaterial.name, selectedMaterial.unit, quantity)
+      setCart(prev => prev.map(item =>
+        item.materialId === materialId ? { ...item, quantity } : item
+      ))
     }
   }
 
+  // Удалить из корзины
+  const removeFromCart = (materialId: string | null) => {
+    setCart(prev => prev.filter(item => item.materialId !== materialId))
+  }
+
+  // Добавить свободный материал
+  const addCustomToCart = () => {
+    if (!customName.trim()) return
+    setCart(prev => [...prev, {
+      materialId: null,
+      name: customName.trim(),
+      unit: customUnit || 'шт',
+      quantity: customQty,
+      price: 0,
+      stock: 0,
+    }])
+    setCustomName('')
+    setCustomUnit('шт')
+    setCustomQty(1)
+    setShowCustomForm(false)
+  }
+
+  // Сохранить все материалы
+  const handleSave = async () => {
+    if (cart.length === 0) return
+    setIsSaving(true)
+    try {
+      for (const item of cart) {
+        await new Promise<void>(resolve => {
+          onAdd(item.materialId, item.name, item.unit, item.quantity)
+          // Небольшая задержка между запросами
+          setTimeout(resolve, 100)
+        })
+      }
+      onClose()
+    } catch {
+      console.error('Error saving materials')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const formatPrice = (price: number) => {
+    return price.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽'
+  }
+
+  const activityColors: Record<number, string> = {
+    1: 'bg-green-100 text-green-800',
+    2: 'bg-blue-100 text-blue-800',
+    3: 'bg-yellow-100 text-yellow-800',
+    4: 'bg-gray-100 text-gray-500',
+  }
+
+  // Суммарная стоимость корзины
+  const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold mb-4">Добавить материал</h3>
-
-        <div className="mb-4">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={useCustom}
-              onChange={(e) => setUseCustom(e.target.checked)}
-            />
-            <span className="text-sm">Свободный ввод</span>
-          </label>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+        {/* Заголовок */}
+        <div className="flex justify-between items-center px-6 py-4 border-b">
+          <h3 className="text-xl font-semibold">Добавить материалы</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        {!useCustom ? (
-          <select
-            value={selectedMaterialId}
-            onChange={(e) => setSelectedMaterialId(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg mb-4"
-          >
-            <option value="">Выберите материал</option>
-            {materials.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name} ({m.unit})
-              </option>
-            ))}
-          </select>
-        ) : (
-          <div className="space-y-3 mb-4">
-            <input
-              type="text"
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              placeholder="Название материала"
-              className="w-full px-3 py-2 border rounded-lg"
-            />
-            <input
-              type="text"
-              value={customUnit}
-              onChange={(e) => setCustomUnit(e.target.value)}
-              placeholder="Единица измерения"
-              className="w-full px-3 py-2 border rounded-lg"
-            />
+        <div className="flex flex-1 overflow-hidden">
+          {/* Левая панель - каталог */}
+          <div className="flex-1 flex flex-col border-r overflow-hidden">
+            {/* Поиск */}
+            <div className="p-4 border-b">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Поиск по названию или коду..."
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  autoFocus
+                />
+                <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <div className="mt-2 text-sm text-gray-500">
+                Найдено: {filteredMaterials.length} из {materials.length}
+              </div>
+            </div>
+
+            {/* Список материалов */}
+            <div className="flex-1 overflow-y-auto">
+              {filteredMaterials.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  Материалы не найдены
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {filteredMaterials.slice(0, 100).map((material) => {
+                    const inCart = cart.find(c => c.materialId === material.id)
+                    return (
+                      <div
+                        key={material.id}
+                        className={`p-3 hover:bg-gray-50 cursor-pointer transition-colors ${inCart ? 'bg-indigo-50' : ''}`}
+                        onClick={() => addToCart(material)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${activityColors[material.activity_level] || activityColors[4]}`}>
+                                {material.activity_level}
+                              </span>
+                              {material.code && (
+                                <span className="text-xs text-gray-400 font-mono">{material.code}</span>
+                              )}
+                            </div>
+                            <div className="font-medium text-gray-900 truncate mt-1">
+                              {material.name}
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 text-sm">
+                              <span className="text-gray-500">{material.unit}</span>
+                              {(material.price || 0) > 0 && (
+                                <span className="text-green-600">{formatPrice(material.price)}</span>
+                              )}
+                              {(material.stock_quantity || 0) > 0 && (
+                                <span className="text-blue-600">остаток: {material.stock_quantity}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            {inCart ? (
+                              <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-sm font-medium">
+                                ✓ {inCart.quantity}
+                              </span>
+                            ) : (
+                              <button className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm">
+                                +
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {filteredMaterials.length > 100 && (
+                    <div className="p-3 text-center text-gray-500 text-sm">
+                      Показаны первые 100 результатов. Уточните поиск.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Свободный ввод */}
+            <div className="p-3 border-t bg-gray-50">
+              {showCustomForm ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    placeholder="Название материала"
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customUnit}
+                      onChange={(e) => setCustomUnit(e.target.value)}
+                      placeholder="Ед."
+                      className="w-20 px-3 py-2 border rounded-lg text-sm"
+                    />
+                    <input
+                      type="number"
+                      value={customQty}
+                      onChange={(e) => setCustomQty(Number(e.target.value))}
+                      min={0.1}
+                      step={0.1}
+                      className="w-20 px-3 py-2 border rounded-lg text-sm"
+                    />
+                    <button
+                      onClick={addCustomToCart}
+                      disabled={!customName.trim()}
+                      className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+                    >
+                      Добавить
+                    </button>
+                    <button
+                      onClick={() => setShowCustomForm(false)}
+                      className="px-3 py-2 border rounded-lg text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowCustomForm(true)}
+                  className="text-sm text-gray-600 hover:text-indigo-600"
+                >
+                  + Свободный ввод (материал не из справочника)
+                </button>
+              )}
+            </div>
           </div>
-        )}
 
-        <div className="mb-4">
-          <label className="block text-sm text-gray-700 mb-1">Количество</label>
-          <input
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-            min={0}
-            step={0.1}
-            className="w-full px-3 py-2 border rounded-lg"
-          />
-        </div>
+          {/* Правая панель - корзина */}
+          <div className="w-80 flex flex-col bg-gray-50">
+            <div className="p-4 border-b bg-white">
+              <h4 className="font-semibold text-gray-900">
+                Выбрано: {cart.length} поз.
+              </h4>
+              {totalPrice > 0 && (
+                <div className="text-sm text-gray-500 mt-1">
+                  Сумма: {formatPrice(totalPrice)}
+                </div>
+              )}
+            </div>
 
-        <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg">
-            Отмена
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
-            disabled={!useCustom && !selectedMaterialId}
-          >
-            Добавить
-          </button>
+            {/* Список корзины */}
+            <div className="flex-1 overflow-y-auto">
+              {cart.length === 0 ? (
+                <div className="p-4 text-center text-gray-400 text-sm">
+                  Нажмите на материал слева, чтобы добавить
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {cart.map((item, idx) => (
+                    <div key={item.materialId || `custom-${idx}`} className="p-3 bg-white">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {item.name}
+                          </div>
+                          {item.price > 0 && (
+                            <div className="text-xs text-gray-500">
+                              {formatPrice(item.price)} × {item.quantity} = {formatPrice(item.price * item.quantity)}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(item.materialId)}
+                          className="text-red-400 hover:text-red-600 ml-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateCartQty(item.materialId, item.quantity - 1)}
+                          className="w-8 h-8 flex items-center justify-center border rounded hover:bg-gray-100"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => updateCartQty(item.materialId, Number(e.target.value))}
+                          min={0.1}
+                          step={0.1}
+                          className="w-16 px-2 py-1 border rounded text-center text-sm"
+                        />
+                        <button
+                          onClick={() => updateCartQty(item.materialId, item.quantity + 1)}
+                          className="w-8 h-8 flex items-center justify-center border rounded hover:bg-gray-100"
+                        >
+                          +
+                        </button>
+                        <span className="text-sm text-gray-500">{item.unit}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Кнопка сохранения */}
+            <div className="p-4 border-t bg-white">
+              <button
+                onClick={handleSave}
+                disabled={cart.length === 0 || isSaving}
+                className="w-full py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? 'Сохранение...' : `Добавить ${cart.length} поз.`}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
