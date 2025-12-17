@@ -135,6 +135,9 @@ export default function MaterialsPage() {
   const [editingStockId, setEditingStockId] = useState<string | null>(null)
   const [editingStockQuantity, setEditingStockQuantity] = useState('')
 
+  // Поиск на складе
+  const [warehouseSearchQuery, setWarehouseSearchQuery] = useState('')
+
   const fetchCurrentUser = useCallback(async () => {
     const user = await getCurrentUser()
     setCurrentUser(user)
@@ -213,7 +216,19 @@ export default function MaterialsPage() {
     fetchWarehouseStocks(warehouse.id)
     setStockImportResult(null)
     setEditingStockId(null)
+    setWarehouseSearchQuery('')
   }
+
+  // Фильтрованные остатки склада
+  const filteredWarehouseStocks = warehouseStocks.filter(stock => {
+    if (!warehouseSearchQuery) return true
+    const query = warehouseSearchQuery.toLowerCase()
+    return (
+      stock.material?.name?.toLowerCase().includes(query) ||
+      stock.material?.code?.toLowerCase().includes(query) ||
+      stock.material?.category?.toLowerCase().includes(query)
+    )
+  })
 
   // Начать редактирование остатка
   const handleStartEditStock = (stockId: string, currentQuantity: number) => {
@@ -911,7 +926,27 @@ export default function MaterialsPage() {
                           {m.price > 0 ? formatPrice(m.price) : '—'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
-                          {m.stock_quantity > 0 ? formatQuantity(m.stock_quantity, m.unit) : '0'}
+                          {m.stock_quantity > 0 ? (
+                            <div className="relative group inline-block">
+                              <span className="cursor-help border-b border-dashed border-gray-400">
+                                {formatQuantity(m.stock_quantity, m.unit)}
+                              </span>
+                              {m.stocks_by_warehouse && m.stocks_by_warehouse.length > 0 && (
+                                <div className="absolute z-50 bottom-full right-0 mb-2 hidden group-hover:block">
+                                  <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg whitespace-nowrap">
+                                    <div className="font-medium mb-1 border-b border-gray-700 pb-1">Остатки по складам:</div>
+                                    {m.stocks_by_warehouse.map((s, idx) => (
+                                      <div key={idx} className="flex justify-between gap-4 py-0.5">
+                                        <span className="text-gray-300">{s.warehouse_name}:</span>
+                                        <span className="font-medium">{s.quantity} {m.unit}</span>
+                                      </div>
+                                    ))}
+                                    <div className="absolute -bottom-1 right-4 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : '0'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center">
                           {currentUser?.role === 'admin' ? (
@@ -1117,24 +1152,25 @@ export default function MaterialsPage() {
           {/* Правая часть - остатки склада */}
           {selectedWarehouse ? (
             <div className="lg:col-span-2 bg-white rounded-lg shadow">
-              <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-semibold">{selectedWarehouse.name}</h2>
-                  <p className="text-sm text-gray-500">Остатки материалов</p>
-                </div>
-                {currentUser?.role === 'admin' && (
+              <div className="px-4 py-3 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-3">
                   <div>
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls"
-                      onChange={handleStockFileSelect}
-                      className="hidden"
-                      id="stock-file-input"
-                    />
-                    <label
-                      htmlFor="stock-file-input"
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
-                    >
+                    <h2 className="text-lg font-semibold">{selectedWarehouse.name}</h2>
+                    <p className="text-sm text-gray-500">Остатки материалов ({filteredWarehouseStocks.length})</p>
+                  </div>
+                  {currentUser?.role === 'admin' && (
+                    <div>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleStockFileSelect}
+                        className="hidden"
+                        id="stock-file-input"
+                      />
+                      <label
+                        htmlFor="stock-file-input"
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+                      >
                       {isImportingStock ? (
                         <>
                           <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -1152,8 +1188,17 @@ export default function MaterialsPage() {
                         </>
                       )}
                     </label>
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
+                {/* Поиск по складу */}
+                <input
+                  type="text"
+                  value={warehouseSearchQuery}
+                  onChange={(e) => setWarehouseSearchQuery(e.target.value)}
+                  placeholder="Поиск по коду, названию или категории..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                />
               </div>
 
               {/* Результат импорта остатков */}
@@ -1183,7 +1228,7 @@ export default function MaterialsPage() {
               <div className="overflow-x-auto">
                 {isLoadingStocks ? (
                   <div className="p-8 text-center text-gray-500">Загрузка...</div>
-                ) : warehouseStocks.length > 0 ? (
+                ) : filteredWarehouseStocks.length > 0 ? (
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -1195,7 +1240,7 @@ export default function MaterialsPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {warehouseStocks.map((stock) => {
+                      {filteredWarehouseStocks.map((stock) => {
                         const actLevel = getActivityLevel(stock.material?.activity_level || 2)
                         const isEditing = editingStockId === stock.id
                         return (
@@ -1269,7 +1314,9 @@ export default function MaterialsPage() {
                   </table>
                 ) : (
                   <div className="p-8 text-center text-gray-500">
-                    Нет остатков. Импортируйте данные из Excel.
+                    {warehouseSearchQuery
+                      ? 'Ничего не найдено по запросу'
+                      : 'Нет остатков. Импортируйте данные из Excel.'}
                   </div>
                 )}
               </div>

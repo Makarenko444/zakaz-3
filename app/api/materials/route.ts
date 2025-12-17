@@ -59,25 +59,38 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Получаем суммы остатков по всем складам для каждого материала
+    // Получаем остатки по всем складам с названиями складов
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: stocksData } = await (supabase.from as any)('zakaz_warehouse_stocks')
-      .select('material_id, quantity')
+      .select('material_id, quantity, warehouse:zakaz_warehouses(id, name)')
+      .gt('quantity', 0)
 
-    // Группируем остатки по material_id и суммируем
-    const stocksByMaterial = new Map<string, number>()
+    // Группируем остатки по material_id
+    const stocksByMaterial = new Map<string, { total: number; byWarehouse: Array<{ warehouse_id: string; warehouse_name: string; quantity: number }> }>()
     if (stocksData) {
       for (const stock of stocksData) {
-        const current = stocksByMaterial.get(stock.material_id) || 0
-        stocksByMaterial.set(stock.material_id, current + (stock.quantity || 0))
+        const current = stocksByMaterial.get(stock.material_id) || { total: 0, byWarehouse: [] }
+        current.total += stock.quantity || 0
+        if (stock.warehouse) {
+          current.byWarehouse.push({
+            warehouse_id: stock.warehouse.id,
+            warehouse_name: stock.warehouse.name,
+            quantity: stock.quantity,
+          })
+        }
+        stocksByMaterial.set(stock.material_id, current)
       }
     }
 
-    // Добавляем stock_quantity к каждому материалу
-    const materialsWithStock = (data || []).map(m => ({
-      ...m,
-      stock_quantity: stocksByMaterial.get(m.id) || 0,
-    }))
+    // Добавляем stock_quantity и stocks_by_warehouse к каждому материалу
+    const materialsWithStock = (data || []).map(m => {
+      const stockInfo = stocksByMaterial.get(m.id)
+      return {
+        ...m,
+        stock_quantity: stockInfo?.total || 0,
+        stocks_by_warehouse: stockInfo?.byWarehouse || [],
+      }
+    })
 
     // Получаем уникальные категории
     const categories = [...new Set(data?.map(m => m.category).filter(Boolean) || [])]
