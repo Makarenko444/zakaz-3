@@ -18,7 +18,7 @@ export async function GET(
     const query = (supabase.from as any)('zakaz_warehouse_stocks')
       .select(`
         *,
-        material:zakaz_materials(id, code, name, unit, category, activity_level)
+        material:zakaz_materials(id, code, name, unit, category, activity_level, price)
       `)
       .eq('warehouse_id', warehouseId)
       .gt('quantity', 0)
@@ -52,6 +52,79 @@ export async function GET(
     })
 
     return NextResponse.json({ stocks })
+  } catch (error) {
+    console.error('[Warehouse Stock API] Unexpected error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH /api/warehouses/[id]/stock - обновить остаток материала на складе
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: warehouseId } = await params
+    const supabase = createDirectClient()
+    const body = await request.json()
+
+    const { stock_id, material_id, quantity } = body
+
+    if (!stock_id && !material_id) {
+      return NextResponse.json(
+        { error: 'Either stock_id or material_id is required' },
+        { status: 400 }
+      )
+    }
+
+    if (quantity === undefined || quantity === null) {
+      return NextResponse.json(
+        { error: 'Field "quantity" is required' },
+        { status: 400 }
+      )
+    }
+
+    if (stock_id) {
+      // Обновляем по ID записи
+      const { data, error } = await (supabase.from as any)('zakaz_warehouse_stocks')
+        .update({ quantity })
+        .eq('id', stock_id)
+        .eq('warehouse_id', warehouseId)
+        .select('*')
+        .single()
+
+      if (error) {
+        console.error('[Warehouse Stock API] Update error:', error)
+        return NextResponse.json(
+          { error: 'Failed to update stock', details: error.message },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({ stock: data, message: 'Stock updated successfully' })
+    } else {
+      // Upsert по material_id
+      const { data, error } = await (supabase.from as any)('zakaz_warehouse_stocks')
+        .upsert(
+          { warehouse_id: warehouseId, material_id, quantity },
+          { onConflict: 'warehouse_id,material_id' }
+        )
+        .select('*')
+        .single()
+
+      if (error) {
+        console.error('[Warehouse Stock API] Upsert error:', error)
+        return NextResponse.json(
+          { error: 'Failed to update stock', details: error.message },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({ stock: data, message: 'Stock updated successfully' })
+    }
   } catch (error) {
     console.error('[Warehouse Stock API] Unexpected error:', error)
     return NextResponse.json(
