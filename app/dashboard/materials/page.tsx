@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Material, MaterialTemplate, User, Warehouse } from '@/lib/types'
 import { getCurrentUser } from '@/lib/auth-client'
 
