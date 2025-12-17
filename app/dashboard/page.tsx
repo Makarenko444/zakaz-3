@@ -447,6 +447,7 @@ export default function DashboardPage() {
                         new: 'Новая',
                         thinking: 'Думает',
                         estimation: 'Расчёт',
+                        estimation_done: 'Расчёт выполнен',
                         waiting_payment: 'Ожидание оплаты',
                         contract: 'Договор и оплата',
                         design: 'Проектирование',
