@@ -182,7 +182,7 @@ export async function POST(
         const name = row[columnMapping.name]
         const unit = columnMapping.unit ? row[columnMapping.unit] : null
         const price = columnMapping.price ? row[columnMapping.price] : null
-        const quantity = row[columnMapping.quantity]
+        const _quantity = row[columnMapping.quantity]
 
         // Валидация обязательных полей
         if (!code) {

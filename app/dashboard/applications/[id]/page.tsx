@@ -532,8 +532,8 @@ export default function ApplicationDetailPage() {
               <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
                 {formatTitle()}
               </h1>
-              <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusColors[application.status]}`}>
-                {statusLabels[application.status]}
+              <span className="px-3 py-1 text-sm font-semibold rounded-full bg-cyan-100 text-cyan-800">
+                {serviceTypeLabels[application.service_type]}
               </span>
               <span className={`px-3 py-1 text-sm font-semibold ${urgencyColors[application.urgency]}`}>
                 {urgencyLabels[application.urgency]}
@@ -582,8 +582,8 @@ export default function ApplicationDetailPage() {
             </div>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[application.status]}`}>
-                  {statusLabels[application.status]}
+                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-cyan-100 text-cyan-800">
+                  {serviceTypeLabels[application.service_type]}
                 </span>
                 <span className={`px-2 py-1 text-xs font-semibold ${urgencyColors[application.urgency]}`}>
                   {urgencyLabels[application.urgency]}
@@ -668,10 +668,6 @@ export default function ApplicationDetailPage() {
 
                 {/* Вторая колонка */}
                 <div className="space-y-2">
-                  <div>
-                    <span className="text-gray-500">Услуга:</span>{' '}
-                    <span className="font-medium text-gray-900">{serviceTypeLabels[application.service_type]}</span>
-                  </div>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">Менеджер:</span>{' '}
                     {application.assigned_user ? (

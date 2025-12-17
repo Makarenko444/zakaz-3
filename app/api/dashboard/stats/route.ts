@@ -12,6 +12,7 @@ interface ApplicationRow {
   created_at: string
   street_and_house: string | null
   assigned_to: string | null
+  technical_curator_id: string | null
 }
 
 interface UserRow {
@@ -28,7 +29,7 @@ export async function GET(_request: NextRequest) {
     // Получаем все заявки для подсчёта статистики
     const { data: applications, error: appsError } = await supabase
       .from('zakaz_applications')
-      .select('id, application_number, customer_fullname, customer_phone, service_type, urgency, status, created_at, street_and_house, assigned_to')
+      .select('id, application_number, customer_fullname, customer_phone, service_type, urgency, status, created_at, street_and_house, assigned_to, technical_curator_id')
       .order('created_at', { ascending: false })
 
     if (appsError) {
@@ -140,6 +141,63 @@ export async function GET(_request: NextRequest) {
 
     managers.sort((a, b) => b.count - a.count)
 
+    // Статистика по техническим кураторам (всего и активных)
+    const curatorStatsMap = new Map<string, { total: number; active: number }>()
+    let unassignedCuratorTotal = 0
+    let unassignedCuratorActive = 0
+
+    allApps.forEach(app => {
+      const isActive = !completedStatuses.includes(app.status)
+      if (!app.technical_curator_id) {
+        unassignedCuratorTotal++
+        if (isActive) unassignedCuratorActive++
+      } else {
+        const stats = curatorStatsMap.get(app.technical_curator_id) || { total: 0, active: 0 }
+        stats.total++
+        if (isActive) stats.active++
+        curatorStatsMap.set(app.technical_curator_id, stats)
+      }
+    })
+
+    // Получаем информацию о кураторах
+    const curatorIds = Array.from(curatorStatsMap.keys())
+
+    let curators: Array<{ id: string; name: string; count: number; activeCount: number; isActive: boolean }> = []
+
+    if (curatorIds.length > 0) {
+      const { data: curatorsData, error: curatorsError } = await supabase
+        .from('zakaz_users')
+        .select('id, full_name, active')
+        .in('id', curatorIds)
+
+      if (!curatorsError && curatorsData) {
+        const typedCuratorsData = curatorsData as UserRow[]
+        curators = curatorIds.map(id => {
+          const curatorInfo = typedCuratorsData.find(u => u.id === id)
+          const stats = curatorStatsMap.get(id) || { total: 0, active: 0 }
+          return {
+            id,
+            name: curatorInfo?.full_name || 'Неизвестный куратор',
+            count: stats.total,
+            activeCount: stats.active,
+            isActive: curatorInfo?.active ?? true,
+          }
+        })
+      }
+    }
+
+    if (unassignedCuratorTotal > 0) {
+      curators.push({
+        id: 'unassigned',
+        name: 'Куратор не назначен',
+        count: unassignedCuratorTotal,
+        activeCount: unassignedCuratorActive,
+        isActive: true,
+      })
+    }
+
+    curators.sort((a, b) => b.count - a.count)
+
     // Получаем всех активных пользователей
     const { data: usersData, error: usersError } = await supabase
       .from('zakaz_users')
@@ -171,6 +229,7 @@ export async function GET(_request: NextRequest) {
       rejected,
       statuses,
       managers,
+      curators,
       users,
       recentApplications,
     }
