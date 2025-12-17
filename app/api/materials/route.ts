@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     const supabase = createDirectClient()
     const body = await request.json()
 
-    const { name, unit, category, sort_order } = body
+    const { name, unit, category, sort_order, code, price, activity_level, is_manual } = body
 
     // Валидация
     if (!name) {
@@ -116,6 +116,25 @@ export async function POST(request: NextRequest) {
         { error: 'Field "unit" is required' },
         { status: 400 }
       )
+    }
+
+    // Генерируем уникальный код для ручных материалов (99999xxxxxxxx)
+    let finalCode = code
+    if (is_manual && !code) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: maxCodeRow } = await (supabase.from as any)('zakaz_materials')
+        .select('code')
+        .like('code', '99999%')
+        .order('code', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (maxCodeRow?.code) {
+        const currentNum = parseInt(maxCodeRow.code)
+        finalCode = (currentNum + 1).toString()
+      } else {
+        finalCode = '9999900000001'
+      }
     }
 
     // Определяем sort_order если не передан
@@ -137,9 +156,12 @@ export async function POST(request: NextRequest) {
       .insert({
         name,
         unit,
+        code: finalCode || null,
         category: category || null,
+        price: price || 0,
         sort_order: finalSortOrder,
         is_active: true,
+        activity_level: activity_level || 2,
       })
       .select('*')
       .single()
@@ -171,7 +193,7 @@ export async function PATCH(request: NextRequest) {
     const supabase = createDirectClient()
     const body = await request.json()
 
-    const { id, name, unit, category, sort_order, is_active, activity_level } = body
+    const { id, name, unit, category, sort_order, is_active, activity_level, code, price } = body
 
     if (!id) {
       return NextResponse.json(
@@ -198,7 +220,9 @@ export async function PATCH(request: NextRequest) {
     const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name
     if (unit !== undefined) updateData.unit = unit
+    if (code !== undefined) updateData.code = code
     if (category !== undefined) updateData.category = category
+    if (price !== undefined) updateData.price = price
     if (sort_order !== undefined) updateData.sort_order = sort_order
     if (is_active !== undefined) updateData.is_active = is_active
     if (activity_level !== undefined) updateData.activity_level = activity_level
