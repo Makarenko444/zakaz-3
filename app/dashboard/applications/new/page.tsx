@@ -24,12 +24,9 @@ const applicationSchema = z.object({
 
 type ApplicationFormData = z.infer<typeof applicationSchema>
 
-interface AddressSuggestion {
+interface StreetSuggestion {
   id: string
   street: string
-  house: string
-  full_address: string
-  source: 'local' | 'external_osm'
 }
 
 // Компонент блока формы - компактный
@@ -52,8 +49,8 @@ export default function NewApplicationPage() {
   const [error, setError] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  // Автоподсказки адресов
-  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([])
+  // Автоподсказки улиц
+  const [streetSuggestions, setStreetSuggestions] = useState<StreetSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
   const suggestionsRef = useRef<HTMLDivElement>(null)
@@ -91,10 +88,10 @@ export default function NewApplicationPage() {
     prevServiceTypeRef.current = serviceType
   }, [serviceType, setValue])
 
-  // Поиск адресов для автоподсказок
-  const searchAddresses = useCallback(async (query: string) => {
-    if (query.length < 3) {
-      setAddressSuggestions([])
+  // Поиск улиц для автоподсказок
+  const searchStreets = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setStreetSuggestions([])
       setShowSuggestions(false)
       return
     }
@@ -104,11 +101,11 @@ export default function NewApplicationPage() {
       const response = await fetch(`/api/addresses/search?query=${encodeURIComponent(query)}`)
       if (response.ok) {
         const data = await response.json()
-        setAddressSuggestions(data.addresses || [])
+        setStreetSuggestions(data.streets || [])
         setShowSuggestions(true)
       }
     } catch (err) {
-      console.error('Error searching addresses:', err)
+      console.error('Error searching streets:', err)
     } finally {
       setIsLoadingSuggestions(false)
     }
@@ -120,12 +117,12 @@ export default function NewApplicationPage() {
       clearTimeout(searchTimeoutRef.current)
     }
 
-    if (streetAndHouse && streetAndHouse.length >= 3) {
+    if (streetAndHouse && streetAndHouse.length >= 2) {
       searchTimeoutRef.current = setTimeout(() => {
-        searchAddresses(streetAndHouse)
+        searchStreets(streetAndHouse)
       }, 300)
     } else {
-      setAddressSuggestions([])
+      setStreetSuggestions([])
       setShowSuggestions(false)
     }
 
@@ -134,7 +131,7 @@ export default function NewApplicationPage() {
         clearTimeout(searchTimeoutRef.current)
       }
     }
-  }, [streetAndHouse, searchAddresses])
+  }, [streetAndHouse, searchStreets])
 
   // Закрытие подсказок при клике вне
   useEffect(() => {
@@ -147,9 +144,9 @@ export default function NewApplicationPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Выбор адреса из подсказки
-  const selectAddress = (suggestion: AddressSuggestion) => {
-    setValue('street_and_house', suggestion.full_address)
+  // Выбор улицы из подсказки (вставляем улицу + ", " для продолжения ввода номера дома)
+  const selectStreet = (suggestion: StreetSuggestion) => {
+    setValue('street_and_house', `${suggestion.street}, `)
     setShowSuggestions(false)
   }
 
@@ -287,7 +284,7 @@ export default function NewApplicationPage() {
                         {...register('street_and_house')}
                         placeholder="Улица и номер дома"
                         autoComplete="off"
-                        onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
+                        onFocus={() => streetSuggestions.length > 0 && setShowSuggestions(true)}
                         className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                       />
                       {isLoadingSuggestions && (
@@ -296,24 +293,17 @@ export default function NewApplicationPage() {
                         </div>
                       )}
                     </div>
-                    {/* Выпадающий список подсказок */}
-                    {showSuggestions && addressSuggestions.length > 0 && (
+                    {/* Выпадающий список подсказок улиц */}
+                    {showSuggestions && streetSuggestions.length > 0 && (
                       <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {addressSuggestions.map((suggestion, idx) => (
+                        {streetSuggestions.map((suggestion, idx) => (
                           <button
                             key={`${suggestion.id}-${idx}`}
                             type="button"
-                            onClick={() => selectAddress(suggestion)}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 flex items-center gap-2 border-b border-gray-100 last:border-0"
+                            onClick={() => selectStreet(suggestion)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 border-b border-gray-100 last:border-0"
                           >
-                            <span className={`text-xs px-1.5 py-0.5 rounded ${
-                              suggestion.source === 'local'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {suggestion.source === 'local' ? 'БД' : 'API'}
-                            </span>
-                            <span className="truncate">{suggestion.full_address}</span>
+                            {suggestion.street}
                           </button>
                         ))}
                       </div>
