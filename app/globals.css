@@ -514,6 +514,10 @@ body {
   background-color: rgba(74, 222, 128, 0.18);
 }
 
+[data-theme="dark"] .bg-green-200 {
+  background-color: #166534;
+}
+
 [data-theme="dark"] .border-green-200 {
   border-color: rgba(74, 222, 128, 0.3);
 }
