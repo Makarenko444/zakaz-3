@@ -11,36 +11,36 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
 
-    // assigned_to может быть null (снять назначение) или UUID пользователя
-    const assignedTo = body.assigned_to === '' ? null : body.assigned_to
+    // technical_curator_id может быть null (снять назначение) или UUID пользователя
+    const technicalCuratorId = body.technical_curator_id === '' ? null : body.technical_curator_id
 
-    // Получаем текущее значение assigned_to для логирования
+    // Получаем текущее значение technical_curator_id для логирования
     const { data: currentApp } = await supabase
       .from('zakaz_applications')
-      .select('assigned_to, application_number')
+      .select('technical_curator_id, application_number')
       .eq('id', id)
-      .single() as { data: { assigned_to: string | null; application_number: string } | null }
+      .single() as { data: { technical_curator_id: string | null; application_number: string } | null }
 
-    const oldAssignedTo = currentApp?.assigned_to || null
+    const oldTechnicalCuratorId = currentApp?.technical_curator_id || null
 
-    // Получаем имя старого исполнителя если был
+    // Получаем имя старого технического куратора если был
     let oldUserName = null
-    if (oldAssignedTo) {
+    if (oldTechnicalCuratorId) {
       const { data: oldUser } = await supabase
         .from('zakaz_users')
         .select('full_name')
-        .eq('id', oldAssignedTo)
+        .eq('id', oldTechnicalCuratorId)
         .single() as { data: { full_name: string } | null }
       oldUserName = oldUser?.full_name || null
     }
 
-    // Получаем имя нового исполнителя и проверяем что он существует
+    // Получаем имя нового технического куратора и проверяем что он существует
     let newUserName = null
-    if (assignedTo) {
+    if (technicalCuratorId) {
       const { data: user, error: userError } = await supabase
         .from('zakaz_users')
         .select('id, full_name')
-        .eq('id', assignedTo)
+        .eq('id', technicalCuratorId)
         .single() as { data: { id: string; full_name: string } | null; error: unknown }
 
       if (userError || !user) {
@@ -52,9 +52,9 @@ export async function PATCH(
       newUserName = user.full_name
     }
 
-    // Обновляем назначенного пользователя
+    // Обновляем технического куратора
     const updateData = {
-      assigned_to: assignedTo,
+      technical_curator_id: technicalCuratorId,
       updated_by: body.changed_by || null,
       updated_at: new Date().toISOString(),
     }
@@ -67,25 +67,25 @@ export async function PATCH(
     const { error: updateError } = result as { error: unknown }
 
     if (updateError) {
-      console.error('Error assigning user to application:', updateError)
+      console.error('Error assigning technical curator to application:', updateError)
       return NextResponse.json(
-        { error: 'Failed to assign user' },
+        { error: 'Failed to assign technical curator' },
         { status: 500 }
       )
     }
 
     // Логируем действие с именами пользователей
     let actionDescription = ''
-    if (assignedTo) {
-      if (oldAssignedTo) {
-        actionDescription = `Исполнитель изменен с "${oldUserName || 'Неизвестно'}" на "${newUserName}"`
+    if (technicalCuratorId) {
+      if (oldTechnicalCuratorId) {
+        actionDescription = `Технический куратор изменен с "${oldUserName || 'Неизвестно'}" на "${newUserName}"`
       } else {
-        actionDescription = `Назначен исполнитель: ${newUserName}`
+        actionDescription = `Назначен технический куратор: ${newUserName}`
       }
     } else {
       actionDescription = oldUserName
-        ? `Снято назначение с исполнителя: ${oldUserName}`
-        : 'Снято назначение исполнителя'
+        ? `Снято назначение технического куратора: ${oldUserName}`
+        : 'Снято назначение технического куратора'
     }
 
     // Получаем данные пользователя для аудита
@@ -93,12 +93,12 @@ export async function PATCH(
 
     await logAudit({
       ...userData,
-      actionType: assignedTo ? 'assign' : 'unassign',
+      actionType: technicalCuratorId ? 'assign' : 'unassign',
       entityType: 'application',
       entityId: id,
       description: actionDescription,
-      oldValues: oldAssignedTo ? { assigned_to: oldAssignedTo } : undefined,
-      newValues: assignedTo ? { assigned_to: assignedTo } : undefined,
+      oldValues: oldTechnicalCuratorId ? { technical_curator_id: oldTechnicalCuratorId } : undefined,
+      newValues: technicalCuratorId ? { technical_curator_id: technicalCuratorId } : undefined,
       ipAddress: getClientIP(request),
       userAgent: getUserAgent(request),
     })
@@ -128,10 +128,10 @@ export async function PATCH(
 
     return NextResponse.json({
       application: updatedApp,
-      message: assignedTo ? 'User assigned successfully' : 'Assignment removed successfully',
+      message: technicalCuratorId ? 'Technical curator assigned successfully' : 'Technical curator removed successfully',
     })
   } catch (error) {
-    console.error('Error in user assignment:', error)
+    console.error('Error in technical curator assignment:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

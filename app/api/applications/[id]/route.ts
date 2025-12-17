@@ -26,6 +26,7 @@ export async function GET(
           comment
         ),
         assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
+        technical_curator_user:zakaz_users!zakaz_applications_technical_curator_id_fkey(id, full_name, email, role),
         created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
         updated_by_user:zakaz_users!zakaz_applications_updated_by_fkey(id, full_name, email, role)
       `)
@@ -146,6 +147,7 @@ export async function PATCH(
         comment
       ),
       assigned_user:zakaz_users!zakaz_applications_assigned_to_fkey(id, full_name, email, role),
+      technical_curator_user:zakaz_users!zakaz_applications_technical_curator_id_fkey(id, full_name, email, role),
       created_by_user:zakaz_users!zakaz_applications_created_by_fkey(id, full_name, email, role),
       updated_by_user:zakaz_users!zakaz_applications_updated_by_fkey(id, full_name, email, role)
     `) as unknown
