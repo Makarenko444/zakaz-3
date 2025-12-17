@@ -10,7 +10,7 @@ import { getCurrentUser } from '@/lib/auth-client'
 
 // Схема валидации
 const applicationSchema = z.object({
-  service_type: z.enum(['apartment', 'office', 'scs', 'emergency', 'access_control', 'node_construction', 'trunk_construction']),
+  service_type: z.enum(['apartment', 'office', 'scs', 'emergency', 'access_control', 'node_construction', 'trunk_construction', 'video_surveillance']),
   city: z.string().min(1, 'Укажите город'),
   street_and_house: z.string().min(3, 'Укажите улицу и номер дома'),
   address_details: z.string().optional(),
@@ -243,6 +243,7 @@ export default function EditApplicationPage() {
                 </optgroup>
                 <optgroup label="Прочее">
                   <option value="access_control">СКУД</option>
+                  <option value="video_surveillance">Видеонаблюдение</option>
                   <option value="emergency">Аварийная заявка</option>
                 </optgroup>
               </select>

@@ -13,33 +13,12 @@ interface NodeSearchResult {
   updated_at?: string
 }
 
-type AddressSource = 'local' | 'external_yandex' | 'external_osm'
+type AddressSource = 'local' | 'external_osm'
 
 interface SearchResult extends NodeSearchResult {
   similarity: number
   full_address: string
   source: AddressSource // Источник: локальная БД или внешний API
-}
-
-interface YandexSuggestResult {
-  title: {
-    text: string
-  }
-  subtitle?: {
-    text: string
-  }
-  address?: {
-    formatted_address: string
-    component: Array<{
-      name: string
-      kind: string[]
-    }>
-  }
-  uri?: string
-}
-
-interface YandexSuggestResponse {
-  results: YandexSuggestResult[]
 }
 
 interface OpenStreetSearchResult {
@@ -52,87 +31,6 @@ interface OpenStreetSearchResult {
     house_number?: string
     city?: string
     town?: string
-  }
-}
-
-async function searchYandexAPI(query: string): Promise<SearchResult[]> {
-  /**
-   * Поиск адресов через Яндекс Геосаджест API
-   * Используется когда в локальной БД мало результатов или нет точного совпадения
-   */
-  const results: SearchResult[] = []
-  const apiKey = process.env.YANDEX_GEOSUGGEST_API_KEY
-
-  if (!apiKey) {
-    console.error('YANDEX_GEOSUGGEST_API_KEY not configured')
-    return results
-  }
-
-  try {
-    // Добавляем "Томск" к запросу для поиска в нужном городе
-    const searchQuery = query.includes('Томск') ? query : `Томск ${query}`
-
-    // Координаты Томска для фокусировки поиска
-    const tomskCoords = '84.97,56.5'
-
-    const url = new URL('https://suggest-maps.yandex.ru/v1/suggest')
-    url.searchParams.set('apikey', apiKey)
-    url.searchParams.set('text', searchQuery)
-    url.searchParams.set('print_address', '1')
-    url.searchParams.set('types', 'house')
-    url.searchParams.set('ll', tomskCoords)
-    url.searchParams.set('results', '10')
-
-    // Таймаут 5 секунд для внешнего API
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-    let response: Response
-    try {
-      response = await fetch(url.toString(), {
-        signal: controller.signal,
-        next: { revalidate: 3600 } // Кешируем на 1 час
-      })
-    } finally {
-      clearTimeout(timeoutId)
-    }
-
-    if (!response.ok) {
-      console.error('Yandex Geosuggest API error:', response.status, await response.text())
-      return results
-    }
-
-    const data = await response.json() as YandexSuggestResponse
-
-    for (const item of data.results || []) {
-      if (!item.address) continue
-
-      // Извлекаем улицу и номер дома из компонентов адреса
-      const components = item.address.component || []
-      const streetComponent = components.find(c => c.kind.includes('street'))
-      const houseComponent = components.find(c => c.kind.includes('house'))
-
-      if (!streetComponent || !houseComponent) continue
-
-      const street = streetComponent.name
-      const house = houseComponent.name
-
-      results.push({
-        id: `external_yandex_${street}_${house}`, // Временный ID для внешних адресов
-        street: street,
-        house: house,
-        comment: null,
-        similarity: 0.7, // Средняя похожесть для внешних результатов
-        full_address: item.address.formatted_address || `${street}, ${house}`,
-        source: 'external_yandex'
-      })
-    }
-
-    console.log(`Yandex API returned ${results.length} results for query: ${searchQuery}`)
-    return results.slice(0, 10) // Ограничиваем 10 результатами
-  } catch (error) {
-    console.error('Error fetching from Yandex Geosuggest API:', error)
-    return results
   }
 }
 
@@ -367,13 +265,8 @@ export async function GET(request: Request) {
 
     localResults = addressesWithNodes
 
-    const _normalize = (value: string) => value.trim().toLowerCase().replace(/,+/g, ' ').replace(/\s+/g, ' ')
-
-    // Шаг 2: Умная логика - запрашиваем внешние API если:
-    // 1. Найдено мало локальных результатов (< 3)
-    // 2. ИЛИ нет точного совпадения с запросом
+    // Шаг 2: Запрашиваем внешний API если мало локальных результатов
     let externalResults: SearchResult[] = []
-    let _openStreetResults: SearchResult[] = []
     const MIN_LOCAL_RESULTS = 3
 
     // Проверяем есть ли точное совпадение среди локальных результатов
@@ -394,20 +287,12 @@ export async function GET(request: Request) {
       const reason = localResults.length < MIN_LOCAL_RESULTS
         ? `only ${localResults.length} local results`
         : 'no exact match found'
-      console.log(`Fetching from external geocoders (${reason})...`)
-      const trimmedQuery = query.trim()
-      const [yandexResults, osmResults] = await Promise.all([
-        searchYandexAPI(trimmedQuery),
-        searchOpenStreetMap(trimmedQuery)
-      ])
-
-      externalResults = yandexResults
-      _openStreetResults = osmResults
+      console.log(`Fetching from OpenStreetMap (${reason})...`)
+      externalResults = await searchOpenStreetMap(query.trim())
     }
 
     // Объединяем результаты: сначала локальные, потом внешние
     const allResults = [...localResults, ...externalResults]
-    const yandexCount = externalResults.filter(result => result.source === 'external_yandex').length
     const osmCount = externalResults.filter(result => result.source === 'external_osm').length
 
     return NextResponse.json({
@@ -416,7 +301,6 @@ export async function GET(request: Request) {
         local: localResults.length,
         external: externalResults.length,
         total: allResults.length,
-        yandex: yandexCount,
         openstreet: osmCount
       },
       fallback: triggeredExternalSearch,
