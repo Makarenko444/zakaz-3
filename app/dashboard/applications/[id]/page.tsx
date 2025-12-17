@@ -52,31 +52,6 @@ interface ApplicationWithAddress extends Application {
   } | null
 }
 
-// Тип для статуса из БД
-interface StatusFromDB {
-  id: string
-  code: string
-  name_ru: string
-  description_ru: string | null
-  sort_order: number
-  is_active: boolean
-}
-
-const statusColors: Record<ApplicationStatus, string> = {
-  new: 'bg-gray-100 text-gray-800',
-  thinking: 'bg-blue-100 text-blue-800',
-  estimation: 'bg-indigo-100 text-indigo-800',
-  estimation_done: 'bg-sky-100 text-sky-800',
-  contract: 'bg-cyan-100 text-cyan-800',
-  design: 'bg-teal-100 text-teal-800',
-  approval: 'bg-emerald-100 text-emerald-800',
-  queue_install: 'bg-purple-100 text-purple-800',
-  install: 'bg-violet-100 text-violet-800',
-  installed: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  no_tech: 'bg-orange-100 text-orange-800',
-}
-
 const urgencyColors: Record<Urgency, string> = {
   low: 'text-gray-600',
   normal: 'text-blue-600',
@@ -129,9 +104,6 @@ export default function ApplicationDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Статусы из БД
-  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({})
-
   const loadApplication = useCallback(async () => {
     setIsLoading(true)
     try {
@@ -157,7 +129,6 @@ export default function ApplicationDetailPage() {
   }, [id])
 
   useEffect(() => {
-    loadStatuses()
     loadApplication()
     loadUsers()
     loadCurrentUser()
@@ -169,38 +140,6 @@ export default function ApplicationDetailPage() {
       setShowAddressWizard(true)
     }
   }, [application])
-
-  async function loadStatuses() {
-    try {
-      const response = await fetch('/api/statuses')
-      if (!response.ok) {
-        throw new Error('Failed to load statuses')
-      }
-      const data = await response.json()
-      const labels: Record<string, string> = {}
-      data.statuses.forEach((status: StatusFromDB) => {
-        labels[status.code] = status.name_ru
-      })
-      setStatusLabels(labels)
-    } catch (error) {
-      console.error('Error loading statuses:', error)
-      // Используем fallback значения при ошибке
-      setStatusLabels({
-        new: 'Новая',
-        thinking: 'Думает',
-        estimation: 'Расчёт',
-        estimation_done: 'Расчёт выполнен',
-        contract: 'Договор и оплата',
-        design: 'Проектирование',
-        approval: 'Согласование',
-        queue_install: 'Очередь на монтаж',
-        install: 'Монтаж',
-        installed: 'Выполнено',
-        rejected: 'Отказ',
-        no_tech: 'Нет тех. возможности',
-      })
-    }
-  }
 
   async function loadUsers() {
     try {
