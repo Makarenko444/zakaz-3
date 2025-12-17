@@ -59,11 +59,31 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Получаем суммы остатков по всем складам для каждого материала
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: stocksData } = await (supabase.from as any)('zakaz_warehouse_stocks')
+      .select('material_id, quantity')
+
+    // Группируем остатки по material_id и суммируем
+    const stocksByMaterial = new Map<string, number>()
+    if (stocksData) {
+      for (const stock of stocksData) {
+        const current = stocksByMaterial.get(stock.material_id) || 0
+        stocksByMaterial.set(stock.material_id, current + (stock.quantity || 0))
+      }
+    }
+
+    // Добавляем stock_quantity к каждому материалу
+    const materialsWithStock = (data || []).map(m => ({
+      ...m,
+      stock_quantity: stocksByMaterial.get(m.id) || 0,
+    }))
+
     // Получаем уникальные категории
     const categories = [...new Set(data?.map(m => m.category).filter(Boolean) || [])]
 
     return NextResponse.json({
-      materials: data || [],
+      materials: materialsWithStock,
       categories,
     })
   } catch (error) {
