@@ -118,6 +118,15 @@ export default function MaterialsPage() {
   const [isImportingStock, setIsImportingStock] = useState(false)
   const [stockImportResult, setStockImportResult] = useState<ImportResult | null>(null)
 
+  // Проверка конфликтов при импорте
+  const [isCheckingConflicts, setIsCheckingConflicts] = useState(false)
+  const [stockConflicts, setStockConflicts] = useState<Array<{
+    code: string
+    existingName: string
+    newName: string
+  }> | null>(null)
+  const [updateNamesOnImport, setUpdateNamesOnImport] = useState(true)
+
   const fetchCurrentUser = useCallback(async () => {
     const user = await getCurrentUser()
     setCurrentUser(user)
@@ -262,6 +271,8 @@ export default function MaterialsPage() {
 
     setStockFile(file)
     setStockImportResult(null)
+    setStockConflicts(null)
+    setUpdateNamesOnImport(true)
 
     try {
       const formData = new FormData()
@@ -288,6 +299,38 @@ export default function MaterialsPage() {
     if (event.target) event.target.value = ''
   }
 
+  // Проверка конфликтов названий
+  const handleCheckConflicts = async () => {
+    if (!stockFile || !selectedWarehouse || !stockColumnMapping.code || !stockColumnMapping.name) return
+
+    setIsCheckingConflicts(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', stockFile)
+      formData.append('columnMapping', JSON.stringify(stockColumnMapping))
+
+      const response = await fetch(`/api/warehouses/${selectedWarehouse.id}/stock/check-conflicts`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error)
+
+      setStockConflicts(result.conflicts || [])
+      // Если есть конфликты, по умолчанию НЕ обновляем названия
+      if (result.conflicts && result.conflicts.length > 0) {
+        setUpdateNamesOnImport(false)
+      }
+    } catch (error) {
+      console.error('Error checking conflicts:', error)
+      setImportError(String(error))
+    } finally {
+      setIsCheckingConflicts(false)
+    }
+  }
+
   const handleImportStock = async () => {
     if (!stockFile || !selectedWarehouse || !stockColumnMapping.code || !stockColumnMapping.quantity) return
 
@@ -298,6 +341,7 @@ export default function MaterialsPage() {
       const formData = new FormData()
       formData.append('file', stockFile)
       formData.append('columnMapping', JSON.stringify(stockColumnMapping))
+      formData.append('options', JSON.stringify({ updateNames: updateNamesOnImport }))
 
       const response = await fetch(`/api/warehouses/${selectedWarehouse.id}/stock/import`, {
         method: 'POST',
@@ -1463,21 +1507,116 @@ export default function MaterialsPage() {
               </table>
             </div>
 
+            {/* Секция конфликтов */}
+            {stockConflicts !== null && (
+              <div className="px-6 py-4 border-t border-gray-200">
+                {stockConflicts.length > 0 ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-800">
+                          Найдено {stockConflicts.length} материалов с изменёнными названиями:
+                        </p>
+                        <div className="mt-2 max-h-32 overflow-y-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-amber-700">
+                                <th className="text-left py-1">Код</th>
+                                <th className="text-left py-1">В базе</th>
+                                <th className="text-left py-1">В файле</th>
+                              </tr>
+                            </thead>
+                            <tbody className="text-amber-900">
+                              {stockConflicts.slice(0, 10).map((c, i) => (
+                                <tr key={i} className="border-t border-amber-200">
+                                  <td className="py-1 font-mono">{c.code}</td>
+                                  <td className="py-1">{c.existingName}</td>
+                                  <td className="py-1">{c.newName}</td>
+                                </tr>
+                              ))}
+                              {stockConflicts.length > 10 && (
+                                <tr className="border-t border-amber-200">
+                                  <td colSpan={3} className="py-1 text-amber-600">...и ещё {stockConflicts.length - 10}</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="mt-3 flex items-center gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              checked={!updateNamesOnImport}
+                              onChange={() => setUpdateNamesOnImport(false)}
+                              className="w-4 h-4 text-indigo-600"
+                            />
+                            <span className="text-sm text-amber-800">Оставить названия как в базе</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              checked={updateNamesOnImport}
+                              onChange={() => setUpdateNamesOnImport(true)}
+                              className="w-4 h-4 text-indigo-600"
+                            />
+                            <span className="text-sm text-amber-800">Обновить названия из файла</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-green-800">Конфликтов названий не обнаружено</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Кнопки */}
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => { setShowStockPreviewModal(false); setStockFile(null) }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleImportStock}
-                disabled={!stockColumnMapping.code || !stockColumnMapping.name || !stockColumnMapping.quantity || isImportingStock}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {isImportingStock ? 'Импортирую...' : `Импортировать ${stockPreviewData.totalRows} строк`}
-              </button>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+              <div>
+                {stockConflicts === null && stockColumnMapping.code && stockColumnMapping.name && (
+                  <button
+                    onClick={handleCheckConflicts}
+                    disabled={isCheckingConflicts}
+                    className="px-4 py-2 border border-amber-300 text-amber-700 rounded-md hover:bg-amber-50 disabled:opacity-50"
+                  >
+                    {isCheckingConflicts ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 inline" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Проверяю...
+                      </>
+                    ) : (
+                      'Проверить конфликты'
+                    )}
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowStockPreviewModal(false); setStockFile(null); setStockConflicts(null) }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleImportStock}
+                  disabled={!stockColumnMapping.code || !stockColumnMapping.name || !stockColumnMapping.quantity || isImportingStock}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isImportingStock ? 'Импортирую...' : `Импортировать ${stockPreviewData.totalRows} строк`}
+                </button>
+              </div>
             </div>
           </div>
         </div>

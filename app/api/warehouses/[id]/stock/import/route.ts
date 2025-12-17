@@ -13,6 +13,10 @@ interface ColumnMapping {
   quantity: string  // Количество/остаток - обязательный
 }
 
+interface ImportOptions {
+  updateNames: boolean  // Обновлять названия существующих материалов
+}
+
 interface ExcelRow {
   [key: string]: string | number | undefined
 }
@@ -78,6 +82,7 @@ export async function POST(
     const formData = await request.formData()
     const file = formData.get('file') as File
     const columnMappingStr = formData.get('columnMapping') as string | null
+    const optionsStr = formData.get('options') as string | null
     const noHeadersStr = formData.get('noHeaders') as string | null
     const noHeaders = noHeadersStr === 'true'
 
@@ -95,6 +100,16 @@ export async function POST(
         columnMapping = JSON.parse(columnMappingStr)
       } catch (e) {
         console.error('[Stock Import] Failed to parse columnMapping:', e)
+      }
+    }
+
+    // Парсим опции импорта
+    let options: ImportOptions = { updateNames: true }
+    if (optionsStr) {
+      try {
+        options = JSON.parse(optionsStr)
+      } catch (e) {
+        console.error('[Stock Import] Failed to parse options:', e)
       }
     }
 
@@ -213,35 +228,59 @@ export async function POST(
     }
     const uniqueMaterials = Array.from(uniqueMaterialsMap.values())
 
-    // Upsert материалов в справочник
+    // Разделяем на новые и существующие материалы
+    const newMaterials = uniqueMaterials.filter(m => !materialsByCode.has(m.code))
+    const existingMaterialsToUpdate = uniqueMaterials.filter(m => materialsByCode.has(m.code))
+
     let insertedMaterials = 0
     let updatedMaterials = 0
     const batchSize = 100
 
-    for (let i = 0; i < uniqueMaterials.length; i += batchSize) {
-      const batch = uniqueMaterials.slice(i, i + batchSize)
+    // Вставляем новые материалы (со всеми полями)
+    for (let i = 0; i < newMaterials.length; i += batchSize) {
+      const batch = newMaterials.slice(i, i + batchSize)
 
-      const { data: upsertedData, error: upsertError } = await (supabase.from as any)('zakaz_materials')
-        .upsert(batch, {
-          onConflict: 'code',
-          ignoreDuplicates: false,
-        })
+      const { data: insertedData, error: insertError } = await (supabase.from as any)('zakaz_materials')
+        .insert(batch)
         .select('id, code')
 
-      if (upsertError) {
-        console.error('[Stock Import] Material upsert error:', upsertError)
-        errors.push({ row: 0, error: `Ошибка сохранения материалов: ${upsertError.message}` })
-      } else if (upsertedData) {
-        // Обновляем карту материалов
-        for (const mat of upsertedData) {
-          const existed = materialsByCode.has(mat.code)
-          if (existed) {
-            updatedMaterials++
-          } else {
-            insertedMaterials++
-          }
+      if (insertError) {
+        console.error('[Stock Import] Material insert error:', insertError)
+        errors.push({ row: 0, error: `Ошибка добавления материалов: ${insertError.message}` })
+      } else if (insertedData) {
+        for (const mat of insertedData) {
           materialsByCode.set(mat.code, { id: mat.id, name: '' })
+          insertedMaterials++
         }
+      }
+    }
+
+    // Обновляем существующие материалы
+    for (const mat of existingMaterialsToUpdate) {
+      const existing = materialsByCode.get(mat.code)
+      if (!existing) continue
+
+      // Формируем данные для обновления
+      const updateData: Record<string, unknown> = {
+        unit: mat.unit,
+        price: mat.price,
+        last_import_at: mat.last_import_at,
+      }
+
+      // Обновляем название только если опция включена
+      if (options.updateNames) {
+        updateData.name = mat.name
+      }
+
+      const { error: updateError } = await (supabase.from as any)('zakaz_materials')
+        .update(updateData)
+        .eq('id', existing.id)
+
+      if (updateError) {
+        console.error('[Stock Import] Material update error:', updateError)
+        errors.push({ row: 0, error: `Ошибка обновления материала ${mat.code}: ${updateError.message}` })
+      } else {
+        updatedMaterials++
       }
     }
 
