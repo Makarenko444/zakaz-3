@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-type AddressSource = 'local' | 'external_yandex' | 'external_osm'
+type AddressSource = 'local' | 'external_osm'
 
 type SearchStats = {
   local: number
   external: number
   total: number
-  yandex: number
   openstreet: number
 }
 
@@ -117,7 +116,6 @@ export default function AddressLinkWizard({
       if (data.stats) {
         _setSearchStats({
           ...data.stats,
-          yandex: data.stats.yandex ?? 0,
           openstreet: data.stats.openstreet ?? 0
         })
       } else {

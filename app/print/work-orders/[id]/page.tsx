@@ -51,6 +51,10 @@ const serviceTypeLabels: Record<string, string> = {
   office: 'Офис',
   scs: 'СКС',
   emergency: 'Аварийный вызов',
+  access_control: 'СКУД',
+  node_construction: 'Строительство узла',
+  trunk_construction: 'Строительство магистрали',
+  video_surveillance: 'Видеонаблюдение',
 }
 
 // Стили для печатной формы (без Tailwind, только inline)

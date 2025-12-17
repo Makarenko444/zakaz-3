@@ -9,7 +9,7 @@ import { getCurrentUser } from '@/lib/auth-client'
 
 // Схема валидации
 const applicationSchema = z.object({
-  service_type: z.enum(['apartment', 'office', 'scs', 'emergency', 'access_control', 'node_construction', 'trunk_construction']),
+  service_type: z.enum(['apartment', 'office', 'scs', 'emergency', 'access_control', 'node_construction', 'trunk_construction', 'video_surveillance']),
   city: z.string().min(1, 'Укажите город'),
   street_and_house: z.string().min(3, 'Укажите улицу и номер дома'),
   address_details: z.string().optional(),
@@ -29,7 +29,7 @@ interface AddressSuggestion {
   street: string
   house: string
   full_address: string
-  source: 'local' | 'external_yandex' | 'external_osm'
+  source: 'local' | 'external_osm'
 }
 
 // Компонент блока формы - компактный
@@ -79,19 +79,17 @@ export default function NewApplicationPage() {
   const serviceType = watch('service_type')
   const streetAndHouse = watch('street_and_house')
 
-  // Автопереключение на "Юр. лицо" при выборе офиса
+  // Ref для отслеживания предыдущего типа работ (чтобы автопереключение срабатывало только при смене)
+  const prevServiceTypeRef = useRef(serviceType)
+
+  // Автопереключение на "Юр. лицо" при выборе офиса (только при смене типа работ)
   useEffect(() => {
-    if (serviceType === 'office' && customerType === 'individual') {
+    // Срабатывает только когда тип работ меняется на office
+    if (serviceType === 'office' && prevServiceTypeRef.current !== 'office') {
       setValue('customer_type', 'business')
     }
-  }, [serviceType, customerType, setValue])
-
-  // Автопереключение на "офис" при выборе юр.лица (только если квартира)
-  useEffect(() => {
-    if (customerType === 'business' && serviceType === 'apartment') {
-      setValue('service_type', 'office')
-    }
-  }, [customerType, serviceType, setValue])
+    prevServiceTypeRef.current = serviceType
+  }, [serviceType, setValue])
 
   // Поиск адресов для автоподсказок
   const searchAddresses = useCallback(async (query: string) => {
@@ -259,6 +257,7 @@ export default function NewApplicationPage() {
                   </optgroup>
                   <optgroup label="Прочее">
                     <option value="access_control">СКУД</option>
+                    <option value="video_surveillance">Видеонаблюдение</option>
                     <option value="emergency">Аварийная заявка</option>
                   </optgroup>
                 </select>

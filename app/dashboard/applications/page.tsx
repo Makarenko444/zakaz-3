@@ -72,6 +72,7 @@ const serviceTypeLabels: Record<ServiceType, string> = {
   access_control: 'СКУД',
   node_construction: 'Узел',
   trunk_construction: 'Магистраль',
+  video_surveillance: 'Видео',
 }
 
 const DEFAULT_ITEMS_PER_PAGE = 20

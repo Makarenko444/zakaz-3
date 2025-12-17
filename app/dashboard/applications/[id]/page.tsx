@@ -79,6 +79,7 @@ const serviceTypeLabels: Record<ServiceType, string> = {
   access_control: 'СКУД',
   node_construction: 'Строительство Узла',
   trunk_construction: 'Строительство магистрали',
+  video_surveillance: 'Видеонаблюдение',
 }
 
 export default function ApplicationDetailPage() {
